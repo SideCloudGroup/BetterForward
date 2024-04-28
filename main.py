@@ -94,6 +94,9 @@ class TGBot:
                 self.bot.reply_to(message, _("Failed to terminate the thread"))
 
     def handle_messages(self, message: Message):
+        # Not responding in General topic
+        if message.message_thread_id == 1:
+            return
         with sqlite3.connect(self.db_path) as db:
             curser = db.cursor()
             if message.chat.id != self.group_id:
@@ -138,7 +141,7 @@ class TGBot:
                         case "document":
                             self.bot.send_document(chat_id=user_id[0], document=message.document.file_id)
                 else:
-                    logger.error(_("User ID not found"))
+                    self.bot.send_message(self.group_id, _("Chat not found, please remove this topic manually"), message_thread_id=message.message_thread_id)
 
     def check_permission(self):
         chat_member = self.bot.get_chat_member(self.group_id, self.bot.get_me().id)
@@ -151,4 +154,7 @@ class TGBot:
 
 
 if __name__ == "__main__":
+    if not args.token or not args.group_id:
+        logger.error(_("Token or group ID is empty"))
+        exit(1)
     bot = TGBot(args.token, args.group_id)

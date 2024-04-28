@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-04-28 21:56+0100\n"
-"PO-Revision-Date: 2024-04-28 21:56+0100\n"
+"POT-Creation-Date: 2024-04-28 22:45+0100\n"
+"PO-Revision-Date: 2024-04-28 22:45+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -17,34 +17,38 @@ msgstr ""
 msgid "Starting BetterForward..."
 msgstr "正在启动BetterForward……"
 
-#: main.py:47
+#: main.py:48
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: main.py:67
+#: main.py:68
 msgid "Terminating thread"
 msgstr "删除会话"
 
-#: main.py:86
+#: main.py:87
 msgid "Cannot terminate main thread"
 msgstr "无法删除默认会话"
 
-#: main.py:91
+#: main.py:92
 msgid "Thread terminated"
 msgstr "会话已被删除"
 
-#: main.py:93
+#: main.py:94
 msgid "Failed to terminate the thread"
 msgstr "无法删除该会话"
 
-#: main.py:140
-msgid "User ID not found"
-msgstr "用户ID未找到"
+#: main.py:144
+msgid "Chat not found, please remove this topic manually"
+msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:145
+#: main.py:149
 msgid "I don't have permission to manage threads"
 msgstr "我没有权限管理话题"
 
-#: main.py:148
+#: main.py:152
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
+
+#: main.py:158
+msgid "Token or group ID is empty"
+msgstr "Token或群组ID为空"

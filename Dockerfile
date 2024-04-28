@@ -2,6 +2,8 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 ADD main.py /app
+ADD locale /app/locale
+RUN find /app/locale -name "*.po" -type f -delete
 ADD requirements.txt /app
 
 RUN mkdir /app/data
@@ -12,4 +14,4 @@ ENV TOKEN=""
 ENV GROUP_ID=""
 ENV LANGUAGE="en_US"
 
-CMD python -u /app/main.py -token "$TOKEN" -group_id "$GROUP_ID" -language "$LANG"
+CMD python -u /app/main.py -token "$TOKEN" -group_id "$GROUP_ID" -language "$LANGUAGE"
