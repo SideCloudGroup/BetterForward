@@ -10,6 +10,6 @@ RUN rm requirements.txt
 
 ENV TOKEN=""
 ENV GROUP_ID=""
-ENV LANG="en_US"
+ENV LANGUAGE="en_US"
 
-CMD python -u /app/main.py -token "$TOKEN" -group_id "$GROUP_ID" -lang "$LANG"
+CMD python -u /app/main.py -token "$TOKEN" -group_id "$GROUP_ID" -language "$LANG"

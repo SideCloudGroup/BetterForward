@@ -19,7 +19,7 @@
 ### Docker (推荐)
 ```bash
 docker run -d --name betterforward \
-    -e BOT_TOKEN=<your_bot_token> \
+    -e TOKEN=<your_bot_token> \
     -e GROUP_ID=<your_group_id> \
     -e LANGUAGE=zh_CN \
     -v /path/to/data:/app/data \

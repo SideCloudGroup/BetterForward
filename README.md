@@ -21,7 +21,7 @@ Any messages sent to the bot will be forwarded to the corresponding topic in the
 ### Docker (Recommended)
 ```bash
 docker run -d --name betterforward \
-    -e BOT_TOKEN=<your_bot_token> \
+    -e TOKEN=<your_bot_token> \
     -e GROUP_ID=<your_group_id> \
     -e LANGUAGE=en \
     -v /path/to/data:/app/data \
