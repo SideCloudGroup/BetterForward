@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-04-28 22:45+0100\n"
-"PO-Revision-Date: 2024-04-28 22:45+0100\n"
+"POT-Creation-Date: 2024-04-29 16:45+0100\n"
+"PO-Revision-Date: 2024-04-29 16:45+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -21,34 +21,58 @@ msgstr "正在启动BetterForward……"
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: main.py:68
+#: main.py:65
+msgid "No auto response found"
+msgstr "您还未设置自动回复"
+
+#: main.py:83
+msgid "Auto response set"
+msgstr "自动回复设置成功"
+
+#: main.py:92
+msgid "Auto response deleted"
+msgstr "已删除自动回复"
+
+#: main.py:94
+msgid "Invalid operation"
+msgstr "无效的操作"
+
+#: main.py:119
 msgid "Terminating thread"
 msgstr "删除会话"
 
-#: main.py:87
+#: main.py:138
 msgid "Cannot terminate main thread"
 msgstr "无法删除默认会话"
 
-#: main.py:92
+#: main.py:143
 msgid "Thread terminated"
 msgstr "会话已被删除"
 
-#: main.py:94
+#: main.py:145
 msgid "Failed to terminate the thread"
 msgstr "无法删除该会话"
 
-#: main.py:144
+#: main.py:183
+msgid "[Auto Response]"
+msgstr "[自动回复]"
+
+#: main.py:205
+msgid "Unsupported message type"
+msgstr "不支持的消息种类"
+
+#: main.py:207
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:149
+#: main.py:213
 msgid "I don't have permission to manage threads"
 msgstr "我没有权限管理话题"
 
-#: main.py:152
+#: main.py:216
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:158
+#: main.py:222
 msgid "Token or group ID is empty"
 msgstr "Token或群组ID为空"
