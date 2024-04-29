@@ -7,6 +7,7 @@
 - 灵活性：每个用户对应一个独立的主题，对话体验几乎与私聊相同。
 - 团队协作：多个管理员可以同时处理用户的消息。
 - 多语言：支持多种语言，包括英语和中文。
+- 自动回复：自动回复用户的消息，回复内容可预设。
 
 ## 使用方法
 1. 从 [@BotFather](https://t.me/BotFather) 创建一个机器人并获取 token。
@@ -29,6 +30,7 @@ docker run -d --name betterforward \
 
 ## 管理员命令
 - `/terminate [User ID]`: 删除与用户的对话主题。如果在话题中发送该命令，则将终止与当前用户的对话，且无需提供 User ID。用户不会收到提示。
+- `/auto_response <set/delete/list> [key] [value]`: 设置、删除或列出自动回复消息。key 为触发消息，value 为回复消息。
 
 ## 交流社区
 - Telegram频道 [@betterforward](https://t.me/betterforward)

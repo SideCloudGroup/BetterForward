@@ -9,6 +9,7 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
 - Flexibility: Each user corresponds to an independent topic, and the experience is almost the same as private chat.
 - Teamwork: Multiple admins can handle users' messages.
 - Multi-language: Supports multiple languages, including English and Chinese.
+- Auto Response: Automatically reply to users' messages with predefined messages.
 
 ## Usage
 1. Create a bot from [@BotFather](https://t.me/BotFather) and get the token.
@@ -31,6 +32,7 @@ docker run -d --name betterforward \
 
 ## Admin Commands
 - `/terminate [User ID]`: Terminates the conversation with the user. If the command is sent in the topic, the conversation with the current user in the topic will be terminated, and there is no need to provide User ID. The user will not receive any prompts.
+- `/auto_response <set/delete/list> [key] [value]`: Set, delete, or list auto response messages. The key is the trigger message, and the value is the response message.
 
 ## Community
 - Telegram Channel [@betterforward](https://t.me/betterforward)
