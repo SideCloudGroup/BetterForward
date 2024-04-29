@@ -95,7 +95,7 @@ class TGBot:
 
     def handle_messages(self, message: Message):
         # Not responding in General topic
-        if message.message_thread_id == 1:
+        if message.message_thread_id is None and message.chat.id == self.group_id:
             return
         with sqlite3.connect(self.db_path) as db:
             curser = db.cursor()
@@ -131,17 +131,23 @@ class TGBot:
                 if user_id is not None:
                     match message.content_type:
                         case "photo":
-                            self.bot.send_photo(chat_id=user_id[0], photo=message.photo[-1].file_id)
+                            self.bot.send_photo(chat_id=user_id[0], photo=message.photo[-1].file_id,
+                                                caption=message.caption)
                         case "text":
                             self.bot.send_message(chat_id=user_id[0], text=message.text)
                         case "sticker":
                             self.bot.send_sticker(chat_id=user_id[0], sticker=message.sticker.file_id)
                         case "video":
-                            self.bot.send_video(chat_id=user_id[0], video=message.video.file_id)
+                            self.bot.send_video(chat_id=user_id[0], video=message.video.file_id,
+                                                caption=message.caption)
                         case "document":
-                            self.bot.send_document(chat_id=user_id[0], document=message.document.file_id)
+                            self.bot.send_document(chat_id=user_id[0], document=message.document.file_id,
+                                                   caption=message.caption)
+                        case _:
+                            logger.error(_("Unsupported message type") + message.content_type)
                 else:
-                    self.bot.send_message(self.group_id, _("Chat not found, please remove this topic manually"), message_thread_id=message.message_thread_id)
+                    self.bot.send_message(self.group_id, _("Chat not found, please remove this topic manually"),
+                                          message_thread_id=message.message_thread_id)
 
     def check_permission(self):
         chat_member = self.bot.get_chat_member(self.group_id, self.bot.get_me().id)
