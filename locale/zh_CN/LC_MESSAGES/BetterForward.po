@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-04-29 16:45+0100\n"
-"PO-Revision-Date: 2024-04-29 16:45+0100\n"
+"POT-Creation-Date: 2024-04-30 10:49+0100\n"
+"PO-Revision-Date: 2024-04-30 10:50+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -53,26 +53,41 @@ msgstr "会话已被删除"
 msgid "Failed to terminate the thread"
 msgstr "无法删除该会话"
 
-#: main.py:183
+#: main.py:154
+msgid "Received message from {}, content: {}"
+msgstr "收到来自{}的消息，内容：{}"
+
+#: main.py:161
+msgid "Creating a new thread for user {}"
+msgstr "与用户{}新建话题"
+
+#: main.py:171
+msgid "Not set"
+msgstr "未设置"
+
+#: main.py:186
 msgid "[Auto Response]"
 msgstr "[自动回复]"
 
-#: main.py:205
+#: main.py:208
 msgid "Unsupported message type"
 msgstr "不支持的消息种类"
 
-#: main.py:207
+#: main.py:210
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:213
-msgid "I don't have permission to manage threads"
-msgstr "我没有权限管理话题"
+#: main.py:221 main.py:222
+msgid "Bot doesn't have {} permission"
+msgstr "Bot缺少{}权限"
 
-#: main.py:216
+#: main.py:224
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:222
+#: main.py:229
 msgid "Token or group ID is empty"
 msgstr "Token或群组ID为空"
+
+#~ msgid "I don't have permission to delete messages"
+#~ msgstr "我没有权限删除消息"

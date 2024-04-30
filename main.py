@@ -5,7 +5,7 @@ import os
 import sqlite3
 
 import telebot
-from telebot.apihelper import create_forum_topic, delete_forum_topic
+from telebot.apihelper import create_forum_topic, delete_forum_topic, close_forum_topic
 from telebot.types import Message
 
 parser = argparse.ArgumentParser(description="")
@@ -142,6 +142,7 @@ class TGBot:
                 if message.message_thread_id is None:
                     self.bot.reply_to(message, _("Thread terminated"))
             except Exception:
+                logger.error(_("Failed to terminate the thread") + str(thread_id))
                 self.bot.reply_to(message, _("Failed to terminate the thread"))
 
     def handle_messages(self, message: Message):
@@ -151,12 +152,14 @@ class TGBot:
         with sqlite3.connect(self.db_path) as db:
             curser = db.cursor()
             if message.chat.id != self.group_id:
+                logger.info(_("Received message from {}, content: {}").format(message.from_user.id, message.text))
                 # Forward message to group
                 userid = message.from_user.id
                 result = curser.execute("SELECT thread_id FROM topics WHERE user_id = ?", (userid,))
                 thread_id = result.fetchone()
                 if thread_id is None:
                     # Create a new thread
+                    logger.info(_("Creating a new thread for user {}").format(userid))
                     try:
                         topic = create_forum_topic(chat_id=self.group_id, name=message.from_user.first_name,
                                                    token=self.bot.token)
@@ -166,12 +169,13 @@ class TGBot:
                     curser.execute("INSERT INTO topics (user_id, thread_id) VALUES (?, ?)",
                                    (userid, topic["message_thread_id"]))
                     thread_id = topic["message_thread_id"]
+                    username = _("Not set") if message.from_user.username is None else f"@{message.from_user.username}"
+                    last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
                     pin_message = self.bot.send_message(self.group_id,
                                                         f"User ID: {userid}\n"
-                                                        f"Full Name: {message.from_user.first_name} {message.from_user.last_name}\n"
-                                                        f"Username: @{message.from_user.username}\n",
-                                                        message_thread_id=thread_id,
-                                                        parse_mode="Markdown")
+                                                        f"Full Name: {message.from_user.first_name}{last_name}\n"
+                                                        f"Username: {username}\n",
+                                                        message_thread_id=thread_id)
                     self.bot.pin_chat_message(self.group_id, pin_message.message_id)
                 self.bot.forward_message(self.group_id, message.chat.id, message_thread_id=thread_id,
                                          message_id=message.message_id)
@@ -206,15 +210,21 @@ class TGBot:
                 else:
                     self.bot.send_message(self.group_id, _("Chat not found, please remove this topic manually"),
                                           message_thread_id=message.message_thread_id)
+                    close_forum_topic(chat_id=self.group_id, message_thread_id=message.message_thread_id,
+                                      token=self.bot.token)
 
     def check_permission(self):
         chat_member = self.bot.get_chat_member(self.group_id, self.bot.get_me().id)
-        if chat_member.can_manage_topics is False:
-            self.bot.send_message(self.group_id, _("I don't have permission to manage threads"))
-            return False
-        else:
-            self.bot.send_message(self.group_id, _("Bot started successfully"))
-            return True
+        permissions = {
+            "can_manage_topics": chat_member.can_manage_topics,
+            "can_delete_messages": chat_member.can_delete_messages
+        }
+        for key, value in permissions.items():
+            if value is False:
+                logger.error(_("Bot doesn't have {} permission").format(key))
+                self.bot.send_message(self.group_id, _("Bot doesn't have {} permission").format(key))
+                exit(1)
+        self.bot.send_message(self.group_id, _("Bot started successfully"))
 
 
 if __name__ == "__main__":
