@@ -1,7 +1,6 @@
 import argparse
 import gettext
 import importlib
-import importlib
 import logging
 import os
 import sqlite3
