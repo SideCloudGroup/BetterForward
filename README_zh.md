@@ -29,8 +29,8 @@ docker run -d --name betterforward \
 ```
 
 ## 管理员命令
-- `/terminate [User ID]`: 删除与用户的对话主题。如果在话题中发送该命令，则将终止与当前用户的对话，且无需提供 User ID。用户不会收到提示。
-- `/auto_response <set/delete/list> [key] [value]`: 设置、删除或列出自动回复消息。key 为触发消息，value 为回复消息。
+- `/terminate [User ID]`: 删除与用户的对话主题。如果在话题中发送该命令，则将终止与当前用户的对话，且无需提供 `User ID`。用户不会收到提示。
+- `/auto_response <set/delete/list> [key] [value] [topic_action]`: 设置、删除或列出自动回复消息。key 为触发消息，value 为回复消息。<br>v1.0.2 版本以后，你必须给出 `topic_action` 的具体值。如果设为0，则当自动回复被触发时不创建新`topic`，反之则会。这可能会决定当用户`/start`时是否为您生成会话。
 
 ## 交流社区
 - Telegram频道 [@betterforward](https://t.me/betterforward)

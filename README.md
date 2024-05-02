@@ -32,7 +32,7 @@ docker run -d --name betterforward \
 
 ## Admin Commands
 - `/terminate [User ID]`: Terminates the conversation with the user. If the command is sent in the topic, the conversation with the current user in the topic will be terminated, and there is no need to provide User ID. The user will not receive any prompts.
-- `/auto_response <set/delete/list> [key] [value]`: Set, delete, or list auto response messages. The key is the trigger message, and the value is the response message.
+- `/auto_response <set/delete/list> [key] [value] [topic_action]`: Set, delete, or list auto response messages. The key is the trigger message, and the value is the response message. <br>After v1.0.2 update, you have to set `topic_action` which has value 0 or 1. Zero means you don't want bot to start a new thread topic when automatic response has been activated. It may determine whether a topic will be created when user type something like `/start`.
 
 ## Community
 - Telegram Channel [@betterforward](https://t.me/betterforward)
