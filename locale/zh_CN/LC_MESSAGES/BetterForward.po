@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-04-30 10:49+0100\n"
-"PO-Revision-Date: 2024-04-30 10:50+0100\n"
+"POT-Creation-Date: 2024-05-02 23:21+0100\n"
+"PO-Revision-Date: 2024-05-02 23:21+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -13,81 +13,126 @@ msgstr ""
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-SearchPath-0: main.py\n"
 
-#: main.py:38
+#: main.py:39
 msgid "Starting BetterForward..."
 msgstr "正在启动BetterForward……"
 
-#: main.py:48
+#: main.py:49
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: main.py:65
-msgid "No auto response found"
-msgstr "您还未设置自动回复"
+#: main.py:55
+msgid ""
+"Invalid command\n"
+"Correct usage:\n"
+"`/auto_response set <key> <value> <topic_action(0/1)>`\n"
+"`/auto_response delete <key>`\n"
+"`/auto_response list`"
+msgstr ""
+"指令格式不正确\n"
+"使用方法：\n"
+"`/auto_response set <key> <value> <topic_action(0/1)>`\n"
+"`/auto_response delete <key>`\n"
+"`/auto_response list`"
 
-#: main.py:83
+#: main.py:71
+msgid "Auto response list"
+msgstr "自动回复列表"
+
+#: main.py:74
+msgid ""
+"Trigger: {}\n"
+"Response: {}\n"
+"Forward message: {}\n"
+msgstr ""
+"关键词：{}\n"
+"回复：{}\n"
+"转发消息：{}\n"
+
+#: main.py:75
+msgid "Enable"
+msgstr "启用"
+
+#: main.py:76
+msgid "Disable"
+msgstr "禁用"
+
+#: main.py:95
 msgid "Auto response set"
 msgstr "自动回复设置成功"
 
-#: main.py:92
+#: main.py:102
 msgid "Auto response deleted"
 msgstr "已删除自动回复"
 
-#: main.py:94
+#: main.py:104
 msgid "Invalid operation"
 msgstr "无效的操作"
 
-#: main.py:119
+#: main.py:121
+msgid "Upgrading database to version {}"
+msgstr "升级到数据库版本{}"
+
+#: main.py:131
 msgid "Terminating thread"
 msgstr "删除会话"
 
-#: main.py:138
+#: main.py:151
 msgid "Cannot terminate main thread"
 msgstr "无法删除默认会话"
 
-#: main.py:143
+#: main.py:156
 msgid "Thread terminated"
 msgstr "会话已被删除"
 
-#: main.py:145
+#: main.py:158 main.py:159
 msgid "Failed to terminate the thread"
 msgstr "无法删除该会话"
 
-#: main.py:154
+#: main.py:169
 msgid "Received message from {}, content: {}"
 msgstr "收到来自{}的消息，内容：{}"
 
-#: main.py:161
+#: main.py:183
 msgid "Creating a new thread for user {}"
 msgstr "与用户{}新建话题"
 
-#: main.py:171
+#: main.py:193
 msgid "Not set"
 msgstr "未设置"
 
-#: main.py:186
+#: main.py:204
 msgid "[Auto Response]"
 msgstr "[自动回复]"
 
-#: main.py:208
+#: main.py:226
 msgid "Unsupported message type"
 msgstr "不支持的消息种类"
 
-#: main.py:210
+#: main.py:228
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:221 main.py:222
+#: main.py:241 main.py:242
 msgid "Bot doesn't have {} permission"
 msgstr "Bot缺少{}权限"
 
-#: main.py:224
+#: main.py:243
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:229
+#: main.py:248
 msgid "Token or group ID is empty"
 msgstr "Token或群组ID为空"
+
+#~ msgid "True"
+#~ msgstr "启用"
+
+#~ msgid "False"
+#~ msgstr "禁用"
+
+#~ msgid "No auto response found"
+#~ msgstr "您还未设置自动回复"
 
 #~ msgid "I don't have permission to delete messages"
 #~ msgstr "我没有权限删除消息"

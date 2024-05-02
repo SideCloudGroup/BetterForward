@@ -51,45 +51,53 @@ class TGBot:
         self.check_permission()
         self.bot.infinity_polling(skip_pending=True, timeout=30)
 
+    def get_auto_response_help(self):
+        return _("Invalid command\n"
+                 "Correct usage:\n"
+                 "`/auto_response set <key> <value> <topic_action(0/1)>`\n"
+                 "`/auto_response delete <key>`\n"
+                 "`/auto_response list`")
+
     def manage_auto_response(self, message: Message):
         if message.chat.id == self.group_id:
             if len((msg_split := message.text.split(" "))) < 2:
-                self.bot.reply_to(message, "Invalid command\n"
-                                           "Correct usage:```\n"
-                                           "/auto_response <set/delete/list> [key] [value] [topic_action(0/1)]```", parse_mode="Markdown")
+                self.bot.reply_to(message, self.get_auto_response_help(), parse_mode="Markdown")
                 return
             with sqlite3.connect(self.db_path) as db:
                 db_cursor = db.cursor()
-                if msg_split[1] == "list":
-                    result = db_cursor.execute("SELECT topic_action, key, value FROM auto_response")
-                    response = "\n".join([f"{row[0]}: {row[1]}" for row in result.fetchall()])
-                    self.bot.reply_to(message, response if response else _("No auto response found"))
-                    return
-                topic_action = msg_split[4]
-                key = msg_split[2]
-                value = " ".join(msg_split[3:])
                 match msg_split[1]:
+                    case "list":
+                        result = db_cursor.execute("SELECT key, value, topic_action FROM auto_response")
+                        content = _("Auto response list")
+                        content += "\n" + "-" * 20 + "\n"
+                        for row in result.fetchall():
+                            content += _("Trigger: {}\nResponse: {}\nForward message: {}\n").format(row[0], row[1],
+                                                                                                    _("Enable") if row[2]
+                                                                                                    else _("Disable"))
+                            content += "-" * 20 + "\n"
+                        self.bot.reply_to(message, content)
+                        return
                     case "set":
-                        if len(msg_split) != 5:
-                            self.bot.reply_to(message, "Invalid command\n"
-                                                       "Correct usage:```\n"
-                                                       "/auto_response set <key> <value> <topic_action(0/1)>```",
-                                              parse_mode="Markdown")
+                        if len(msg_split) not in [4, 5]:
+                            self.bot.reply_to(message, self.get_auto_response_help(), parse_mode="Markdown")
                             return
+                        key = msg_split[2]
+                        value = msg_split[3]
+                        topic_action = int(msg_split[4]) if len(msg_split) == 5 else 0
                         # Check if key exists
                         db_cursor.execute("SELECT key FROM auto_response WHERE key = ?", (key,))
                         if db_cursor.fetchone() is not None:
-                            db_cursor.execute("UPDATE auto_response SET value = ?, topic_action = ? WHERE key = ?", (value, topic_action, key))
+                            db_cursor.execute("UPDATE auto_response SET value = ?, topic_action = ? WHERE key = ?",
+                                              (value, topic_action, key))
                         else:
-                            db_cursor.execute("INSERT INTO auto_response (key, value, topic_action) VALUES (?, ?, ?)", (key, value, topic_action))
+                            db_cursor.execute("INSERT INTO auto_response (key, value, topic_action) VALUES (?, ?, ?)",
+                                              (key, value, topic_action))
                         self.bot.reply_to(message, _("Auto response set"))
                     case "delete":
                         if len(msg_split) != 3:
-                            self.bot.reply_to(message, "Invalid command\n"
-                                                       "Correct usage:```\n"
-                                                       "/auto_response delete <key>```",
-                                              parse_mode="Markdown")
+                            self.bot.reply_to(message, self.get_auto_response_help(), parse_mode="Markdown")
                             return
+                        key = msg_split[2]
                         db_cursor.execute("DELETE FROM auto_response WHERE key = ?", (key,))
                         self.bot.reply_to(message, _("Auto response deleted"))
                     case _:
