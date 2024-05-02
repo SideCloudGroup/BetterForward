@@ -1,5 +1,6 @@
 import argparse
 import gettext
+import importlib
 import logging
 import os
 import sqlite3
@@ -43,7 +44,7 @@ class TGBot:
         self.bot.message_handler(func=lambda m: True, content_types=["photo", "text", "sticker", "video", "document"])(
             self.handle_messages)
         self.db_path = db_path
-        self.init_db()
+        self.upgrade_db()
         self.bot.set_my_commands([
             telebot.types.BotCommand("terminate", _("Terminate a thread")),
         ])
@@ -94,26 +95,27 @@ class TGBot:
                         self.bot.reply_to(message, _("Invalid operation"))
                 db.commit()
 
-    def init_db(self):
-        with sqlite3.connect(self.db_path) as db:
-            db_cursor = db.cursor()
-            db_cursor.execute("""
-                CREATE TABLE IF NOT EXISTS topics (
-                    id INTEGER PRIMARY KEY,
-                    user_id INTEGER,
-                    thread_id INTEGER
-                )
-            """)
-            db_cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_id ON topics(user_id)")
-            db_cursor.execute("CREATE INDEX IF NOT EXISTS idx_thread_id ON topics(thread_id)")
-            db_cursor.execute("""
-                CREATE TABLE IF NOT EXISTS auto_response (
-                    id INTEGER PRIMARY KEY,
-                    key TEXT NOT NULL,
-                    value TEXT NOT NULL
-                )
-            """)
-            db.commit()
+    def upgrade_db(self):
+        try:
+            with sqlite3.connect(self.db_path) as db:
+                db_cursor = db.cursor()
+                db_cursor.execute("SELECT value FROM settings WHERE key = 'db_version'")
+                current_version = int(db_cursor.fetchone()[0])
+        except sqlite3.OperationalError:
+            current_version = 0
+        db_migrate_dir = "./db_migrate"
+        files = [f for f in os.listdir(db_migrate_dir) if f.endswith('.py')]
+        files.sort(key=lambda x: int(x.split('_')[0]))
+        for file in files:
+            version = int(file.split('_')[0])
+            if version > current_version:
+                logger.info(_("Upgrading database to version {}").format(version))
+                module = importlib.import_module(f"db_migrate.{file[:-3]}")
+                module.upgrade(self.db_path)
+                with sqlite3.connect(self.db_path) as db:
+                    db_cursor = db.cursor()
+                    db_cursor.execute("UPDATE settings SET value = ? WHERE key = 'db_version'", (str(version),))
+                    db.commit()
 
     def terminate_thread(self, thread_id):
         logger.info(_("Terminating thread") + str(thread_id))
@@ -223,7 +225,6 @@ class TGBot:
             if value is False:
                 logger.error(_("Bot doesn't have {} permission").format(key))
                 self.bot.send_message(self.group_id, _("Bot doesn't have {} permission").format(key))
-                exit(1)
         self.bot.send_message(self.group_id, _("Bot started successfully"))
 
 
