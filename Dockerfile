@@ -4,6 +4,7 @@ WORKDIR /app
 ADD main.py /app
 ADD locale /app/locale
 RUN find /app/locale -name "*.po" -type f -delete
+ADD db_migrate /app/db_migrate
 ADD requirements.txt /app
 
 RUN mkdir /app/data

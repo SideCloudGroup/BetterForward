@@ -3,6 +3,7 @@ import gettext
 import importlib
 import logging
 import os
+import signal
 import sqlite3
 
 import telebot
@@ -32,6 +33,13 @@ try:
     _ = gettext.translation("BetterForward", locale_dir, languages=[args.language]).gettext
 except FileNotFoundError:
     _ = gettext.gettext
+
+
+def handle_sigterm(*args):
+    raise KeyboardInterrupt()
+
+
+signal.signal(signal.SIGTERM, handle_sigterm)
 
 
 class TGBot:
@@ -72,7 +80,8 @@ class TGBot:
                         content += "\n" + "-" * 20 + "\n"
                         for row in result.fetchall():
                             content += _("Trigger: {}\nResponse: {}\nForward message: {}\n").format(row[0], row[1],
-                                                                                                    _("Enable") if row[2]
+                                                                                                    _("Enable") if row[
+                                                                                                        2]
                                                                                                     else _("Disable"))
                             content += "-" * 20 + "\n"
                         self.bot.reply_to(message, content)
@@ -169,7 +178,10 @@ class TGBot:
                 logger.info(_("Received message from {}, content: {}").format(message.from_user.id, message.text))
                 # Auto response
                 result = curser.execute("SELECT value, topic_action FROM auto_response WHERE key = ?", (message.text,))
-                auto_response, topic_action = result.fetchone()
+                if result.fetchone() is None:
+                    auto_response, topic_action = None, None
+                else:
+                    auto_response, topic_action = result.fetchone()
                 if auto_response is not None:
                     self.bot.send_message(message.chat.id, auto_response)
                     if not topic_action:
@@ -247,4 +259,9 @@ if __name__ == "__main__":
     if not args.token or not args.group_id:
         logger.error(_("Token or group ID is empty"))
         exit(1)
-    bot = TGBot(args.token, args.group_id)
+    try:
+        bot = TGBot(args.token, args.group_id)
+    except KeyboardInterrupt:
+        bot.bot.stop_polling()
+        logger.info(_("Exiting..."))
+        exit(0)
