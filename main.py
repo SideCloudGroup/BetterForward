@@ -178,10 +178,10 @@ class TGBot:
                 logger.info(_("Received message from {}, content: {}").format(message.from_user.id, message.text))
                 # Auto response
                 result = curser.execute("SELECT value, topic_action FROM auto_response WHERE key = ?", (message.text,))
-                if result.fetchone() is None:
+                if (result:=result.fetchone()) is None:
                     auto_response, topic_action = None, None
                 else:
-                    auto_response, topic_action = result.fetchone()
+                    auto_response, topic_action = result
                 if auto_response is not None:
                     self.bot.send_message(message.chat.id, auto_response)
                     if not topic_action:
