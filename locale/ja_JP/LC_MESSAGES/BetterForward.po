@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-05-02 23:23+0100\n"
-"PO-Revision-Date: 2024-05-06 14:18+0100\n"
+"POT-Creation-Date: 2024-05-06 16:28+0100\n"
+"PO-Revision-Date: 2024-05-06 16:36+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: ja_JP\n"
@@ -13,15 +13,15 @@ msgstr ""
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-SearchPath-0: main.py\n"
 
-#: main.py:44
+#: main.py:49
 msgid "Starting BetterForward..."
 msgstr "BetterForwardのスタート..."
 
-#: main.py:54
+#: main.py:59
 msgid "Terminate a thread"
-msgstr "スレッドを削除"
+msgstr "スレッドを削除する"
 
-#: main.py:60
+#: main.py:68
 msgid ""
 "Invalid command\n"
 "Correct usage:\n"
@@ -31,15 +31,15 @@ msgid ""
 msgstr ""
 "無効なコマンド\n"
 "使い方：\n"
-"`/auto_response set <key> <value> <topic_action(0/1)>`\n"
+"`/auto_response set <key> <value> <自動応答でも転送(0/1)>`\n"
 "`/auto_response delete <key>`\n"
 "`/auto_response list`"
 
-#: main.py:76
+#: main.py:84
 msgid "Auto response list"
 msgstr "自動応答リスト"
 
-#: main.py:79
+#: main.py:87
 msgid ""
 "Trigger: {}\n"
 "Response: {}\n"
@@ -47,84 +47,96 @@ msgid ""
 msgstr ""
 "トリガー：{}\n"
 "レスポンス：{}\n"
-"転送するメッセージ：{}\n"
+"自動応答でも転送：{}\n"
 
-#: main.py:80
+#: main.py:88
 msgid "Enable"
 msgstr "有効"
 
-#: main.py:81
+#: main.py:90
 msgid "Disable"
 msgstr "無効"
 
-#: main.py:100
-msgid "Auto response set"
-msgstr "自動応答をセット"
-
-#: main.py:107
-msgid "Auto response deleted"
-msgstr "自動応答を削除"
-
 #: main.py:109
+msgid "Auto response set"
+msgstr "自動応答をセットした"
+
+#: main.py:116
+msgid "Auto response deleted"
+msgstr "自動応答を削除した"
+
+#: main.py:118
 msgid "Invalid operation"
 msgstr "無効な操作"
 
-#: main.py:126
+#: main.py:135
 msgid "Upgrading database to version {}"
 msgstr "データベースのバージョンアップ：{}"
 
-#: main.py:136
+#: main.py:159
 msgid "Terminating thread"
-msgstr "スレッドを削除する"
+msgstr "スレッドを削除しています"
 
-#: main.py:156
+#: main.py:176
 msgid "Cannot terminate main thread"
 msgstr "メインスレッドを削除できません"
 
-#: main.py:161
+#: main.py:181
 msgid "Thread terminated"
 msgstr "スレッドを削除された"
 
-#: main.py:163 main.py:164
+#: main.py:183 main.py:184
 msgid "Failed to terminate the thread"
 msgstr "スレッドを削除されません"
 
-#: main.py:174
-msgid "Received message from {}, content: {}"
-msgstr "{}からのメッセージを受信した：{}"
+#: main.py:199
+msgid "Received message from {}, content: {}, type: {}"
+msgstr "{}からのメッセージを受信した：{}、タイプ：{}"
 
-#: main.py:188
+#: main.py:218
 msgid "Creating a new thread for user {}"
 msgstr "ユーザー{}との新しいスレッドを作成する"
 
-#: main.py:198
+#: main.py:230
 msgid "Not set"
 msgstr "未設定"
 
-#: main.py:209
+#: main.py:242 main.py:244
+msgid "Failed to forward message from user {}"
+msgstr "ユーザー{}からのメッセージ転送できません"
+
+#: main.py:248
 msgid "[Auto Response]"
 msgstr "[自動応答]"
 
-#: main.py:231
+#: main.py:271
 msgid "Unsupported message type"
 msgstr "サポートされていないメッセージタイプ"
 
-#: main.py:233
+#: main.py:273
 msgid "Chat not found, please remove this topic manually"
 msgstr "チャットが見つかりません、トピックを手動で削除してください"
 
-#: main.py:246 main.py:247
+#: main.py:286
+msgid "Manage Topics"
+msgstr "トピックを管理する"
+
+#: main.py:287
+msgid "Delete Messages"
+msgstr "メッセージの削除する"
+
+#: main.py:291 main.py:292
 msgid "Bot doesn't have {} permission"
 msgstr "ボットには{}の権限がありません"
 
-#: main.py:248
+#: main.py:293
 msgid "Bot started successfully"
 msgstr "ボット起動成功"
 
-#: main.py:253
+#: main.py:298
 msgid "Token or group ID is empty"
 msgstr "トークンまたはグループIDが空"
 
-#: main.py:258
+#: main.py:303
 msgid "Exiting..."
 msgstr "終了..."
