@@ -7,7 +7,7 @@ import signal
 import sqlite3
 
 import telebot
-from telebot.apihelper import create_forum_topic, delete_forum_topic, close_forum_topic
+from telebot.apihelper import create_forum_topic, close_forum_topic
 from telebot.types import Message
 
 parser = argparse.ArgumentParser(description="")
@@ -136,31 +136,44 @@ class TGBot:
                     db.commit()
 
     # Get thread_id to terminate when needed
-    def terminate_thread(self, thread_id):
-        logger.info(_("Terminating thread") + str(thread_id))
-        delete_forum_topic(chat_id=self.group_id, message_thread_id=thread_id, token=self.bot.token)
+    def terminate_thread(self, thread_id=None, user_id=None):
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
-            db_cursor.execute("DELETE FROM topics WHERE thread_id = ?", (thread_id,))
-            db.commit()
+            if thread_id is not None:
+                db_cursor.execute("DELETE FROM topics WHERE thread_id = ?", (thread_id,))
+                db.commit()
+            elif user_id is not None:
+                result = db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ?", (user_id,))
+                thread_id = result.fetchone()
+                if thread_id is not None:
+                    thread_id = thread_id[0]
+                    db_cursor.execute("DELETE FROM topics WHERE user_id = ?", (user_id,))
+                    db.commit()
+            try:
+                close_forum_topic(chat_id=self.group_id, message_thread_id=thread_id, token=self.bot.token)
+            except:
+                pass
+        logger.info(_("Terminating thread") + str(thread_id))
 
     # To terminate and totally delete the topic
     def handle_terminate(self, message: Message):
         if message.chat.id == self.group_id:
+            user_id = None
+            thread_id = None
             if message.message_thread_id is None:
                 if len((msg_split := message.text.split(" "))) != 2:
                     self.bot.reply_to(message, "Invalid command\n"
                                                "Correct usage:```\n"
                                                "/terminate <user ID>```", parse_mode="Markdown")
                     return
-                thread_id = int(msg_split[1])
+                user_id = int(msg_split[1])
             else:
                 thread_id = message.message_thread_id
             if thread_id == 1:
                 self.bot.reply_to(message, _("Cannot terminate main thread"))
                 return
             try:
-                self.terminate_thread(thread_id)
+                self.terminate_thread(thread_id=thread_id, user_id=user_id)
                 if message.message_thread_id is None:
                     self.bot.reply_to(message, _("Thread terminated"))
             except Exception:
@@ -178,7 +191,7 @@ class TGBot:
                 logger.info(_("Received message from {}, content: {}").format(message.from_user.id, message.text))
                 # Auto response
                 result = curser.execute("SELECT value, topic_action FROM auto_response WHERE key = ?", (message.text,))
-                if (result:=result.fetchone()) is None:
+                if (result := result.fetchone()) is None:
                     auto_response, topic_action = None, None
                 else:
                     auto_response, topic_action = result
@@ -201,6 +214,7 @@ class TGBot:
                         return
                     curser.execute("INSERT INTO topics (user_id, thread_id) VALUES (?, ?)",
                                    (userid, topic["message_thread_id"]))
+                    db.commit()
                     thread_id = topic["message_thread_id"]
                     username = _("Not set") if message.from_user.username is None else f"@{message.from_user.username}"
                     last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
