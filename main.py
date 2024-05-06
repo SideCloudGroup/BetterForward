@@ -3,8 +3,10 @@ import gettext
 import importlib
 import logging
 import os
+import queue
 import signal
 import sqlite3
+import threading
 
 import telebot
 from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegramException, delete_forum_topic
@@ -50,13 +52,16 @@ class TGBot:
         self.bot.message_handler(commands=["auto_response"])(self.manage_auto_response)
         self.bot.message_handler(commands=["terminate"])(self.handle_terminate)
         self.bot.message_handler(func=lambda m: True, content_types=["photo", "text", "sticker", "video", "document"])(
-            self.handle_messages)
+            self.push_messages)
         self.db_path = db_path
         self.upgrade_db()
         self.bot.set_my_commands([
             telebot.types.BotCommand("terminate", _("Terminate a thread")),
         ])
         self.check_permission()
+        self.message_queue = queue.Queue()
+        self.message_processor = threading.Thread(target=self.process_messages)
+        self.message_processor.start()
         self.bot.infinity_polling(skip_pending=True, timeout=30)
 
     def get_auto_response_help(self):
@@ -178,8 +183,12 @@ class TGBot:
                 logger.error(_("Failed to terminate the thread") + str(thread_id))
                 self.bot.reply_to(message, _("Failed to terminate the thread"))
 
-    # To forward your words
-    def handle_messages(self, message: Message):
+    # Push messages to the queue
+    def push_messages(self, message: Message):
+        self.message_queue.put(message)
+
+    # Main message handler
+    def handle_message(self, message: Message):
         # Not responding in General topic
         if message.message_thread_id is None and message.chat.id == self.group_id:
             return
@@ -217,7 +226,8 @@ class TGBot:
                                    (userid, topic["message_thread_id"]))
                     db.commit()
                     thread_id = topic["message_thread_id"]
-                    username = _("Not set") if message.from_user.username is None else f"@{message.from_user.username}"
+                    username = _(
+                        "Not set") if message.from_user.username is None else f"@{message.from_user.username}"
                     last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
                     pin_message = self.bot.send_message(self.group_id,
                                                         f"User ID: {userid}\n"
@@ -264,6 +274,11 @@ class TGBot:
                                           message_thread_id=message.message_thread_id)
                     close_forum_topic(chat_id=self.group_id, message_thread_id=message.message_thread_id,
                                       token=self.bot.token)
+
+    # Process messages in the queue
+    def process_messages(self):
+        while True:
+            self.handle_message(self.message_queue.get())
 
     def check_permission(self):
         chat_member = self.bot.get_chat_member(self.group_id, self.bot.get_me().id)
