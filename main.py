@@ -7,7 +7,7 @@ import signal
 import sqlite3
 
 import telebot
-from telebot.apihelper import create_forum_topic, close_forum_topic
+from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegramException, delete_forum_topic
 from telebot.types import Message
 
 parser = argparse.ArgumentParser(description="")
@@ -143,15 +143,13 @@ class TGBot:
                 db_cursor.execute("DELETE FROM topics WHERE thread_id = ?", (thread_id,))
                 db.commit()
             elif user_id is not None:
-                result = db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ?", (user_id,))
-                thread_id = result.fetchone()
-                if thread_id is not None:
-                    thread_id = thread_id[0]
+                result = db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (user_id,))
+                if (thread_id := result.fetchone()[0]) is not None:
                     db_cursor.execute("DELETE FROM topics WHERE user_id = ?", (user_id,))
                     db.commit()
             try:
-                close_forum_topic(chat_id=self.group_id, message_thread_id=thread_id, token=self.bot.token)
-            except:
+                delete_forum_topic(chat_id=self.group_id, message_thread_id=thread_id, token=self.bot.token)
+            except ApiTelegramException:
                 pass
         logger.info(_("Terminating thread") + str(thread_id))
 
@@ -188,9 +186,12 @@ class TGBot:
         with sqlite3.connect(self.db_path) as db:
             curser = db.cursor()
             if message.chat.id != self.group_id:
-                logger.info(_("Received message from {}, content: {}").format(message.from_user.id, message.text))
+                logger.info(
+                    _("Received message from {}, content: {}, type: {}").format(message.from_user.id, message.text,
+                                                                                message.content_type))
                 # Auto response
-                result = curser.execute("SELECT value, topic_action FROM auto_response WHERE key = ?", (message.text,))
+                result = curser.execute("SELECT value, topic_action FROM auto_response WHERE key = ? LIMIT 1",
+                                        (message.text,))
                 if (result := result.fetchone()) is None:
                     auto_response, topic_action = None, None
                 else:
@@ -201,7 +202,7 @@ class TGBot:
                         return
                 # Forward message to group
                 userid = message.from_user.id
-                result = curser.execute("SELECT thread_id FROM topics WHERE user_id = ?", (userid,))
+                result = curser.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (userid,))
                 thread_id = result.fetchone()
                 if thread_id is None:
                     # Create a new thread
@@ -224,14 +225,22 @@ class TGBot:
                                                         f"Username: {username}\n",
                                                         message_thread_id=thread_id)
                     self.bot.pin_chat_message(self.group_id, pin_message.message_id)
-                self.bot.forward_message(self.group_id, message.chat.id, message_thread_id=thread_id,
-                                         message_id=message.message_id)
+                try:
+                    self.bot.forward_message(self.group_id, message.chat.id, message_thread_id=thread_id,
+                                             message_id=message.message_id)
+                except ApiTelegramException as e:
+                    logger.error(_("Failed to forward message from user {}".format(message.from_user.id)) + f" {e}")
+                    self.bot.send_message(self.group_id,
+                                          _("Failed to forward message from user {}".format(message.from_user.id)),
+                                          message_thread_id=None)
+                    self.bot.forward_message(self.group_id, message.chat.id, message_id=message.message_id)
                 if topic_action:
                     self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
                                           message_thread_id=thread_id)
             else:
                 # Forward message to user
-                result = curser.execute("SELECT user_id FROM topics WHERE thread_id = ?", (message.message_thread_id,))
+                result = curser.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
+                                        (message.message_thread_id,))
                 user_id = result.fetchone()
                 if user_id is not None:
                     match message.content_type:
@@ -259,8 +268,8 @@ class TGBot:
     def check_permission(self):
         chat_member = self.bot.get_chat_member(self.group_id, self.bot.get_me().id)
         permissions = {
-            "can_manage_topics": chat_member.can_manage_topics,
-            "can_delete_messages": chat_member.can_delete_messages
+            _("Manage Topics"): chat_member.can_manage_topics,
+            _("Delete Messages"): chat_member.can_delete_messages
         }
         for key, value in permissions.items():
             if value is False:
@@ -276,6 +285,5 @@ if __name__ == "__main__":
     try:
         bot = TGBot(args.token, args.group_id)
     except KeyboardInterrupt:
-        bot.bot.stop_polling()
         logger.info(_("Exiting..."))
         exit(0)

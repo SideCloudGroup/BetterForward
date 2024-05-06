@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-05-02 23:23+0100\n"
-"PO-Revision-Date: 2024-05-02 23:23+0100\n"
+"POT-Creation-Date: 2024-05-06 16:07+0100\n"
+"PO-Revision-Date: 2024-05-06 16:08+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -13,15 +13,15 @@ msgstr ""
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-SearchPath-0: main.py\n"
 
-#: main.py:44
+#: main.py:47
 msgid "Starting BetterForward..."
 msgstr "正在启动BetterForward……"
 
-#: main.py:54
+#: main.py:57
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: main.py:60
+#: main.py:63
 msgid ""
 "Invalid command\n"
 "Correct usage:\n"
@@ -35,11 +35,11 @@ msgstr ""
 "`/auto_response delete <key>`\n"
 "`/auto_response list`"
 
-#: main.py:76
+#: main.py:79
 msgid "Auto response list"
 msgstr "自动回复列表"
 
-#: main.py:79
+#: main.py:82
 msgid ""
 "Trigger: {}\n"
 "Response: {}\n"
@@ -49,83 +49,95 @@ msgstr ""
 "回复：{}\n"
 "转发消息：{}\n"
 
-#: main.py:80
+#: main.py:83
 msgid "Enable"
 msgstr "启用"
 
-#: main.py:81
+#: main.py:85
 msgid "Disable"
 msgstr "禁用"
 
-#: main.py:100
+#: main.py:104
 msgid "Auto response set"
 msgstr "自动回复设置成功"
 
-#: main.py:107
+#: main.py:111
 msgid "Auto response deleted"
 msgstr "已删除自动回复"
 
-#: main.py:109
+#: main.py:113
 msgid "Invalid operation"
 msgstr "无效的操作"
 
-#: main.py:126
+#: main.py:130
 msgid "Upgrading database to version {}"
 msgstr "升级到数据库版本{}"
 
-#: main.py:136
+#: main.py:154
 msgid "Terminating thread"
 msgstr "删除会话"
 
-#: main.py:156
+#: main.py:171
 msgid "Cannot terminate main thread"
 msgstr "无法删除默认会话"
 
-#: main.py:161
+#: main.py:176
 msgid "Thread terminated"
 msgstr "会话已被删除"
 
-#: main.py:163 main.py:164
+#: main.py:178 main.py:179
 msgid "Failed to terminate the thread"
 msgstr "无法删除该会话"
 
-#: main.py:174
-msgid "Received message from {}, content: {}"
-msgstr "收到来自{}的消息，内容：{}"
+#: main.py:190
+msgid "Received message from {}, content: {}, type: {}"
+msgstr "收到来自{}的消息，内容：{}，类型：{}"
 
-#: main.py:188
+#: main.py:209
 msgid "Creating a new thread for user {}"
 msgstr "与用户{}新建话题"
 
-#: main.py:198
+#: main.py:220
 msgid "Not set"
 msgstr "未设置"
 
-#: main.py:209
+#: main.py:232 main.py:234
+msgid "Failed to forward message from user {}"
+msgstr "转发用户{}的消息失败"
+
+#: main.py:238
 msgid "[Auto Response]"
 msgstr "[自动回复]"
 
-#: main.py:231
+#: main.py:261
 msgid "Unsupported message type"
 msgstr "不支持的消息种类"
 
-#: main.py:233
+#: main.py:263
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:246 main.py:247
+#: main.py:271
+msgid "Manage Topics"
+msgstr "管理话题"
+
+#: main.py:272
+msgid "Delete Messages"
+msgstr "删除消息"
+
+#: main.py:276 main.py:277
 msgid "Bot doesn't have {} permission"
 msgstr "Bot缺少{}权限"
 
-#: main.py:248
+#: main.py:278
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:253
+#: main.py:283
 msgid "Token or group ID is empty"
 msgstr "Token或群组ID为空"
 
-#: main.py:258
+#: main.py:288
 msgid "Exiting..."
 msgstr "退出中……"
 
