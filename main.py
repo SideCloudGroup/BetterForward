@@ -13,7 +13,7 @@ from telebot.types import Message
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("-token", type=str, required=True, help="Telegram bot token")
 parser.add_argument("-group_id", type=str, required=True, help="Group ID")
-parser.add_argument("-language", type=str, default="en_US", help="Language", choices=["en_US", "zh_CN"])
+parser.add_argument("-language", type=str, default="en_US", help="Language", choices=["en_US", "zh_CN", "ja_JP"])
 args = parser.parse_args()
 
 logger = logging.getLogger()

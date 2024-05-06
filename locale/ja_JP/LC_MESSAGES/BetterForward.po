@@ -1,0 +1,130 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: BetterForward\n"
+"POT-Creation-Date: 2024-05-02 23:23+0100\n"
+"PO-Revision-Date: 2024-05-06 14:18+0100\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ja_JP\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.2\n"
+"X-Poedit-Basepath: ../../..\n"
+"X-Poedit-SearchPath-0: main.py\n"
+
+#: main.py:44
+msgid "Starting BetterForward..."
+msgstr "BetterForwardのスタート..."
+
+#: main.py:54
+msgid "Terminate a thread"
+msgstr "スレッドを削除"
+
+#: main.py:60
+msgid ""
+"Invalid command\n"
+"Correct usage:\n"
+"`/auto_response set <key> <value> <topic_action(0/1)>`\n"
+"`/auto_response delete <key>`\n"
+"`/auto_response list`"
+msgstr ""
+"無効なコマンド\n"
+"使い方：\n"
+"`/auto_response set <key> <value> <topic_action(0/1)>`\n"
+"`/auto_response delete <key>`\n"
+"`/auto_response list`"
+
+#: main.py:76
+msgid "Auto response list"
+msgstr "自動応答リスト"
+
+#: main.py:79
+msgid ""
+"Trigger: {}\n"
+"Response: {}\n"
+"Forward message: {}\n"
+msgstr ""
+"トリガー：{}\n"
+"レスポンス：{}\n"
+"転送するメッセージ：{}\n"
+
+#: main.py:80
+msgid "Enable"
+msgstr "有効"
+
+#: main.py:81
+msgid "Disable"
+msgstr "無効"
+
+#: main.py:100
+msgid "Auto response set"
+msgstr "自動応答をセット"
+
+#: main.py:107
+msgid "Auto response deleted"
+msgstr "自動応答を削除"
+
+#: main.py:109
+msgid "Invalid operation"
+msgstr "無効な操作"
+
+#: main.py:126
+msgid "Upgrading database to version {}"
+msgstr "データベースのバージョンアップ：{}"
+
+#: main.py:136
+msgid "Terminating thread"
+msgstr "スレッドを削除する"
+
+#: main.py:156
+msgid "Cannot terminate main thread"
+msgstr "メインスレッドを削除できません"
+
+#: main.py:161
+msgid "Thread terminated"
+msgstr "スレッドを削除された"
+
+#: main.py:163 main.py:164
+msgid "Failed to terminate the thread"
+msgstr "スレッドを削除されません"
+
+#: main.py:174
+msgid "Received message from {}, content: {}"
+msgstr "{}からのメッセージを受信した：{}"
+
+#: main.py:188
+msgid "Creating a new thread for user {}"
+msgstr "ユーザー{}との新しいスレッドを作成する"
+
+#: main.py:198
+msgid "Not set"
+msgstr "未設定"
+
+#: main.py:209
+msgid "[Auto Response]"
+msgstr "[自動応答]"
+
+#: main.py:231
+msgid "Unsupported message type"
+msgstr "サポートされていないメッセージタイプ"
+
+#: main.py:233
+msgid "Chat not found, please remove this topic manually"
+msgstr "チャットが見つかりません、トピックを手動で削除してください"
+
+#: main.py:246 main.py:247
+msgid "Bot doesn't have {} permission"
+msgstr "ボットには{}の権限がありません"
+
+#: main.py:248
+msgid "Bot started successfully"
+msgstr "ボット起動成功"
+
+#: main.py:253
+msgid "Token or group ID is empty"
+msgstr "トークンまたはグループIDが空"
+
+#: main.py:258
+msgid "Exiting..."
+msgstr "終了..."
