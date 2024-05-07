@@ -446,8 +446,10 @@ class TGBot:
                                    reply_markup=markup)
 
     def ban_user(self, message: Message):
-        if self.check_valid_chat(message):
+        if message.chat.id == self.group_id and message.message_thread_id is None:
             self.bot.send_message(self.group_id, _("This command is not available in the main chat."))
+            return
+        if message.chat.id != self.group_id:
             return
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
@@ -457,6 +459,8 @@ class TGBot:
         close_forum_topic(chat_id=self.group_id, message_thread_id=message.message_thread_id, token=self.bot.token)
 
     def unban_user(self, message: Message, user_id: int = None):
+        if message.chat.id != self.group_id:
+            return
         if user_id is None:
             if self.check_valid_chat(message):
                 if len((msg_split := message.text.split(" "))) != 2:
