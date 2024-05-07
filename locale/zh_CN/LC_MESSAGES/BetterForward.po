@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-05-06 16:07+0100\n"
-"PO-Revision-Date: 2024-05-06 16:08+0100\n"
+"POT-Creation-Date: 2024-05-07 23:49+0100\n"
+"PO-Revision-Date: 2024-05-07 23:50+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -13,142 +13,244 @@ msgstr ""
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-SearchPath-0: main.py\n"
 
-#: main.py:47
+#: main.py:56
 msgid "Starting BetterForward..."
 msgstr "正在启动BetterForward……"
 
-#: main.py:57
+#: main.py:69
+msgid "Show help"
+msgstr "显示帮助菜单"
+
+#: main.py:70
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: main.py:63
-msgid ""
-"Invalid command\n"
-"Correct usage:\n"
-"`/auto_response set <key> <value> <topic_action(0/1)>`\n"
-"`/auto_response delete <key>`\n"
-"`/auto_response list`"
-msgstr ""
-"指令格式不正确\n"
-"使用方法：\n"
-"`/auto_response set <key> <value> <topic_action(0/1)>`\n"
-"`/auto_response delete <key>`\n"
-"`/auto_response list`"
-
-#: main.py:79
-msgid "Auto response list"
-msgstr "自动回复列表"
-
-#: main.py:82
-msgid ""
-"Trigger: {}\n"
-"Response: {}\n"
-"Forward message: {}\n"
-msgstr ""
-"关键词：{}\n"
-"回复：{}\n"
-"转发消息：{}\n"
-
-#: main.py:83
-msgid "Enable"
-msgstr "启用"
-
-#: main.py:85
-msgid "Disable"
-msgstr "禁用"
-
-#: main.py:104
-msgid "Auto response set"
-msgstr "自动回复设置成功"
-
-#: main.py:111
-msgid "Auto response deleted"
-msgstr "已删除自动回复"
-
-#: main.py:113
-msgid "Invalid operation"
-msgstr "无效的操作"
-
-#: main.py:130
+#: main.py:96
 msgid "Upgrading database to version {}"
 msgstr "升级到数据库版本{}"
 
-#: main.py:154
+#: main.py:120
 msgid "Terminating thread"
 msgstr "删除会话"
 
-#: main.py:171
+#: main.py:137
 msgid "Cannot terminate main thread"
 msgstr "无法删除默认会话"
 
-#: main.py:176
+#: main.py:142
 msgid "Thread terminated"
 msgstr "会话已被删除"
 
-#: main.py:178 main.py:179
+#: main.py:144 main.py:145
 msgid "Failed to terminate the thread"
 msgstr "无法删除该会话"
 
-#: main.py:190
+#: main.py:180
 msgid "Received message from {}, content: {}, type: {}"
 msgstr "收到来自{}的消息，内容：{}，类型：{}"
 
-#: main.py:209
+#: main.py:186
+msgid "User {} is banned"
+msgstr "用户{}已被封禁"
+
+#: main.py:205
 msgid "Creating a new thread for user {}"
 msgstr "与用户{}新建话题"
 
-#: main.py:220
+#: main.py:217
 msgid "Not set"
 msgstr "未设置"
 
-#: main.py:232 main.py:234
-msgid "Failed to forward message from user {}"
-msgstr "转发用户{}的消息失败"
-
-#: main.py:238
+#: main.py:234
 msgid "[Auto Response]"
 msgstr "[自动回复]"
 
-#: main.py:261
+#: main.py:257
 msgid "Unsupported message type"
 msgstr "不支持的消息种类"
 
-#: main.py:263
+#: main.py:259
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:271
+#: main.py:270
+msgid "Failed to process message"
+msgstr "无法转发用户{}的消息"
+
+#: main.py:276
 msgid "Manage Topics"
 msgstr "管理话题"
 
-#: main.py:272
+#: main.py:277
 msgid "Delete Messages"
 msgstr "删除消息"
 
-#: main.py:276 main.py:277
+#: main.py:281 main.py:282
 msgid "Bot doesn't have {} permission"
 msgstr "Bot缺少{}权限"
 
-#: main.py:278
+#: main.py:283
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:283
+#: main.py:289
+msgid ""
+"Let's set up an automatic response.\n"
+"Send /cancel to cancel this operation.\n"
+"\n"
+"Please send the keywords or regular expression that should trigger this "
+"response."
+msgstr ""
+"开始设置自动回复\n"
+"发送 /cancel 来取消此操作\n"
+"\n"
+"请输入触发关键词或正则表达式"
+
+#: main.py:299 main.py:319 main.py:329
+msgid "Operation cancelled"
+msgstr "操作已取消"
+
+#: main.py:303
+msgid "Yes"
+msgstr "是"
+
+#: main.py:306
+msgid "No"
+msgstr "否"
+
+#: main.py:310 main.py:346 main.py:360 main.py:401 main.py:430 main.py:445
+#: main.py:501 main.py:511 main.py:536 main.py:553
+msgid "Back"
+msgstr "返回"
+
+#: main.py:311 main.py:348 main.py:408 main.py:432
+msgid "Trigger: {}"
+msgstr "触发器：{}"
+
+#: main.py:312
+msgid "Is this a regular expression?"
+msgstr "是否为正则表达式？"
+
+#: main.py:321
+msgid "Please send the response message."
+msgstr "请发送要回应的文本"
+
+#: main.py:333
+msgid "The operation has timed out. Please initiate the process again."
+msgstr "操作已超时，请重新开始。"
+
+#: main.py:339
+msgid "Forward message"
+msgstr "转发消息"
+
+#: main.py:342
+msgid "Do not forward message"
+msgstr "不转发消息"
+
+#: main.py:349 main.py:409 main.py:433
+msgid "Response: {}"
+msgstr "回复：{}"
+
+#: main.py:350 main.py:411 main.py:435
+msgid "Is regex: {}"
+msgstr "是否为正则表达式：{}"
+
+#: main.py:351
+msgid "Do you want to forward the message to the user?"
+msgstr "自动回复触发时，是否转发用户的消息？"
+
+#: main.py:363 main.py:570 main.py:583 main.py:589 main.py:597 main.py:603
+msgid "Invalid action"
+msgstr "无效的操作"
+
+#: main.py:373
+msgid "Auto reply added"
+msgstr "自动回复已添加"
+
+#: main.py:379 main.py:565
+msgid "Auto Reply"
+msgstr "自动回复"
+
+#: main.py:381
+msgid "Banned Users"
+msgstr "用户封禁"
+
+#: main.py:384 main.py:386
+msgid "Menu"
+msgstr "菜单"
+
+#: main.py:392
+msgid "This command is only available to admin users."
+msgstr "只有管理员可以使用该指令"
+
+#: main.py:404
+msgid "Auto Reply List:\n"
+msgstr "自动回复列表\n"
+
+#: main.py:410 main.py:434
+msgid "Forward message: {}"
+msgstr "是否转发消息：{}"
+
+#: main.py:425
+msgid "Auto reply not found"
+msgstr "未找到该自动回复"
+
+#: main.py:428
+msgid "Delete"
+msgstr "删除"
+
+#: main.py:446
+msgid "Auto reply deleted"
+msgstr "已删除自动回复"
+
+#: main.py:451
+msgid "This command is not available in the main chat."
+msgstr "只能在主会话里使用该指令"
+
+#: main.py:459
+msgid "User banned"
+msgstr "用户已被封禁"
+
+#: main.py:478 main.py:503 main.py:505
+msgid "User unbanned"
+msgstr "用户已解封"
+
+#: main.py:491 main.py:530
+msgid "User not found"
+msgstr "未找到该用户"
+
+#: main.py:514
+msgid "Banned User List:"
+msgstr "封禁用户列表："
+
+#: main.py:533
+msgid "Unban"
+msgstr "解封"
+
+#: main.py:542
+msgid "Invalid callback data received"
+msgstr "接收到无效的callback"
+
+#: main.py:550
+msgid "Invalid JSON data received"
+msgstr "接收到无效的JSON数据"
+
+#: main.py:558
+msgid "Add Auto Reply"
+msgstr "添加自动回复"
+
+#: main.py:561
+msgid "Manage Existing Auto Reply"
+msgstr "管理自动回复"
+
+#: main.py:607
+msgid "Invalid action received"
+msgstr "接收到无效的操作"
+
+#: main.py:613
 msgid "Token or group ID is empty"
 msgstr "Token或群组ID为空"
 
-#: main.py:288
+#: main.py:618
 msgid "Exiting..."
 msgstr "退出中……"
-
-#~ msgid "True"
-#~ msgstr "启用"
-
-#~ msgid "False"
-#~ msgstr "禁用"
-
-#~ msgid "No auto response found"
-#~ msgstr "您还未设置自动回复"
-
-#~ msgid "I don't have permission to delete messages"
-#~ msgstr "我没有权限删除消息"

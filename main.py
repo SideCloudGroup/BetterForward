@@ -308,7 +308,7 @@ class TGBot:
                                                   {"action": "set_auto_reply_type", "regex": 0})))
         markup.add(
             types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "add_auto_response"})))
-        help_text = _("Trigger: {}\n\n").format(self.cache.get("auto_response_key"))
+        help_text = _("Trigger: {}").format(self.cache.get("auto_response_key")) + "\n\n"
         help_text += _("Is this a regular expression?")
         self.bot.send_message(text=help_text, chat_id=self.group_id, reply_markup=markup)
 
@@ -330,7 +330,7 @@ class TGBot:
             self.cache.delete("auto_response_key")
             return
         if self.cache.get("auto_response_key") is None:
-            self.bot.send_message(self.group_id, _("he operation has timed out. Please initiate the process again."))
+            self.bot.send_message(self.group_id, _("The operation has timed out. Please initiate the process again."))
             return
         self.cache.set("auto_response_key", self.cache.get("auto_response_key"), 300)
         self.cache.set("auto_response_value", message.text, 300)
@@ -344,10 +344,10 @@ class TGBot:
                                                   {"action": "add_auto_reply", "topic_action": 0})))
         markup.add(
             types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "add_auto_response"})))
-        help_text = _("Trigger: {}\nResponse: {}\nIs regex: {}\n\n").format(self.cache.get("auto_response_key"),
-                                                                            self.cache.get("auto_response_value"),
-                                                                            _("Yes") if self.cache.get(
-                                                                                "auto_response_regex") else _("No"))
+        help_text = ""
+        help_text += _("Trigger: {}").format(self.cache.get("auto_response_key")) + "\n"
+        help_text += _("Response: {}").format(self.cache.get("auto_response_value")) + "\n"
+        help_text += _("Is regex: {}").format("✅" if self.cache.get("auto_response_regex") else "❌") + "\n\n"
         self.bot.send_message(self.group_id, help_text + _("Do you want to forward the message to the user?"),
                               reply_markup=markup,
                               message_thread_id=None)
@@ -389,8 +389,9 @@ class TGBot:
         if self.check_valid_chat(message):
             self.menu(message)
         else:
-            self.bot.send_message(message.chat.id, _("This command is only available to admin users.") + "\n" + _(
-                "Powered by [BetterForward](https://github.com/SideCloudGroup/BetterForward)."), parse_mode="Markdown",
+            self.bot.send_message(message.chat.id, _("This command is only available to admin users.") + "\n" +
+                                  "Powered by [BetterForward](https://github.com/SideCloudGroup/BetterForward).",
+                                  parse_mode="Markdown",
                                   disable_web_page_preview=True)
 
     def manage_auto_reply(self, message: Message):
@@ -404,10 +405,10 @@ class TGBot:
             for auto_response in auto_responses:
                 text += "-" * 20 + "\n"
                 text += f"ID: {auto_response[0]}\n"
-                text += _("Trigger: {}\n").format(auto_response[1])
-                text += _("Response: {}\n").format(auto_response[2])
-                text += _("Forward message: {}\n").format(_("Yes") if auto_response[3] else _("No"))
-                text += _("Is regex: {}\n\n").format(_("Yes") if auto_response[4] else _("No"))
+                text += _("Trigger: {}").format(auto_response[1]) + "\n"
+                text += _("Response: {}").format(auto_response[2]) + "\n"
+                text += _("Forward message: {}").format("✅" if auto_response[3] else "❌") + "\n"
+                text += _("Is regex: {}").format("✅" if auto_response[4] else "❌") + "\n\n"
                 markup.add(types.InlineKeyboardButton(text=auto_response[1],
                                                       callback_data=json.dumps({"action": "select_auto_reply",
                                                                                 "id": auto_response[0]})))
@@ -428,10 +429,10 @@ class TGBot:
                                                   callback_data=json.dumps({"action": "delete_auto_reply", "id": id})))
             markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                                   callback_data=json.dumps({"action": "manage_auto_reply"})))
-            text = _("Trigger: {}\n").format(auto_response[0])
-            text += _("Response: {}\n").format(auto_response[1])
-            text += _("Forward message: {}\n").format(_("Yes") if auto_response[2] else _("No"))
-            text += _("Is regex: {}\n\n").format(_("Yes") if auto_response[3] else _("No"))
+            text = _("Trigger: {}").format(auto_response[0]) + "\n"
+            text += _("Response: {}").format(auto_response[1]) + "\n"
+            text += _("Forward message: {}").format("✅" if auto_response[2] else "❌") + "\n"
+            text += _("Is regex: {}").format("✅" if auto_response[3] else "❌") + "\n\n"
             self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
 
     def delete_auto_reply(self, message: Message, id: int):
@@ -510,7 +511,7 @@ class TGBot:
             back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
             db_cursor.execute("SELECT user_id FROM topics WHERE ban = 1")
             banned_users = db_cursor.fetchall()
-            text = _("Banned User List:\n")
+            text = _("Banned User List:") + "\n"
             for user in banned_users:
                 text += "-" * 20 + "\n"
                 text += f"User ID: {user[0]}\n"
@@ -534,8 +535,7 @@ class TGBot:
                        )
             markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                                   callback_data=json.dumps({"action": "manage_ban_user"})))
-            text = _("User ID: {}\n").format(id)
-            self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
+            self.bot.edit_message_text(f"User ID: {id}", message.chat.id, message.message_id, reply_markup=markup)
 
     def callback_query(self, call: types.CallbackQuery):
         if call.data == "null":
