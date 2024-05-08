@@ -67,6 +67,8 @@ class TGBot:
         self.upgrade_db()
         self.bot.set_my_commands([
             telebot.types.BotCommand("help", _("Show help")),
+            telebot.types.BotCommand("ban", _("Ban a user")),
+            telebot.types.BotCommand("unban", _("Unban a user")),
             telebot.types.BotCommand("terminate", _("Terminate a thread")),
         ])
         self.cache = CacheHelper()
@@ -91,15 +93,19 @@ class TGBot:
         files = [f for f in os.listdir(db_migrate_dir) if f.endswith('.py')]
         files.sort(key=lambda x: int(x.split('_')[0]))
         for file in files:
-            version = int(file.split('_')[0])
-            if version > current_version:
-                logger.info(_("Upgrading database to version {}").format(version))
-                module = importlib.import_module(f"db_migrate.{file[:-3]}")
-                module.upgrade(self.db_path)
-                with sqlite3.connect(self.db_path) as db:
-                    db_cursor = db.cursor()
-                    db_cursor.execute("UPDATE settings SET value = ? WHERE key = 'db_version'", (str(version),))
-                    db.commit()
+            try:
+                if (version := int(file.split('_')[0])) > current_version:
+                    logger.info(_("Upgrading database to version {}").format(version))
+                    module = importlib.import_module(f"db_migrate.{file[:-3]}")
+                    module.upgrade(self.db_path)
+                    with sqlite3.connect(self.db_path) as db:
+                        db_cursor = db.cursor()
+                        db_cursor.execute("UPDATE settings SET value = ? WHERE key = 'db_version'", (str(version),))
+                        db.commit()
+            except Exception:
+                logger.error(_("Failed to upgrade database"))
+                print_exc()
+                exit(1)
 
     # Get thread_id to terminate when needed
     def terminate_thread(self, thread_id=None, user_id=None):
@@ -169,7 +175,7 @@ class TGBot:
         self.message_queue.put(message)
 
     # Main message handler
-    def handle_message(self, message: Message):
+    def handle_message(self, message: Message, retry=False):
         # Not responding in General topic
         if self.check_valid_chat(message):
             return
@@ -180,22 +186,19 @@ class TGBot:
                     _("Received message from {}, content: {}, type: {}").format(message.from_user.id, message.text,
                                                                                 message.content_type))
                 # Check if the user is banned
-                result = curser.execute("SELECT ban FROM topics WHERE user_id = ? LIMIT 1", (message.from_user.id,))
-                if (result := result.fetchone()) is not None:
-                    if result[0] == 1:
-                        logger.info(_("User {} is banned").format(message.from_user.id))
-                        return
+                if (result := curser.execute("SELECT ban FROM topics WHERE user_id = ? LIMIT 1",
+                                             (message.from_user.id,)).fetchone()) and result[0] == 1:
+                    logger.info(_("User {} is banned").format(message.from_user.id))
+                    return
                 # Auto response
+                topic_action = False
+                auto_response = None
                 if (auto_response_result := self.match_auto_response(message.text)) is not None:
-                    self.bot.send_message(message.chat.id, auto_response_result["response"])
-                    if not auto_response_result["topic_action"]:
-                        return
-                    else:
+                    if not retry:
+                        self.bot.send_message(message.chat.id, auto_response_result["response"])
+                    if auto_response_result["topic_action"]:
                         topic_action = True
                         auto_response = auto_response_result["response"]
-                else:
-                    topic_action = False
-                    auto_response = None
                 # Forward message to group
                 userid = message.from_user.id
                 result = curser.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (userid,))
@@ -227,9 +230,18 @@ class TGBot:
                 try:
                     self.bot.forward_message(self.group_id, message.chat.id, message_thread_id=thread_id,
                                              message_id=message.message_id)
-                except ApiTelegramException:
-                    self.terminate_thread(thread_id=thread_id)
-                    return self.handle_message(message)
+                except ApiTelegramException as e:
+                    if not retry:
+                        self.terminate_thread(thread_id=thread_id)
+                        return self.handle_message(message, retry=True)
+                    else:
+                        logger.error(_("Failed to forward message from user {}".format(message.from_user.id)))
+                        logger.error(e)
+                        self.bot.send_message(self.group_id,
+                                              _("Failed to forward message from user {}".format(message.from_user.id)),
+                                              message_thread_id=None)
+                        self.bot.forward_message(self.group_id, message.chat.id, message_id=message.message_id)
+                        return
                 if topic_action:
                     self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
                                           message_thread_id=thread_id)
@@ -285,10 +297,10 @@ class TGBot:
     def add_auto_response(self, message: Message):
         if not self.check_valid_chat(message):
             return
-        msg = self.bot.send_message(text=_(
+        msg = self.bot.edit_message_text(text=_(
             "Let's set up an automatic response.\nSend /cancel to cancel this operation.\n\n"
             "Please send the keywords or regular expression that should trigger this response."),
-            chat_id=self.group_id, message_thread_id=None)
+            chat_id=self.group_id, message_id=message.message_id)
         self.bot.register_next_step_handler(msg, self.add_auto_response_type)
 
     def add_auto_response_type(self, message: Message):
