@@ -562,7 +562,6 @@ class TGBot:
             return
         markup = types.InlineKeyboardMarkup()
         back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
-        print(action)
         match action:
             case "menu":
                 self.menu(call.message, edit=True)
