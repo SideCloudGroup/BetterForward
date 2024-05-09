@@ -319,7 +319,7 @@ class TGBot:
                                               callback_data=json.dumps(
                                                   {"action": "set_auto_reply_type", "regex": 0})))
         markup.add(
-            types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "add_auto_response"})))
+            types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "auto_reply"})))
         help_text = _("Trigger: {}").format(self.cache.get("auto_response_key")) + "\n\n"
         help_text += _("Is this a regular expression?")
         self.bot.send_message(text=help_text, chat_id=self.group_id, reply_markup=markup)
@@ -563,6 +563,7 @@ class TGBot:
             return
         markup = types.InlineKeyboardMarkup()
         back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
+        print(action)
         match action:
             case "menu":
                 self.menu(call.message, edit=True)

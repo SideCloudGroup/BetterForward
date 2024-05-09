@@ -2,6 +2,7 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 ADD main.py /app
+ADD cache.py /app
 ADD locale /app/locale
 RUN find /app/locale -name "*.po" -type f -delete
 ADD db_migrate /app/db_migrate
