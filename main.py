@@ -11,8 +11,7 @@ import sqlite3
 import threading
 from traceback import print_exc
 
-import telebot
-from telebot import types
+from telebot import types, TeleBot
 from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegramException, delete_forum_topic, \
     reopen_forum_topic
 from telebot.types import Message
@@ -55,7 +54,7 @@ class TGBot:
     def __init__(self, bot_token: str, group_id: str, db_path: str = "./data/storage.db"):
         logger.info(_("Starting BetterForward..."))
         self.group_id = int(group_id)
-        self.bot = telebot.TeleBot(bot_token)
+        self.bot = TeleBot(bot_token)
         self.bot.message_handler(commands=["help"])(self.help)
         self.bot.message_handler(commands=["ban"])(self.ban_user)
         self.bot.message_handler(commands=["unban"])(self.unban_user)
@@ -66,10 +65,10 @@ class TGBot:
         self.db_path = db_path
         self.upgrade_db()
         self.bot.set_my_commands([
-            telebot.types.BotCommand("help", _("Show help")),
-            telebot.types.BotCommand("ban", _("Ban a user")),
-            telebot.types.BotCommand("unban", _("Unban a user")),
-            telebot.types.BotCommand("terminate", _("Terminate a thread")),
+            types.BotCommand("help", _("Show help")),
+            types.BotCommand("ban", _("Ban a user")),
+            types.BotCommand("unban", _("Unban a user")),
+            types.BotCommand("terminate", _("Terminate a thread")),
         ])
         self.cache = CacheHelper()
         self.check_permission()
