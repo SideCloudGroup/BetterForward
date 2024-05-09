@@ -155,18 +155,19 @@ class TGBot:
         with sqlite3.connect(self.db_path) as db:
             # Check for exact match
             db_cursor = db.cursor()
-            db_cursor.execute("SELECT value, topic_action FROM auto_response WHERE key = ? AND is_regex = 0 LIMIT 1",
-                              (text,))
+            db_cursor.execute(
+                "SELECT value, topic_action, type FROM auto_response WHERE key = ? AND is_regex = 0 LIMIT 1",
+                (text,))
             result = db_cursor.fetchone()
             if result is not None:
-                return {"response": result[0], "topic_action": result[1]}
+                return {"response": result[0], "topic_action": result[1], "type": result[2]}
 
             # Check for regex
-            db_cursor.execute("SELECT key, value, topic_action FROM auto_response WHERE is_regex = 1")
+            db_cursor.execute("SELECT key, value, topic_action, type FROM auto_response WHERE is_regex = 1")
             result = db_cursor.fetchall()
             for row in result:
                 if re.match(row[0], text):
-                    return {"response": row[1], "topic_action": row[2]}
+                    return {"response": row[1], "topic_action": row[2], "type": row[3]}
             return None
 
     # Push messages to the queue
@@ -194,7 +195,19 @@ class TGBot:
                 auto_response = None
                 if (auto_response_result := self.match_auto_response(message.text)) is not None:
                     if not retry:
-                        self.bot.send_message(message.chat.id, auto_response_result["response"])
+                        match auto_response_result["type"]:
+                            case "text":
+                                self.bot.send_message(message.chat.id, auto_response_result["response"])
+                            case "photo":
+                                self.bot.send_photo(message.chat.id, photo=auto_response_result["response"])
+                            case "sticker":
+                                self.bot.send_sticker(message.chat.id, sticker=auto_response_result["response"])
+                            case "video":
+                                self.bot.send_video(message.chat.id, video=auto_response_result["response"])
+                            case "document":
+                                self.bot.send_document(message.chat.id, document=auto_response_result["response"])
+                            case _:
+                                logger.error(_("Unsupported message type") + auto_response_result["type"])
                     if auto_response_result["topic_action"]:
                         topic_action = True
                         auto_response = auto_response_result["response"]
@@ -309,6 +322,9 @@ class TGBot:
         if message.text == "/cancel":
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
+        if message.content_type != "text":
+            self.bot.send_message(self.group_id, _("Invalid input"))
+            return
         self.cache.set("auto_response_key", message.text, 300)
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("✅" + _("Yes"),
@@ -329,7 +345,8 @@ class TGBot:
         if message.text == "/cancel":
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
-        msg = self.bot.edit_message_text(text=_("Please send the response message."),
+        msg = self.bot.edit_message_text(text=_("Please send the response content. It can be text, stickers, photos "
+                                                "and so on."),
                                          chat_id=self.group_id, message_id=message.message_id)
         self.bot.register_next_step_handler(msg, self.add_auto_response_topic_action)
 
@@ -344,7 +361,25 @@ class TGBot:
             self.bot.send_message(self.group_id, _("The operation has timed out. Please initiate the process again."))
             return
         self.cache.set("auto_response_key", self.cache.get("auto_response_key"), 300)
-        self.cache.set("auto_response_value", message.text, 300)
+        match message.content_type:
+            case "photo":
+                self.cache.set("auto_response_value", message.photo[-1].file_id, 300)
+                self.cache.set("auto_response_type", "photo", 300)
+            case "text":
+                self.cache.set("auto_response_value", message.text, 300)
+                self.cache.set("auto_response_type", "text", 300)
+            case "sticker":
+                self.cache.set("auto_response_value", message.sticker.file_id, 300)
+                self.cache.set("auto_response_type", "sticker", 300)
+            case "video":
+                self.cache.set("auto_response_value", message.video.file_id, 300)
+                self.cache.set("auto_response_type", "video", 300)
+            case "document":
+                self.cache.set("auto_response_value", message.document.file_id, 300)
+                self.cache.set("auto_response_type", "document", 300)
+            case _:
+                self.bot.send_message(self.group_id, _("Unsupported message type"))
+                return
         self.cache.set("auto_response_regex", self.cache.get("auto_response_regex"), 300)
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("✅" + _("Forward message"),
@@ -357,7 +392,9 @@ class TGBot:
             types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "add_auto_response"})))
         help_text = ""
         help_text += _("Trigger: {}").format(self.cache.get("auto_response_key")) + "\n"
-        help_text += _("Response: {}").format(self.cache.get("auto_response_value")) + "\n"
+        help_text += _("Response: {}").format(
+            self.cache.get("auto_response_value") if self.cache.get("auto_response_type") == "text" else self.cache.get(
+                "auto_response_type")) + "\n"
         help_text += _("Is regex: {}").format("✅" if self.cache.get("auto_response_regex") else "❌") + "\n\n"
         self.bot.send_message(self.group_id, help_text + _("Do you want to forward the message to the user?"),
                               reply_markup=markup,
@@ -367,9 +404,10 @@ class TGBot:
         key = self.cache.pull("auto_response_key")
         value = self.cache.pull("auto_response_value")
         is_regex = self.cache.pull("auto_response_regex")
+        type = self.cache.pull("auto_response_type")
         markup = types.InlineKeyboardMarkup()
         back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
-        if "topic_action" not in data or None in [key, value, is_regex]:
+        if "topic_action" not in data or None in [key, value, is_regex, type]:
             self.bot.delete_message(self.group_id, message.id)
             self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
             return
@@ -377,8 +415,8 @@ class TGBot:
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
             db_cursor.execute(
-                "INSERT INTO auto_response (key, value, topic_action, is_regex) VALUES (?, ?, ?, ?)",
-                (key, value, topic_action, is_regex))
+                "INSERT INTO auto_response (key, value, topic_action, is_regex, type) VALUES (?, ?, ?, ?, ?)",
+                (key, value, topic_action, is_regex, type))
             db.commit()
         markup.add(back_button)
         self.bot.edit_message_text(_("Auto reply added"), message.chat.id, message.message_id, reply_markup=markup)
@@ -410,14 +448,15 @@ class TGBot:
             db_cursor = db.cursor()
             markup = types.InlineKeyboardMarkup()
             back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
-            db_cursor.execute("SELECT id, key, value, topic_action, is_regex FROM auto_response")
+            db_cursor.execute("SELECT id, key, value, topic_action, is_regex, type FROM auto_response")
             auto_responses = db_cursor.fetchall()
             text = _("Auto Reply List:\n")
             for auto_response in auto_responses:
                 text += "-" * 20 + "\n"
                 text += f"ID: {auto_response[0]}\n"
                 text += _("Trigger: {}").format(auto_response[1]) + "\n"
-                text += _("Response: {}").format(auto_response[2]) + "\n"
+                text += _("Response: {}").format(
+                    auto_response[2] if auto_response[5] == "text" else auto_response[5]) + "\n"
                 text += _("Forward message: {}").format("✅" if auto_response[3] else "❌") + "\n"
                 text += _("Is regex: {}").format("✅" if auto_response[4] else "❌") + "\n\n"
                 markup.add(types.InlineKeyboardButton(text=auto_response[1],
@@ -429,7 +468,7 @@ class TGBot:
     def select_auto_reply(self, message: Message, id: int):
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
-            db_cursor.execute("SELECT key, value, topic_action, is_regex FROM auto_response WHERE id = ? LIMIT 1",
+            db_cursor.execute("SELECT key, value, topic_action, is_regex, type FROM auto_response WHERE id = ? LIMIT 1",
                               (id,))
             auto_response = db_cursor.fetchone()
             if auto_response is None:
@@ -441,7 +480,8 @@ class TGBot:
             markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                                   callback_data=json.dumps({"action": "manage_auto_reply"})))
             text = _("Trigger: {}").format(auto_response[0]) + "\n"
-            text += _("Response: {}").format(auto_response[1]) + "\n"
+            text += _("Response: {}").format(
+                auto_response[1] if auto_response[4] == "text" else auto_response[4]) + "\n"
             text += _("Forward message: {}").format("✅" if auto_response[2] else "❌") + "\n"
             text += _("Is regex: {}").format("✅" if auto_response[3] else "❌") + "\n\n"
             self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
