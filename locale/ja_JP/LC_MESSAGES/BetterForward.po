@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-05-06 16:28+0100\n"
-"PO-Revision-Date: 2024-05-06 16:36+0100\n"
+"POT-Creation-Date: 2024-05-10 17:53+0100\n"
+"PO-Revision-Date: 2024-05-10 20:50+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: ja_JP\n"
@@ -13,130 +13,266 @@ msgstr ""
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-SearchPath-0: main.py\n"
 
-#: main.py:49
+#: main.py:55
 msgid "Starting BetterForward..."
 msgstr "BetterForwardのスタート..."
 
-#: main.py:59
+#: main.py:68
+msgid "Show help"
+msgstr "ヘルプを表示"
+
+#: main.py:69
+msgid "Ban a user"
+msgstr "ユーザーを禁止する"
+
+#: main.py:70
+msgid "Unban a user"
+msgstr "ユーザーを解禁する"
+
+#: main.py:71
 msgid "Terminate a thread"
 msgstr "スレッドを削除する"
 
-#: main.py:68
-msgid ""
-"Invalid command\n"
-"Correct usage:\n"
-"`/auto_response set <key> <value> <topic_action(0/1)>`\n"
-"`/auto_response delete <key>`\n"
-"`/auto_response list`"
-msgstr ""
-"無効なコマンド\n"
-"使い方：\n"
-"`/auto_response set <key> <value> <自動応答でも転送(0/1)>`\n"
-"`/auto_response delete <key>`\n"
-"`/auto_response list`"
-
-#: main.py:84
-msgid "Auto response list"
-msgstr "自動応答リスト"
-
-#: main.py:87
-msgid ""
-"Trigger: {}\n"
-"Response: {}\n"
-"Forward message: {}\n"
-msgstr ""
-"トリガー：{}\n"
-"レスポンス：{}\n"
-"自動応答でも転送：{}\n"
-
-#: main.py:88
-msgid "Enable"
-msgstr "有効"
-
-#: main.py:90
-msgid "Disable"
-msgstr "無効"
-
-#: main.py:109
-msgid "Auto response set"
-msgstr "自動応答をセットした"
-
-#: main.py:116
-msgid "Auto response deleted"
-msgstr "自動応答を削除した"
-
-#: main.py:118
-msgid "Invalid operation"
-msgstr "無効な操作"
-
-#: main.py:135
+#: main.py:97
 msgid "Upgrading database to version {}"
 msgstr "データベースのバージョンアップ：{}"
 
-#: main.py:159
+#: main.py:105
+msgid "Failed to upgrade database"
+msgstr "データベースのアップグレードに失敗した"
+
+#: main.py:125
 msgid "Terminating thread"
-msgstr "スレッドを削除しています"
+msgstr "スレッドを削除している"
 
-#: main.py:176
+#: main.py:142
 msgid "Cannot terminate main thread"
-msgstr "メインスレッドを削除できません"
+msgstr "メインスレッドを削除できない"
 
-#: main.py:181
+#: main.py:147
 msgid "Thread terminated"
 msgstr "スレッドを削除された"
 
-#: main.py:183 main.py:184
+#: main.py:149 main.py:150
 msgid "Failed to terminate the thread"
-msgstr "スレッドを削除されません"
+msgstr "スレッドを削除されない"
 
-#: main.py:199
+#: main.py:186
 msgid "Received message from {}, content: {}, type: {}"
-msgstr "{}からのメッセージを受信した：{}、タイプ：{}"
+msgstr "{} からのメッセージを受信した：{}、タイプ：{}"
 
-#: main.py:218
-msgid "Creating a new thread for user {}"
-msgstr "ユーザー{}との新しいスレッドを作成する"
+#: main.py:191
+msgid "User {} is banned"
+msgstr "ユーザー {} は禁止された"
 
-#: main.py:230
-msgid "Not set"
-msgstr "未設定"
-
-#: main.py:242 main.py:244
-msgid "Failed to forward message from user {}"
-msgstr "ユーザー{}からのメッセージ転送できません"
-
-#: main.py:248
-msgid "[Auto Response]"
-msgstr "[自動応答]"
-
-#: main.py:271
+#: main.py:210 main.py:281 main.py:381
 msgid "Unsupported message type"
 msgstr "サポートされていないメッセージタイプ"
 
-#: main.py:273
-msgid "Chat not found, please remove this topic manually"
-msgstr "チャットが見つかりません、トピックを手動で削除してください"
+#: main.py:220
+msgid "Creating a new thread for user {}"
+msgstr "ユーザー {} との新しいスレッドを作成する"
 
-#: main.py:286
+#: main.py:232
+msgid "Not set"
+msgstr "未設定"
+
+#: main.py:250 main.py:253
+msgid "Failed to forward message from user {}"
+msgstr "ユーザー {} からのメッセージ転送できない"
+
+#: main.py:258
+msgid "[Auto Response]"
+msgstr "[自動応答]"
+
+#: main.py:283
+msgid "Chat not found, please remove this topic manually"
+msgstr "チャットが見つからない、トピックを手動で削除してください"
+
+#: main.py:294
+msgid "Failed to process message"
+msgstr "メッセージ処理に失敗"
+
+#: main.py:300
 msgid "Manage Topics"
 msgstr "トピックを管理する"
 
-#: main.py:287
+#: main.py:301
 msgid "Delete Messages"
 msgstr "メッセージの削除する"
 
-#: main.py:291 main.py:292
+#: main.py:305 main.py:306
 msgid "Bot doesn't have {} permission"
-msgstr "ボットには{}の権限がありません"
+msgstr "ボットには {} の権限がない"
 
-#: main.py:293
+#: main.py:307
 msgid "Bot started successfully"
 msgstr "ボット起動成功"
 
-#: main.py:298
+#: main.py:313
+msgid ""
+"Let's set up an automatic response.\n"
+"Send /cancel to cancel this operation.\n"
+"\n"
+"Please send the keywords or regular expression that should trigger this "
+"response."
+msgstr ""
+"自動応答を設定しよう\n"
+"この操作をキャンセルするには /cancel を送信してください\n"
+"\n"
+"この応答をトリガーするキーワードまたは正規表現(Regular Expression)を送ってく"
+"ださい。"
+
+#: main.py:323 main.py:346 main.py:357
+msgid "Operation cancelled"
+msgstr "操作中止"
+
+#: main.py:326
+msgid "Invalid input"
+msgstr "無効な入力"
+
+#: main.py:330
+msgid "Yes"
+msgstr "はい"
+
+#: main.py:333
+msgid "No"
+msgstr "いいえ"
+
+#: main.py:337 main.py:392 main.py:409 main.py:450 main.py:480 main.py:496
+#: main.py:552 main.py:562 main.py:587 main.py:604
+msgid "Back"
+msgstr "戻る"
+
+#: main.py:338 main.py:394 main.py:457 main.py:482
+msgid "Trigger: {}"
+msgstr "トリガー：{}"
+
+#: main.py:339
+msgid "Is this a regular expression?"
+msgstr "これは正規表現(Regular Expression)だか？"
+
+#: main.py:348
+msgid ""
+"Please send the response content. It can be text, stickers, photos and so on."
+msgstr "回答内容をお送りください。テキスト、ステッカー、写真などでも結構だ。"
+
+#: main.py:361
+msgid "The operation has timed out. Please initiate the process again."
+msgstr "操作がタイムアウトしました。もう一度処理を開始してください。"
+
+#: main.py:385
+msgid "Forward message"
+msgstr "転送メッセージ"
+
+#: main.py:388
+msgid "Do not forward message"
+msgstr "メッセージを転送しない"
+
+#: main.py:395 main.py:458 main.py:483
+msgid "Response: {}"
+msgstr "レスポンス：{}"
+
+#: main.py:398 main.py:461 main.py:486
+msgid "Is regex: {}"
+msgstr "正規表現(Regular Expression)：{}"
+
+#: main.py:399
+msgid "Do you want to forward the message to the user?"
+msgstr "メッセージを転送するか？"
+
+#: main.py:412 main.py:621 main.py:634 main.py:640 main.py:648 main.py:654
+msgid "Invalid action"
+msgstr "無効な操作"
+
+#: main.py:422
+msgid "Auto reply added"
+msgstr "自動応答を追加された"
+
+#: main.py:428 main.py:616
+msgid "Auto Reply"
+msgstr "自動応答"
+
+#: main.py:430
+msgid "Banned Users"
+msgstr "禁止されているユーザー"
+
+#: main.py:433 main.py:435
+msgid "Menu"
+msgstr "メニュー"
+
+#: main.py:441
+msgid "This command is only available to admin users."
+msgstr "このコマンドは管理者ユーザーのみが使用できる。"
+
+#: main.py:453
+msgid "Auto Reply List:\n"
+msgstr "自動応答リスト\n"
+
+#: main.py:460 main.py:485
+msgid "Forward message: {}"
+msgstr "メッセージを転送：{}"
+
+#: main.py:475
+msgid "Auto reply not found"
+msgstr "その自動応答が見つからない"
+
+#: main.py:478
+msgid "Delete"
+msgstr "削除"
+
+#: main.py:497
+msgid "Auto reply deleted"
+msgstr "自動応答を削除された"
+
+#: main.py:502
+msgid "This command is not available in the main chat."
+msgstr "このコマンドはメインチャットでは使用できない。"
+
+#: main.py:510
+msgid "User banned"
+msgstr "ユーザーを禁止された"
+
+#: main.py:529 main.py:554 main.py:556
+msgid "User unbanned"
+msgstr "ユーザーを解禁された"
+
+#: main.py:542 main.py:581
+msgid "User not found"
+msgstr "そのユーザーは見つからない"
+
+#: main.py:565
+msgid "Banned User List:"
+msgstr "禁止されたユーザー："
+
+#: main.py:584
+msgid "Unban"
+msgstr "解禁する"
+
+#: main.py:593
+msgid "Invalid callback data received"
+msgstr "無効なコールバックデータを受信した"
+
+#: main.py:601
+msgid "Invalid JSON data received"
+msgstr "無効なJSONデータを受信した"
+
+#: main.py:609
+msgid "Add Auto Reply"
+msgstr "自動応答を追加する"
+
+#: main.py:612
+msgid "Manage Existing Auto Reply"
+msgstr "既存の自動応答を管理する"
+
+#: main.py:658
+msgid "Invalid action received"
+msgstr "無効な操作"
+
+#: main.py:664
 msgid "Token or group ID is empty"
 msgstr "トークンまたはグループIDが空"
 
-#: main.py:303
+#: main.py:669
 msgid "Exiting..."
 msgstr "終了..."
