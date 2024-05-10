@@ -211,6 +211,8 @@ class TGBot:
                     if auto_response_result["topic_action"]:
                         topic_action = True
                         auto_response = auto_response_result["response"]
+                    else:
+                        return
                 # Forward message to group
                 userid = message.from_user.id
                 result = curser.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (userid,))
