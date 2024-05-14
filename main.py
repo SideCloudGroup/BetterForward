@@ -376,8 +376,8 @@ class TGBot:
 
     def check_permission(self):
         if not self.bot.get_chat(self.group_id).is_forum:
-            logger.error(_("This is not a forum group"))
-            self.bot.send_message(self.group_id, _("This is not a forum group"))
+            logger.error(_("Topic function is not enabled in this group"))
+            self.bot.send_message(self.group_id, _("Topic function is not enabled in this group"))
         chat_member = self.bot.get_chat_member(self.group_id, self.bot.get_me().id)
         permissions = {
             _("Manage Topics"): chat_member.can_manage_topics,
@@ -668,7 +668,7 @@ class TGBot:
                                                   callback_data=json.dumps({"action": "unban_user", "id": id}))
                        )
             markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
-                                                  callback_data=json.dumps({"action": "manage_ban_user"})))
+                                                  callback_data=json.dumps({"action": "ban_user"})))
             self.bot.edit_message_text(f"User ID: {id}", message.chat.id, message.message_id, reply_markup=markup)
 
     def callback_query(self, call: types.CallbackQuery):
@@ -763,7 +763,7 @@ class TGBot:
                 match message.content_type:
                     case "text":
                         self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id,
-                                                   text=message.text)
+                                                   text=message.text + "\n\n" + _("(edited)"))
 
 
 if __name__ == "__main__":
