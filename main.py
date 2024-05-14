@@ -55,6 +55,7 @@ class TGBot:
         logger.info(_("Starting BetterForward..."))
         self.group_id = int(group_id)
         self.bot = TeleBot(bot_token)
+        self.bot.edited_message_handler(func=lambda m: True)(self.handle_edit)
         self.bot.message_handler(commands=["help"])(self.help)
         self.bot.message_handler(commands=["ban"])(self.ban_user)
         self.bot.message_handler(commands=["unban"])(self.unban_user)
@@ -122,6 +123,7 @@ class TGBot:
                 delete_forum_topic(chat_id=self.group_id, message_thread_id=thread_id, token=self.bot.token)
             except ApiTelegramException:
                 pass
+            db_cursor.execute("DELETE FROM messages WHERE topic_id = ?", (thread_id,))
         logger.info(_("Terminating thread") + str(thread_id))
 
     # To terminate and totally delete the topic
@@ -197,15 +199,20 @@ class TGBot:
                     if not retry:
                         match auto_response_result["type"]:
                             case "text":
-                                self.bot.send_message(message.chat.id, auto_response_result["response"])
+                                self.bot.send_message(message.chat.id,
+                                                      auto_response_result["response"])
                             case "photo":
-                                self.bot.send_photo(message.chat.id, photo=auto_response_result["response"])
+                                self.bot.send_photo(message.chat.id,
+                                                    photo=auto_response_result["response"])
                             case "sticker":
-                                self.bot.send_sticker(message.chat.id, sticker=auto_response_result["response"])
+                                self.bot.send_sticker(message.chat.id,
+                                                      sticker=auto_response_result["response"])
                             case "video":
-                                self.bot.send_video(message.chat.id, video=auto_response_result["response"])
+                                self.bot.send_video(message.chat.id,
+                                                    video=auto_response_result["response"])
                             case "document":
-                                self.bot.send_document(message.chat.id, document=auto_response_result["response"])
+                                self.bot.send_document(message.chat.id,
+                                                       document=auto_response_result["response"])
                             case _:
                                 logger.error(_("Unsupported message type") + auto_response_result["type"])
                     if auto_response_result["topic_action"]:
@@ -242,8 +249,53 @@ class TGBot:
                 else:
                     thread_id = thread_id[0]
                 try:
-                    self.bot.forward_message(self.group_id, message.chat.id, message_thread_id=thread_id,
-                                             message_id=message.message_id)
+                    reply_id = None
+                    if message.reply_to_message is not None:
+                        if message.reply_to_message.from_user.id == message.from_user.id:
+                            curser.execute(
+                                "SELECT forwarded_id FROM messages WHERE received_id = ? AND topic_id = ? AND in_group = ? LIMIT 1",
+                                (message.reply_to_message.message_id, thread_id, False,))
+                        else:
+                            curser.execute(
+                                "SELECT received_id FROM messages WHERE forwarded_id = ? AND topic_id = ? AND in_group = ? LIMIT 1",
+                                (message.reply_to_message.message_id, thread_id, True,))
+                        if (result := curser.fetchone()) is not None:
+                            reply_id = int(result[0])
+                    match message.content_type:
+                        case "photo":
+                            fwd_msg = self.bot.send_photo(chat_id=self.group_id,
+                                                          photo=message.photo[-1].file_id,
+                                                          caption=message.caption,
+                                                          message_thread_id=thread_id,
+                                                          reply_to_message_id=reply_id)
+                        case "text":
+                            fwd_msg = self.bot.send_message(chat_id=self.group_id,
+                                                            text=message.text,
+                                                            message_thread_id=thread_id,
+                                                            reply_to_message_id=reply_id)
+                        case "sticker":
+                            fwd_msg = self.bot.send_sticker(chat_id=self.group_id,
+                                                            sticker=message.sticker.file_id,
+                                                            message_thread_id=thread_id,
+                                                            reply_to_message_id=reply_id)
+                        case "video":
+                            fwd_msg = self.bot.send_video(chat_id=self.group_id,
+                                                          video=message.video.file_id,
+                                                          caption=message.caption,
+                                                          message_thread_id=thread_id,
+                                                          reply_to_message_id=reply_id)
+                        case "document":
+                            fwd_msg = self.bot.send_document(chat_id=self.group_id,
+                                                             document=message.document.file_id,
+                                                             caption=message.caption,
+                                                             message_thread_id=thread_id,
+                                                             reply_to_message_id=reply_id)
+                        case _:
+                            logger.error(_("Unsupported message type") + message.content_type)
+                            return
+                    curser.execute(
+                        "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+                        (message.message_id, fwd_msg.message_id, thread_id, False,))
                 except ApiTelegramException as e:
                     if not retry:
                         self.terminate_thread(thread_id=thread_id)
@@ -265,22 +317,48 @@ class TGBot:
                                         (message.message_thread_id,))
                 user_id = result.fetchone()
                 if user_id is not None:
+                    reply_id = None
+                    if message.reply_to_message is not None:
+                        if message.reply_to_message.from_user.id == message.from_user.id:
+                            curser.execute(
+                                "SELECT forwarded_id FROM messages WHERE received_id = ? AND topic_id = ? AND in_group = ? LIMIT 1",
+                                (message.reply_to_message.message_id, message.message_thread_id, True,))
+                        else:
+                            curser.execute(
+                                "SELECT received_id FROM messages WHERE forwarded_id = ? AND topic_id = ? AND in_group = ? LIMIT 1",
+                                (message.reply_to_message.message_id, message.message_thread_id, False,))
+                        if (result := curser.fetchone()) is not None:
+                            reply_id = int(result[0])
                     match message.content_type:
                         case "photo":
-                            self.bot.send_photo(chat_id=user_id[0], photo=message.photo[-1].file_id,
-                                                caption=message.caption)
+                            fwd_msg = self.bot.send_photo(chat_id=user_id[0],
+                                                          photo=message.photo[-1].file_id,
+                                                          caption=message.caption,
+                                                          reply_to_message_id=reply_id)
                         case "text":
-                            self.bot.send_message(chat_id=user_id[0], text=message.text)
+                            fwd_msg = self.bot.send_message(chat_id=user_id[0],
+                                                            text=message.text,
+                                                            reply_to_message_id=reply_id)
                         case "sticker":
-                            self.bot.send_sticker(chat_id=user_id[0], sticker=message.sticker.file_id)
+                            fwd_msg = self.bot.send_sticker(chat_id=user_id[0],
+                                                            sticker=message.sticker.file_id,
+                                                            reply_to_message_id=reply_id)
                         case "video":
-                            self.bot.send_video(chat_id=user_id[0], video=message.video.file_id,
-                                                caption=message.caption)
+                            fwd_msg = self.bot.send_video(chat_id=user_id[0],
+                                                          video=message.video.file_id,
+                                                          caption=message.caption,
+                                                          reply_to_message_id=reply_id)
                         case "document":
-                            self.bot.send_document(chat_id=user_id[0], document=message.document.file_id,
-                                                   caption=message.caption)
+                            fwd_msg = self.bot.send_document(chat_id=user_id[0],
+                                                             document=message.document.file_id,
+                                                             caption=message.caption,
+                                                             reply_to_message_id=reply_id)
                         case _:
                             logger.error(_("Unsupported message type") + message.content_type)
+                            return
+                    curser.execute(
+                        "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+                        (message.message_id, fwd_msg.message_id, message.message_thread_id, True,))
                 else:
                     self.bot.send_message(self.group_id, _("Chat not found, please remove this topic manually"),
                                           message_thread_id=message.message_thread_id)
@@ -662,6 +740,30 @@ class TGBot:
             case _:
                 logger.error(_("Invalid action received"))
         return
+
+    def handle_edit(self, message: Message):
+        if self.check_valid_chat(message):
+            return
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute(
+                "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? AND in_group = ? LIMIT 1",
+                (message.message_id, message.chat.id == self.group_id,))
+            if (result := db_cursor.fetchone()) is None:
+                return
+            topic_id, forwarded_id = result
+            if message.chat.id == self.group_id:
+                db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
+                if (user_id := db_cursor.fetchone()[0]) is None:
+                    return
+                match message.content_type:
+                    case "text":
+                        self.bot.edit_message_text(chat_id=user_id, message_id=forwarded_id, text=message.text)
+            else:
+                match message.content_type:
+                    case "text":
+                        self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id,
+                                                   text=message.text)
 
 
 if __name__ == "__main__":
