@@ -297,6 +297,9 @@ class TGBot:
                 print_exc()
 
     def check_permission(self):
+        if not self.bot.get_chat(self.group_id).is_forum:
+            logger.error(_("This is not a forum group"))
+            self.bot.send_message(self.group_id, _("This is not a forum group"))
         chat_member = self.bot.get_chat_member(self.group_id, self.bot.get_me().id)
         permissions = {
             _("Manage Topics"): chat_member.can_manage_topics,
