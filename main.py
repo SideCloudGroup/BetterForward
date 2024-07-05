@@ -379,7 +379,7 @@ class TGBot:
     def process_messages(self):
         while stop is False:
             try:
-                message = self.message_queue.get_nowait()
+                message = self.message_queue.get(timeout=1)
                 self.handle_message(message)
             except queue.Empty:
                 continue  # Skip to the next iteration if the queue is empty
