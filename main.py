@@ -54,9 +54,9 @@ class TGBot:
     def __init__(self, bot_token: str, group_id: str, db_path: str = "./data/storage.db"):
         logger.info(_("Starting BetterForward..."))
         self.group_id = int(group_id)
-        self.bot = TeleBot(bot_token)
+        self.bot = TeleBot(token=bot_token)
         self.bot.edited_message_handler(func=lambda m: True)(self.handle_edit)
-        self.bot.message_handler(commands=["help"])(self.help)
+        self.bot.message_handler(commands=["start", "help"])(self.help)
         self.bot.message_handler(commands=["ban"])(self.ban_user)
         self.bot.message_handler(commands=["unban"])(self.unban_user)
         self.bot.message_handler(commands=["terminate"])(self.handle_terminate)
@@ -67,10 +67,13 @@ class TGBot:
         self.upgrade_db()
         self.bot.set_my_commands([
             types.BotCommand("help", _("Show help")),
+        ], scope=types.BotCommandScopeAllPrivateChats())
+        self.bot.set_my_commands([
+            types.BotCommand("help", _("Show help")),
             types.BotCommand("ban", _("Ban a user")),
             types.BotCommand("unban", _("Unban a user")),
             types.BotCommand("terminate", _("Terminate a thread")),
-        ])
+        ], scope=types.BotCommandScopeChat(self.group_id))
         self.cache = CacheHelper()
         self.check_permission()
         self.message_queue = queue.Queue()
@@ -150,6 +153,8 @@ class TGBot:
             except Exception:
                 logger.error(_("Failed to terminate the thread") + str(thread_id))
                 self.bot.reply_to(message, _("Failed to terminate the thread"))
+        else:
+            self.bot.send_message(message.chat.id, _("This command is only available to admin users."))
 
     def match_auto_response(self, text):
         if text is None:
@@ -510,6 +515,8 @@ class TGBot:
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("💬" + _("Auto Reply"),
                                               callback_data=json.dumps({"action": "auto_reply"})))
+        markup.add(types.InlineKeyboardButton("📙" + _("Default Message"),
+                                              callback_data=json.dumps({"action": "default_msg"})))
         markup.add(types.InlineKeyboardButton("⛔" + _("Banned Users"),
                                               callback_data=json.dumps({"action": "ban_user"})))
         if edit:
@@ -521,16 +528,28 @@ class TGBot:
         if self.check_valid_chat(message):
             self.menu(message)
         else:
-            self.bot.send_message(message.chat.id, _("This command is only available to admin users.") + "\n" +
-                                  "Powered by [BetterForward](https://github.com/SideCloudGroup/BetterForward).",
-                                  parse_mode="Markdown",
-                                  disable_web_page_preview=True)
+            if (response := self.get_setting('default_message')) is None:
+                self.bot.send_message(message.chat.id, _("I'm a bot that forwards messages, so please just tell me "
+                                                         "what you want to say.") + "\n" +
+                                      "Powered by [BetterForward](https://github.com/SideCloudGroup/BetterForward)",
+                                      parse_mode="Markdown",
+                                      disable_web_page_preview=True)
+            else:
+                self.bot.send_message(message.chat.id, response)
+
+    def get_setting(self, key):
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("SELECT value FROM settings WHERE key = ? LIMIT 1", (key,))
+            result = db_cursor.fetchone()
+            return result[0] if result else None
 
     def manage_auto_reply(self, message: Message):
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
             markup = types.InlineKeyboardMarkup()
-            back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
+            back_button = types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                     callback_data=json.dumps({"action": "auto_reply"}))
             db_cursor.execute("SELECT id, key, value, topic_action, is_regex, type FROM auto_response")
             auto_responses = db_cursor.fetchall()
             text = _("Auto Reply List:\n")
@@ -585,6 +604,7 @@ class TGBot:
             self.bot.send_message(self.group_id, _("This command is not available in the main chat."))
             return
         if message.chat.id != self.group_id:
+            self.bot.send_message(message.chat.id, _("This command is only available to admin users."))
             return
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
@@ -595,6 +615,7 @@ class TGBot:
 
     def unban_user(self, message: Message, user_id: int = None):
         if message.chat.id != self.group_id:
+            self.bot.send_message(message.chat.id, _("This command is only available to admin users."))
             return
         if user_id is None:
             if self.check_valid_chat(message):
@@ -671,6 +692,51 @@ class TGBot:
                                                   callback_data=json.dumps({"action": "ban_user"})))
             self.bot.edit_message_text(f"User ID: {id}", message.chat.id, message.message_id, reply_markup=markup)
 
+    def default_msg_menu(self, message: Message):
+        if not self.check_valid_chat(message):
+            return
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("✏️" + _("Edit Message"),
+                                              callback_data=json.dumps({"action": "edit_default_msg"})))
+        markup.add(types.InlineKeyboardButton("🔄️" + _("Set to Default"),
+                                              callback_data=json.dumps({"action": "empty_default_msg"})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"})))
+        self.bot.edit_message_text(_("Default Message") +
+                                   "\n" +
+                                   _("The default message is an auto-reply to the commands /help and /start"),
+                                   message.chat.id, message.message_id, reply_markup=markup)
+
+    def empty_default_msg(self, message: Message):
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("UPDATE settings SET value = NULL WHERE key = 'default_message'")
+            db.commit()
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
+                   )
+        self.bot.edit_message_text(_("Default message has been restored."), message.chat.id, message.message_id,
+                                   reply_markup=markup)
+
+    def edit_default_msg(self, message: Message):
+        msg = self.bot.edit_message_text(text=_(
+            "Let's set up the default message.\nSend /cancel to cancel this operation.\n\n"
+            "Please send me the response."),
+            chat_id=self.group_id, message_id=message.message_id)
+        self.bot.register_next_step_handler(msg, self.edit_default_msg_handle)
+
+    def edit_default_msg_handle(self, message: Message):
+        if message.text == "/cancel":
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("UPDATE settings SET value = ? WHERE key = 'default_message'", (message.text,))
+            db.commit()
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
+                   )
+        self.bot.send_message(self.group_id, _("Default message has been updated."), reply_markup=markup)
+
     def callback_query(self, call: types.CallbackQuery):
         if call.data == "null":
             logger.error(_("Invalid callback data received"))
@@ -737,8 +803,14 @@ class TGBot:
                     self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
                     return
                 self.select_ban_user(call.message, data["id"])
+            case "default_msg":
+                self.default_msg_menu(call.message)
+            case "edit_default_msg":
+                self.edit_default_msg(call.message)
+            case "empty_default_msg":
+                self.empty_default_msg(call.message)
             case _:
-                logger.error(_("Invalid action received"))
+                logger.error(_("Invalid action received") + action)
         return
 
     def handle_edit(self, message: Message):
