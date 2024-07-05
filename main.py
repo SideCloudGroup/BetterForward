@@ -42,12 +42,17 @@ try:
 except FileNotFoundError:
     _ = gettext.gettext
 
+stop = False
+
 
 def handle_sigterm(*args):
+    global stop
+    stop = True
     raise KeyboardInterrupt()
 
 
 signal.signal(signal.SIGTERM, handle_sigterm)
+signal.signal(signal.SIGINT, handle_sigterm)
 
 
 class TGBot:
@@ -372,12 +377,15 @@ class TGBot:
 
     # Process messages in the queue
     def process_messages(self):
-        while True:
+        while stop is False:
             try:
-                self.handle_message(self.message_queue.get())
-            except:
-                logger.error(_("Failed to process message"))
-                print_exc()
+                message = self.message_queue.get_nowait()
+                self.handle_message(message)
+            except queue.Empty:
+                continue  # Skip to the next iteration if the queue is empty
+            except Exception as e:
+                logger.error(_("Failed to process message: {}").format(e))
+        self.bot.stop_bot()
 
     def check_permission(self):
         if not self.bot.get_chat(self.group_id).is_forum:
