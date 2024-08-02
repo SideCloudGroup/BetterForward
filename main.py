@@ -251,10 +251,10 @@ class TGBot:
                         "Not set") if message.from_user.username is None else f"@{message.from_user.username}"
                     last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
                     pin_message = self.bot.send_message(self.group_id,
-                                                        f"User ID: {userid}\n"
+                                                        f"User ID: [{userid}](tg://openmessage?user_id={userid})\n"
                                                         f"Full Name: {message.from_user.first_name}{last_name}\n"
                                                         f"Username: {username}\n",
-                                                        message_thread_id=thread_id)
+                                                        message_thread_id=thread_id, parse_mode='markdown')
                     self.bot.pin_chat_message(self.group_id, pin_message.message_id)
                 else:
                     thread_id = thread_id[0]
