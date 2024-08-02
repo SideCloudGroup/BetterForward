@@ -11,12 +11,11 @@ import sqlite3
 import threading
 from traceback import print_exc
 
+from diskcache import Cache
 from telebot import types, TeleBot
 from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegramException, delete_forum_topic, \
     reopen_forum_topic
 from telebot.types import Message
-
-from cache import CacheHelper
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("-token", type=str, required=True, help="Telegram bot token")
@@ -79,7 +78,7 @@ class TGBot:
             types.BotCommand("unban", _("Unban a user")),
             types.BotCommand("terminate", _("Terminate a thread")),
         ], scope=types.BotCommandScopeChat(self.group_id))
-        self.cache = CacheHelper()
+        self.cache = Cache()
         self.check_permission()
         self.message_queue = queue.Queue()
         self.message_processor = threading.Thread(target=self.process_messages)
@@ -117,6 +116,8 @@ class TGBot:
 
     # Get thread_id to terminate when needed
     def terminate_thread(self, thread_id=None, user_id=None):
+        self.cache.pop(f"chat_{user_id}_threadid")
+        self.cache.pop(f"threadid_{thread_id}_userid")
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
             if thread_id is not None:
@@ -232,32 +233,34 @@ class TGBot:
                         return
                 # Forward message to group
                 userid = message.from_user.id
-                result = curser.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (userid,))
-                thread_id = result.fetchone()
-                if thread_id is None:
-                    # Create a new thread
-                    logger.info(_("Creating a new thread for user {}").format(userid))
-                    try:
-                        topic = create_forum_topic(chat_id=self.group_id, name=message.from_user.first_name,
-                                                   token=self.bot.token)
-                    except Exception as e:
-                        logger.error(e)
-                        return
-                    curser.execute("INSERT INTO topics (user_id, thread_id) VALUES (?, ?)",
-                                   (userid, topic["message_thread_id"]))
-                    db.commit()
-                    thread_id = topic["message_thread_id"]
-                    username = _(
-                        "Not set") if message.from_user.username is None else f"@{message.from_user.username}"
-                    last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
-                    pin_message = self.bot.send_message(self.group_id,
-                                                        f"User ID: [{userid}](tg://openmessage?user_id={userid})\n"
-                                                        f"Full Name: {message.from_user.first_name}{last_name}\n"
-                                                        f"Username: {username}\n",
-                                                        message_thread_id=thread_id, parse_mode='markdown')
-                    self.bot.pin_chat_message(self.group_id, pin_message.message_id)
-                else:
-                    thread_id = thread_id[0]
+                if (thread_id := self.cache.get(f"chat_{userid}_threadid")) is None:
+                    result = curser.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (userid,))
+                    thread_id = result.fetchone()
+                    if thread_id is None:
+                        # Create a new thread
+                        logger.info(_("Creating a new thread for user {}").format(userid))
+                        try:
+                            topic = create_forum_topic(chat_id=self.group_id, name=message.from_user.first_name,
+                                                       token=self.bot.token)
+                        except Exception as e:
+                            logger.error(e)
+                            return
+                        curser.execute("INSERT INTO topics (user_id, thread_id) VALUES (?, ?)",
+                                       (userid, topic["message_thread_id"]))
+                        db.commit()
+                        thread_id = topic["message_thread_id"]
+                        username = _(
+                            "Not set") if message.from_user.username is None else f"@{message.from_user.username}"
+                        last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
+                        pin_message = self.bot.send_message(self.group_id,
+                                                            f"User ID: [{userid}](tg://openmessage?user_id={userid})\n"
+                                                            f"Full Name: {message.from_user.first_name}{last_name}\n"
+                                                            f"Username: {username}\n",
+                                                            message_thread_id=thread_id, parse_mode='markdown')
+                        self.bot.pin_chat_message(self.group_id, pin_message.message_id)
+                    else:
+                        thread_id = thread_id[0]
+                    self.cache.set(f"chat_{userid}_threadid", thread_id)
                 try:
                     reply_id = None
                     if message.reply_to_message is not None:
@@ -323,9 +326,11 @@ class TGBot:
                                           message_thread_id=thread_id)
             else:
                 # Forward message to user
-                result = curser.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
-                                        (message.message_thread_id,))
-                user_id = result.fetchone()
+                if (user_id := self.cache.get(f"threadid_{message.message_thread_id}_userid")) is None:
+                    result = curser.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
+                                            (message.message_thread_id,))
+                    user_id = result.fetchone()[0]
+                    self.cache.set(f"threadid_{message.message_thread_id}_userid", user_id)
                 if user_id is not None:
                     reply_id = None
                     if message.reply_to_message is not None:
@@ -341,25 +346,25 @@ class TGBot:
                             reply_id = int(result[0])
                     match message.content_type:
                         case "photo":
-                            fwd_msg = self.bot.send_photo(chat_id=user_id[0],
+                            fwd_msg = self.bot.send_photo(chat_id=user_id,
                                                           photo=message.photo[-1].file_id,
                                                           caption=message.caption,
                                                           reply_to_message_id=reply_id)
                         case "text":
-                            fwd_msg = self.bot.send_message(chat_id=user_id[0],
+                            fwd_msg = self.bot.send_message(chat_id=user_id,
                                                             text=message.text,
                                                             reply_to_message_id=reply_id)
                         case "sticker":
-                            fwd_msg = self.bot.send_sticker(chat_id=user_id[0],
+                            fwd_msg = self.bot.send_sticker(chat_id=user_id,
                                                             sticker=message.sticker.file_id,
                                                             reply_to_message_id=reply_id)
                         case "video":
-                            fwd_msg = self.bot.send_video(chat_id=user_id[0],
+                            fwd_msg = self.bot.send_video(chat_id=user_id,
                                                           video=message.video.file_id,
                                                           caption=message.caption,
                                                           reply_to_message_id=reply_id)
                         case "document":
-                            fwd_msg = self.bot.send_document(chat_id=user_id[0],
+                            fwd_msg = self.bot.send_document(chat_id=user_id,
                                                              document=message.document.file_id,
                                                              caption=message.caption,
                                                              reply_to_message_id=reply_id)
@@ -497,10 +502,10 @@ class TGBot:
                               message_thread_id=None)
 
     def process_add_auto_reply(self, message: Message, data: dict):
-        key = self.cache.pull("auto_response_key")
-        value = self.cache.pull("auto_response_value")
-        is_regex = self.cache.pull("auto_response_regex")
-        type = self.cache.pull("auto_response_type")
+        key = self.cache.pop("auto_response_key")
+        value = self.cache.pop("auto_response_value")
+        is_regex = self.cache.pop("auto_response_regex")
+        type = self.cache.pop("auto_response_type")
         markup = types.InlineKeyboardMarkup()
         back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
         if "topic_action" not in data or None in [key, value, is_regex, type]:
