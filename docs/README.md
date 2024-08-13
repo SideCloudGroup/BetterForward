@@ -19,8 +19,7 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
 1. Create a bot from [@BotFather](https://t.me/BotFather) and get the token.
 2. Create a group with topics, and add the bot as an admin.
 3. Get the group ID.
-   This step can be done by inviting [@tg_get_userid_bot](https://t.me/tg_get_userid_bot) to the group.
-   For privacy reasons, it is recommended to remove it after getting the group ID.
+   This step can be done by inviting [@sc_ui_bot](https://t.me/sc_ui_bot) to the group and use the command `/id`.
 4. Deploy BetterForward to a server.
 
 Any messages sent to the bot will be forwarded to the corresponding topic in the group.

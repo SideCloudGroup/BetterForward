@@ -16,8 +16,7 @@
 
 1. 从 [@BotFather](https://t.me/BotFather) 创建一个机器人并获取 token。
 2. 创建一个带有主题的群组，并将机器人添加为管理员。
-3. 获取群组 ID。这一步可以通过邀请 [@tg_get_userid_bot](https://t.me/tg_get_userid_bot) 到群组中来完成。出于隐私原因，请在获取群组
-   ID 后将其移除。
+3. 获取群组 ID。这一步可以通过邀请 [@sc_ui_bot](https://t.me/sc_ui_bot) 到群组中并发送`/id`来完成。
 4. 将 BetterForward 部署到服务器。
 
 任何发送给机器人的消息都将转发到群组中的相应主题。
