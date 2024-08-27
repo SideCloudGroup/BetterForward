@@ -182,8 +182,12 @@ class TGBot:
             db_cursor.execute("SELECT key, value, topic_action, type FROM auto_response WHERE is_regex = 1")
             result = db_cursor.fetchall()
             for row in result:
-                if re.match(row[0], text):
-                    return {"response": row[1], "topic_action": row[2], "type": row[3]}
+                try:
+                    if re.match(row[0], text):
+                        return {"response": row[1], "topic_action": row[2], "type": row[3]}
+                except re.error:
+                    logger.error(_("Invalid regular expression: {}").format(row[0]))
+                    return None
             return None
 
     # Push messages to the queue
@@ -433,10 +437,10 @@ class TGBot:
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("✅" + _("Yes"),
                                               callback_data=json.dumps(
-                                                  {"action": "set_auto_reply_type", "regex": 1})))
+                                                  {"action": "set_auto_reply_type", "regex": True})))
         markup.add(types.InlineKeyboardButton("❌" + _("No"),
                                               callback_data=json.dumps(
-                                                  {"action": "set_auto_reply_type", "regex": 0})))
+                                                  {"action": "set_auto_reply_type", "regex": False})))
         markup.add(
             types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "auto_reply"})))
         help_text = _("Trigger: {}").format(self.cache.get("auto_response_key")) + "\n\n"
@@ -449,6 +453,16 @@ class TGBot:
         if message.text == "/cancel":
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
+        if self.cache.get("auto_response_regex") is True:
+            try:
+                re.compile(message.text)
+            except re.error:
+                markup = types.InlineKeyboardMarkup()
+                markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                      callback_data=json.dumps({"action": "auto_reply"})))
+                self.bot.edit_message_text(text=_("Invalid regular expression"), chat_id=self.group_id,
+                                           message_id=message.message_id, reply_markup=markup)
+                return
         msg = self.bot.edit_message_text(text=_("Please send the response content. It can be text, stickers, photos "
                                                 "and so on."),
                                          chat_id=self.group_id, message_id=message.message_id)
@@ -488,12 +502,12 @@ class TGBot:
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("✅" + _("Forward message"),
                                               callback_data=json.dumps(
-                                                  {"action": "add_auto_reply", "topic_action": 1})))
+                                                  {"action": "add_auto_reply", "topic_action": True})))
         markup.add(types.InlineKeyboardButton("❌" + _("Do not forward message"),
                                               callback_data=json.dumps(
-                                                  {"action": "add_auto_reply", "topic_action": 0})))
+                                                  {"action": "add_auto_reply", "topic_action": False})))
         markup.add(
-            types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "add_auto_response"})))
+            types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "add_auto_reply"})))
         help_text = ""
         help_text += _("Trigger: {}").format(self.cache.get("auto_response_key")) + "\n"
         help_text += _("Response: {}").format(
