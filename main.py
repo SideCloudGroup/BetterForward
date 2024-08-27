@@ -560,15 +560,27 @@ class TGBot:
             result = db_cursor.fetchone()
             return result[0] if result else None
 
-    def manage_auto_reply(self, message: Message):
+    def manage_auto_reply(self, message: Message, page: int = 1, page_size: int = 5):
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
             markup = types.InlineKeyboardMarkup()
             back_button = types.InlineKeyboardButton("⬅️" + _("Back"),
                                                      callback_data=json.dumps({"action": "auto_reply"}))
-            db_cursor.execute("SELECT id, key, value, topic_action, is_regex, type FROM auto_response")
+
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            db_cursor.execute("SELECT COUNT(*) FROM auto_response")
+            total_responses = db_cursor.fetchone()[0]
+            total_pages = (total_responses + page_size - 1) // page_size
+
+            # Fetch data with limits
+            db_cursor.execute("SELECT id, key, value, topic_action, is_regex, type FROM auto_response LIMIT ? OFFSET ?",
+                              (page_size, offset))
             auto_responses = db_cursor.fetchall()
-            text = _("Auto Reply List:\n")
+
+            text = _("Auto Reply List:") + "\n" + _("Total: {}").format(total_responses) + "\n" + _("Page: {}").format(
+                page) + "/" + str(total_pages) + "\n\n"
+            id_buttons = []
             for auto_response in auto_responses:
                 text += "-" * 20 + "\n"
                 text += f"ID: {auto_response[0]}\n"
@@ -577,9 +589,34 @@ class TGBot:
                     auto_response[2] if auto_response[5] == "text" else auto_response[5]) + "\n"
                 text += _("Forward message: {}").format("✅" if auto_response[3] else "❌") + "\n"
                 text += _("Is regex: {}").format("✅" if auto_response[4] else "❌") + "\n\n"
-                markup.add(types.InlineKeyboardButton(text=auto_response[1],
-                                                      callback_data=json.dumps({"action": "select_auto_reply",
-                                                                                "id": auto_response[0]})))
+                id_buttons.append(types.InlineKeyboardButton(text=auto_response[0],
+                                                             callback_data=json.dumps({"action": "select_auto_reply",
+                                                                                       "id": auto_response[0]})))
+
+            # Add ID buttons in a single row
+            if id_buttons:
+                markup.row(*id_buttons)
+
+            # Add pagination buttons
+            if page > 1 and page < total_pages:
+                markup.row(
+                    types.InlineKeyboardButton("⬅️" + _("Previous Page"),
+                                               callback_data=json.dumps(
+                                                   {"action": "manage_auto_reply", "page": page - 1})),
+                    types.InlineKeyboardButton("➡️" + _("Next Page"),
+                                               callback_data=json.dumps(
+                                                   {"action": "manage_auto_reply", "page": page + 1}))
+                )
+            elif page > 1:
+                markup.add(types.InlineKeyboardButton("⬅️" + _("Previous Page"),
+                                                      callback_data=json.dumps(
+                                                          {"action": "manage_auto_reply", "page": page - 1})))
+            elif page < total_pages:
+                markup.add(types.InlineKeyboardButton("➡️" + _("Next Page"),
+                                                      callback_data=json.dumps(
+                                                          {"action": "manage_auto_reply", "page": page + 1})))
+
+            # Add back button in a separate row
             markup.add(back_button)
             self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
 
@@ -792,7 +829,7 @@ class TGBot:
             case "add_auto_reply":
                 self.process_add_auto_reply(call.message, data)
             case "manage_auto_reply":
-                self.manage_auto_reply(call.message)
+                self.manage_auto_reply(call.message, page=data.get("page", 1))
             case "select_auto_reply":
                 if "id" not in data:
                     self.bot.delete_message(self.group_id, call.message.message_id)

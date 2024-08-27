@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-07-05 14:07+0800\n"
-"PO-Revision-Date: 2024-07-05 14:12+0800\n"
+"POT-Creation-Date: 2024-08-27 20:51+0800\n"
+"PO-Revision-Date: 2024-08-27 20:52+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -13,111 +13,111 @@ msgstr ""
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-SearchPath-0: main.py\n"
 
-#: main.py:55
+#: main.py:59
 msgid "Starting BetterForward..."
 msgstr "正在启动BetterForward……"
 
-#: main.py:69 main.py:72
+#: main.py:76 main.py:79
 msgid "Show help"
 msgstr "显示帮助菜单"
 
-#: main.py:73
+#: main.py:80
 msgid "Ban a user"
 msgstr "封禁用户"
 
-#: main.py:74
+#: main.py:81
 msgid "Unban a user"
 msgstr "解封用户"
 
-#: main.py:75
+#: main.py:82
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: main.py:101
+#: main.py:108
 msgid "Upgrading database to version {}"
 msgstr "升级到数据库版本{}"
 
-#: main.py:109
+#: main.py:116
 msgid "Failed to upgrade database"
 msgstr "升级数据库失败"
 
-#: main.py:130
+#: main.py:139
 msgid "Terminating thread"
 msgstr "删除会话"
 
-#: main.py:147
+#: main.py:156
 msgid "Cannot terminate main thread"
 msgstr "无法删除默认会话"
 
-#: main.py:152
+#: main.py:161
 msgid "Thread terminated"
 msgstr "会话已被删除"
 
-#: main.py:154 main.py:155
+#: main.py:163 main.py:164
 msgid "Failed to terminate the thread"
 msgstr "无法删除该会话"
 
-#: main.py:157 main.py:607 main.py:618
+#: main.py:166 main.py:660 main.py:671
 msgid "This command is only available to admin users."
 msgstr "只有管理员可以使用该指令"
 
-#: main.py:193
+#: main.py:202
 msgid "Received message from {}, content: {}, type: {}"
 msgstr "收到来自{}的消息，内容：{}，类型：{}"
 
-#: main.py:198
+#: main.py:207
 msgid "User {} is banned"
 msgstr "用户{}已被封禁"
 
-#: main.py:222 main.py:299 main.py:362 main.py:469
+#: main.py:231 main.py:310 main.py:375 main.py:485
 msgid "Unsupported message type"
 msgstr "不支持的消息种类"
 
-#: main.py:234
+#: main.py:244
 msgid "Creating a new thread for user {}"
 msgstr "与用户{}新建话题"
 
-#: main.py:246
+#: main.py:256
 msgid "Not set"
 msgstr "未设置"
 
-#: main.py:309 main.py:312
+#: main.py:320 main.py:323
 msgid "Failed to forward message from user {}"
 msgstr "转发用户{}的消息失败"
 
-#: main.py:317
+#: main.py:328
 msgid "[Auto Response]"
 msgstr "[自动回复]"
 
-#: main.py:368
+#: main.py:381
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:379
-msgid "Failed to process message"
-msgstr "无法转发用户{}的消息"
+#: main.py:395
+msgid "Failed to process message: {}"
+msgstr "无法处理消息：{}"
 
-#: main.py:384 main.py:385
+#: main.py:400 main.py:401
 msgid "Topic function is not enabled in this group"
 msgstr "话题功能在群组中未启用"
 
-#: main.py:388
+#: main.py:404
 msgid "Manage Topics"
 msgstr "管理话题"
 
-#: main.py:389
+#: main.py:405
 msgid "Delete Messages"
 msgstr "删除消息"
 
-#: main.py:393 main.py:394
+#: main.py:409 main.py:410
 msgid "Bot doesn't have {} permission"
 msgstr "Bot缺少{}权限"
 
-#: main.py:395
+#: main.py:411
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:401
+#: main.py:417
 msgid ""
 "Let's set up an automatic response.\n"
 "Send /cancel to cancel this operation.\n"
@@ -130,156 +130,172 @@ msgstr ""
 "\n"
 "请输入触发关键词或正则表达式"
 
-#: main.py:411 main.py:434 main.py:445 main.py:729
+#: main.py:427 main.py:450 main.py:461 main.py:782
 msgid "Operation cancelled"
 msgstr "操作已取消"
 
-#: main.py:414
+#: main.py:430
 msgid "Invalid input"
 msgstr "无效的输入"
 
-#: main.py:418
+#: main.py:434
 msgid "Yes"
 msgstr "是"
 
-#: main.py:421
+#: main.py:437
 msgid "No"
 msgstr "否"
 
-#: main.py:425 main.py:480 main.py:497 main.py:551 main.py:582 main.py:598
-#: main.py:656 main.py:666 main.py:691 main.py:703 main.py:715 main.py:736
-#: main.py:753
+#: main.py:441 main.py:496 main.py:513 main.py:567 main.py:635 main.py:651
+#: main.py:709 main.py:719 main.py:744 main.py:756 main.py:768 main.py:789
+#: main.py:806
 msgid "Back"
 msgstr "返回"
 
-#: main.py:426 main.py:482 main.py:559 main.py:584
+#: main.py:442 main.py:498 main.py:587 main.py:637
 msgid "Trigger: {}"
 msgstr "触发器：{}"
 
-#: main.py:427
+#: main.py:443
 msgid "Is this a regular expression?"
 msgstr "是否为正则表达式？"
 
-#: main.py:436
+#: main.py:452
 msgid ""
 "Please send the response content. It can be text, stickers, photos and so on."
 msgstr "请发送自动回复的内容。可以试文本，贴纸，图片等类型。"
 
-#: main.py:449
+#: main.py:465
 msgid "The operation has timed out. Please initiate the process again."
 msgstr "操作已超时，请重新开始。"
 
-#: main.py:473
+#: main.py:489
 msgid "Forward message"
 msgstr "转发消息"
 
-#: main.py:476
+#: main.py:492
 msgid "Do not forward message"
 msgstr "不转发消息"
 
-#: main.py:483 main.py:560 main.py:585
+#: main.py:499 main.py:588 main.py:638
 msgid "Response: {}"
 msgstr "回复：{}"
 
-#: main.py:486 main.py:563 main.py:588
+#: main.py:502 main.py:591 main.py:641
 msgid "Is regex: {}"
 msgstr "是否为正则表达式：{}"
 
-#: main.py:487
+#: main.py:503
 msgid "Do you want to forward the message to the user?"
 msgstr "自动回复触发时，是否转发用户的消息？"
 
-#: main.py:500 main.py:770 main.py:783 main.py:789 main.py:797 main.py:803
+#: main.py:516 main.py:823 main.py:836 main.py:842 main.py:850 main.py:856
 msgid "Invalid action"
 msgstr "无效的操作"
 
-#: main.py:510
+#: main.py:526
 msgid "Auto reply added"
 msgstr "自动回复已添加"
 
-#: main.py:516 main.py:765
+#: main.py:532 main.py:818
 msgid "Auto Reply"
 msgstr "自动回复"
 
-#: main.py:518 main.py:704
+#: main.py:534 main.py:757
 msgid "Default Message"
 msgstr "默认消息"
 
-#: main.py:520
+#: main.py:536
 msgid "Banned Users"
 msgstr "用户封禁"
 
-#: main.py:523 main.py:525
+#: main.py:539 main.py:541
 msgid "Menu"
 msgstr "菜单"
 
-#: main.py:532
+#: main.py:548
 msgid ""
 "I'm a bot that forwards messages, so please just tell me what you want to "
 "say."
 msgstr "我是消息转发Bot，请告诉我你想说的话"
 
-#: main.py:555
-msgid "Auto Reply List:\n"
-msgstr "自动回复列表\n"
+#: main.py:581
+msgid "Auto Reply List:"
+msgstr "自动回复列表："
 
-#: main.py:562 main.py:587
+#: main.py:581
+msgid "Total: {}"
+msgstr "总计：{}"
+
+#: main.py:581
+msgid "Page: {}"
+msgstr "页数：{}"
+
+#: main.py:590 main.py:640
 msgid "Forward message: {}"
 msgstr "是否转发消息：{}"
 
-#: main.py:577
+#: main.py:603 main.py:611
+msgid "Previous Page"
+msgstr "上一页"
+
+#: main.py:606 main.py:615
+msgid "Next Page"
+msgstr "下一页"
+
+#: main.py:630
 msgid "Auto reply not found"
 msgstr "未找到该自动回复"
 
-#: main.py:580
+#: main.py:633
 msgid "Delete"
 msgstr "删除"
 
-#: main.py:599
+#: main.py:652
 msgid "Auto reply deleted"
 msgstr "已删除自动回复"
 
-#: main.py:604
+#: main.py:657
 msgid "This command is not available in the main chat."
 msgstr "无法在主会话里使用该指令"
 
-#: main.py:613
+#: main.py:666
 msgid "User banned"
 msgstr "用户已被封禁"
 
-#: main.py:633 main.py:658 main.py:660
+#: main.py:686 main.py:711 main.py:713
 msgid "User unbanned"
 msgstr "用户已解封"
 
-#: main.py:646 main.py:685
+#: main.py:699 main.py:738
 msgid "User not found"
 msgstr "未找到该用户"
 
-#: main.py:669
+#: main.py:722
 msgid "Banned User List:"
 msgstr "封禁用户列表："
 
-#: main.py:688
+#: main.py:741
 msgid "Unban"
 msgstr "解封"
 
-#: main.py:699
+#: main.py:752
 msgid "Edit Message"
 msgstr "编辑消息"
 
-#: main.py:701
+#: main.py:754
 msgid "Set to Default"
 msgstr "设为默认值"
 
-#: main.py:706
+#: main.py:759
 msgid "The default message is an auto-reply to the commands /help and /start"
 msgstr "\"默认消息\"是用户执行/help和/start时的自动回复"
 
-#: main.py:717
+#: main.py:770
 msgid "Default message has been restored."
 msgstr "默认消息已被设为初始值"
 
-#: main.py:722
+#: main.py:775
 msgid ""
 "Let's set up the default message.\n"
 "Send /cancel to cancel this operation.\n"
@@ -291,39 +307,39 @@ msgstr ""
 "\n"
 "请输入消息的内容"
 
-#: main.py:738
+#: main.py:791
 msgid "Default message has been updated."
 msgstr "默认消息已被更新"
 
-#: main.py:742
+#: main.py:795
 msgid "Invalid callback data received"
 msgstr "接收到无效的callback"
 
-#: main.py:750
+#: main.py:803
 msgid "Invalid JSON data received"
 msgstr "接收到无效的JSON数据"
 
-#: main.py:758
+#: main.py:811
 msgid "Add Auto Reply"
 msgstr "添加自动回复"
 
-#: main.py:761
+#: main.py:814
 msgid "Manage Existing Auto Reply"
 msgstr "管理自动回复"
 
-#: main.py:811
+#: main.py:866
 msgid "Invalid action received"
 msgstr "接收到无效的操作"
 
-#: main.py:836
+#: main.py:891
 msgid "(edited)"
 msgstr "(已编辑)"
 
-#: main.py:841
+#: main.py:896
 msgid "Token or group ID is empty"
 msgstr "Token或群组ID为空"
 
-#: main.py:846
+#: main.py:901
 msgid "Exiting..."
 msgstr "退出中……"
 
