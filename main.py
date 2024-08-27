@@ -68,6 +68,9 @@ class TGBot:
             self.push_messages)
         self.bot.callback_query_handler(func=lambda call: True)(self.callback_query)
         self.db_path = db_path
+        # Check path exists
+        if not os.path.exists(os.path.dirname(db_path)):
+            os.makedirs(os.path.dirname(db_path))
         self.upgrade_db()
         self.bot.set_my_commands([
             types.BotCommand("help", _("Show help")),
