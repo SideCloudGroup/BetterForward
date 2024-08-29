@@ -119,11 +119,11 @@ class TGBot:
 
     # Get thread_id to terminate when needed
     def terminate_thread(self, thread_id=None, user_id=None):
-        self.cache.pop(f"chat_{user_id}_threadid")
-        self.cache.pop(f"threadid_{thread_id}_userid")
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
             if thread_id is not None:
+                result = db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (thread_id,))
+                user_id = result.fetchone()[0]
                 db_cursor.execute("DELETE FROM topics WHERE thread_id = ?", (thread_id,))
                 db.commit()
             elif user_id is not None:
@@ -131,6 +131,8 @@ class TGBot:
                 if (thread_id := result.fetchone()[0]) is not None:
                     db_cursor.execute("DELETE FROM topics WHERE user_id = ?", (user_id,))
                     db.commit()
+            self.cache.delete(f"chat_{user_id}_threadid")
+            self.cache.delete(f"threadid_{thread_id}_userid")
             try:
                 delete_forum_topic(chat_id=self.group_id, message_thread_id=thread_id, token=self.bot.token)
             except ApiTelegramException:
