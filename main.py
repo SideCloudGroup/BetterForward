@@ -50,6 +50,11 @@ def handle_sigterm(*args):
     raise KeyboardInterrupt()
 
 
+def escape_markdown(text):
+    escape_chars = r'\*_`\[\]()'
+    return re.sub(f'([{escape_chars}])', r'\\\1', text)
+
+
 signal.signal(signal.SIGTERM, handle_sigterm)
 signal.signal(signal.SIGINT, handle_sigterm)
 
@@ -123,9 +128,10 @@ class TGBot:
             db_cursor = db.cursor()
             if thread_id is not None:
                 result = db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (thread_id,))
-                user_id = result.fetchone()[0]
-                db_cursor.execute("DELETE FROM topics WHERE thread_id = ?", (thread_id,))
-                db.commit()
+                if (user_id := result.fetchone()) is not None:
+                    user_id = user_id[0]
+                    db_cursor.execute("DELETE FROM topics WHERE thread_id = ?", (thread_id,))
+                    db.commit()
             elif user_id is not None:
                 result = db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (user_id,))
                 if (thread_id := result.fetchone()[0]) is not None:
@@ -263,8 +269,8 @@ class TGBot:
                         last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
                         pin_message = self.bot.send_message(self.group_id,
                                                             f"User ID: [{userid}](tg://openmessage?user_id={userid})\n"
-                                                            f"Full Name: {message.from_user.first_name}{last_name}\n"
-                                                            f"Username: {username}\n",
+                                                            f"Full Name: {escape_markdown(f"{message.from_user.first_name}{last_name}")}\n"
+                                                            f"Username: {escape_markdown(username)}\n",
                                                             message_thread_id=thread_id, parse_mode='markdown')
                         self.bot.pin_chat_message(self.group_id, pin_message.message_id)
                     else:
