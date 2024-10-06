@@ -69,6 +69,7 @@ class TGBot:
         self.bot.message_handler(commands=["ban"])(self.ban_user)
         self.bot.message_handler(commands=["unban"])(self.unban_user)
         self.bot.message_handler(commands=["terminate"])(self.handle_terminate)
+        self.bot.message_handler(commands=["delete"])(self.delete_message)
         self.bot.message_handler(func=lambda m: True, content_types=["photo", "text", "sticker", "video", "document"])(
             self.push_messages)
         self.bot.callback_query_handler(func=lambda call: True)(self.callback_query)
@@ -78,12 +79,14 @@ class TGBot:
             os.makedirs(os.path.dirname(db_path))
         self.upgrade_db()
         self.bot.set_my_commands([
+            types.BotCommand("delete", _("Delete a message")),
             types.BotCommand("help", _("Show help")),
         ], scope=types.BotCommandScopeAllPrivateChats())
         self.bot.set_my_commands([
             types.BotCommand("help", _("Show help")),
             types.BotCommand("ban", _("Ban a user")),
             types.BotCommand("unban", _("Unban a user")),
+            types.BotCommand("delete", _("Delete a message")),
             types.BotCommand("terminate", _("Terminate a thread")),
         ], scope=types.BotCommandScopeChat(self.group_id))
         self.cache = Cache()
@@ -620,7 +623,7 @@ class TGBot:
                 markup.row(*id_buttons)
 
             # Add pagination buttons
-            if page > 1 and page < total_pages:
+            if 1 < page < total_pages:
                 markup.row(
                     types.InlineKeyboardButton("⬅️" + _("Previous Page"),
                                                callback_data=json.dumps(
@@ -911,6 +914,38 @@ class TGBot:
                     case "text":
                         self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id,
                                                    text=message.text + "\n\n" + _("(edited)"))
+
+    def delete_message(self, message: Message):
+        if self.check_valid_chat(message):
+            return
+        if message.reply_to_message is None:
+            self.bot.reply_to(message, _("Please reply to the message you want to delete"))
+            return
+        msg_id = message.reply_to_message.message_id
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute(
+                "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? AND in_group = ? LIMIT 1",
+                (msg_id, message.chat.id == self.group_id,))
+            if (result := db_cursor.fetchone()) is None:
+                return
+            topic_id, forwarded_id = result
+            if message.chat.id == self.group_id:
+                db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
+                if (user_id := db_cursor.fetchone()[0]) is None:
+                    return
+                self.bot.delete_message(chat_id=user_id, message_id=forwarded_id)
+            else:
+                self.bot.delete_message(chat_id=self.group_id, message_id=forwarded_id)
+
+            # Delete the message from the database
+            db_cursor.execute("DELETE FROM messages WHERE received_id = ? AND in_group = ?",
+                              (msg_id, message.chat.id == self.group_id))
+            db.commit()
+
+        # Delete the current message
+        self.bot.delete_message(chat_id=message.chat.id, message_id=message.reply_to_message.id)
+        self.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
 
 
 if __name__ == "__main__":
