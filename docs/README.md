@@ -4,6 +4,8 @@
 
 Designed for better message forwarding in Telegram.
 
+Use the "topic" feature to achieve a better PM bot.
+
 Forward users' messages to topics in the group. Each user corresponds to a topic.
 
 ## Features
