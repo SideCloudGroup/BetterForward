@@ -15,6 +15,7 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
 - Teamwork: Multiple admins can handle users' messages.
 - Multi-language: Supports multiple languages, including English, Chinese and Japanese.
 - Auto Response: Automatically replies to users' messages with predefined messages, and supports detection with regex.
+- Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending of spam messages.
 
 ## Usage
 
