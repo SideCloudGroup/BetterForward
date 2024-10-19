@@ -16,6 +16,7 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
 - Multi-language: Supports multiple languages, including English, Chinese and Japanese.
 - Auto Response: Automatically replies to users' messages with predefined messages, and supports detection with regex.
 - Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending of spam messages.
+- Broadcast Message: Allows admins to send a message to all users at once.
 
 ## Usage
 
@@ -27,7 +28,7 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
 
 Any messages sent to the bot will be forwarded to the corresponding topic in the group.
 
-More settings can be found by sending the `/help` command to the bot.
+More options and settings can be found by sending the `/help` command to the bot in the group.
 
 ## Deployment
 
