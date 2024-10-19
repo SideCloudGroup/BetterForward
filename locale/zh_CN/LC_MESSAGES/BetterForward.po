@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2024-10-19 13:26+0100\n"
-"PO-Revision-Date: 2024-10-19 13:29+0100\n"
+"POT-Creation-Date: 2024-10-19 13:57+0100\n"
+"PO-Revision-Date: 2024-10-19 13:59+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -17,145 +17,157 @@ msgstr ""
 msgid "Starting BetterForward..."
 msgstr "正在启动BetterForward……"
 
-#: main.py:83 main.py:90
+#: main.py:84 main.py:91
 msgid "Delete a message"
 msgstr "删除消息"
 
-#: main.py:84 main.py:87
+#: main.py:85 main.py:88
 msgid "Show help"
 msgstr "显示帮助菜单"
 
-#: main.py:88
+#: main.py:89
 msgid "Ban a user"
 msgstr "封禁用户"
 
-#: main.py:89
+#: main.py:90
 msgid "Unban a user"
 msgstr "解封用户"
 
-#: main.py:91
+#: main.py:92
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: main.py:118
+#: main.py:93
+msgid "Set verified status"
+msgstr "设置人机验证状态"
+
+#: main.py:120
 msgid "Upgrading database to version {}"
 msgstr "升级到数据库版本{}"
 
-#: main.py:126
+#: main.py:128
 msgid "Failed to upgrade database"
 msgstr "升级数据库失败"
 
-#: main.py:147 main.py:274 main.py:276
+#: main.py:152
+msgid "Please click the button to verify."
+msgstr "请点击按钮以完成验证"
+
+#: main.py:154 main.py:302 main.py:304
 msgid "Invalid captcha setting"
 msgstr "无效的验证码设置"
 
-#: main.py:171
-msgid "Terminating thread"
-msgstr "删除会话"
-
-#: main.py:188
-msgid "Cannot terminate main thread"
-msgstr "无法删除默认会话"
-
-#: main.py:193
-msgid "Thread terminated"
-msgstr "会话已被删除"
-
-#: main.py:195 main.py:196
-msgid "Failed to terminate the thread"
-msgstr "无法删除该会话"
-
-#: main.py:198 main.py:751 main.py:764
-msgid "This command is only available to admin users."
-msgstr "只有管理员可以使用该指令"
-
-#: main.py:221
-msgid "Invalid regular expression: {}"
-msgstr "正则表达式{}不合法"
-
-#: main.py:238
-msgid "Received message from {}, content: {}, type: {}"
-msgstr "收到来自{}的消息，内容：{}，类型：{}"
-
-#: main.py:244
-msgid "User {} entered an incorrect answer"
-msgstr "用户{}提交了错误的验证码"
-
-#: main.py:245
-msgid "The answer is incorrect, please try again"
-msgstr "回答不正确，请重新输入"
-
-#: main.py:247
-msgid "User {} passed the captcha"
-msgstr "用户{}通过了人机验证"
-
-#: main.py:248
+#: main.py:163 main.py:273
 msgid "Verification successful, you can now send messages"
 msgstr "验证成功，现在你可以发送消息了"
 
-#: main.py:266
+#: main.py:172
+msgid "Invalid user ID"
+msgstr "无效的用户ID"
+
+#: main.py:196
+msgid "Terminating thread"
+msgstr "删除会话"
+
+#: main.py:213
+msgid "Cannot terminate main thread"
+msgstr "无法删除默认会话"
+
+#: main.py:218
+msgid "Thread terminated"
+msgstr "会话已被删除"
+
+#: main.py:220 main.py:221
+msgid "Failed to terminate the thread"
+msgstr "无法删除该会话"
+
+#: main.py:223 main.py:779 main.py:792
+msgid "This command is only available to admin users."
+msgstr "只有管理员可以使用该指令"
+
+#: main.py:246
+msgid "Invalid regular expression: {}"
+msgstr "正则表达式{}不合法"
+
+#: main.py:263
+msgid "Received message from {}, content: {}, type: {}"
+msgstr "收到来自{}的消息，内容：{}，类型：{}"
+
+#: main.py:269
+msgid "User {} entered an incorrect answer"
+msgstr "用户{}提交了错误的验证码"
+
+#: main.py:270
+msgid "The answer is incorrect, please try again"
+msgstr "回答不正确，请重新输入"
+
+#: main.py:272
+msgid "User {} passed the captcha"
+msgstr "用户{}通过了人机验证"
+
+#: main.py:291
 msgid "User {} is not verified"
 msgstr "用户{}未通过验证"
 
-#: main.py:271
+#: main.py:299
 msgid ""
 "Captcha is enabled. Please solve the following question and send the result "
 "directly\n"
 msgstr "验证码已启用。请回答以下问题并直接发送结果\n"
 
-#: main.py:284
+#: main.py:312
 msgid "User {} is banned"
 msgstr "用户{}已被封禁"
 
-#: main.py:308 main.py:387 main.py:452 main.py:572 main.py:1079
+#: main.py:336 main.py:415 main.py:480 main.py:600 main.py:1116
 msgid "Unsupported message type"
 msgstr "不支持的消息种类"
 
-#: main.py:321
+#: main.py:349
 msgid "Creating a new thread for user {}"
 msgstr "与用户{}新建话题"
 
-#: main.py:333
+#: main.py:361
 msgid "Not set"
 msgstr "未设置"
 
-#: main.py:397 main.py:400
+#: main.py:425 main.py:428
 msgid "Failed to forward message from user {}"
 msgstr "转发用户{}的消息失败"
 
-#: main.py:405
+#: main.py:433
 msgid "[Auto Response]"
 msgstr "[自动回复]"
 
-#: main.py:458
+#: main.py:486
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:472
+#: main.py:500
 msgid "Failed to process message: {}"
 msgstr "无法处理消息：{}"
 
-#: main.py:477 main.py:478
+#: main.py:505 main.py:506
 msgid "Topic function is not enabled in this group"
 msgstr "话题功能在群组中未启用"
 
-#: main.py:481
+#: main.py:509
 msgid "Manage Topics"
 msgstr "管理话题"
 
-#: main.py:482
+#: main.py:510
 msgid "Delete Messages"
 msgstr "删除消息"
 
-#: main.py:486 main.py:487
+#: main.py:514 main.py:515
 msgid "Bot doesn't have {} permission"
 msgstr "Bot缺少{}权限"
 
-#: main.py:488
+#: main.py:516
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:494
+#: main.py:522
 msgid ""
 "Let's set up an automatic response.\n"
 "Send /cancel to cancel this operation.\n"
@@ -168,184 +180,184 @@ msgstr ""
 "\n"
 "请输入触发关键词或正则表达式"
 
-#: main.py:504 main.py:527 main.py:548 main.py:878 main.py:1064
+#: main.py:532 main.py:555 main.py:576 main.py:906 main.py:1101
 msgid "Operation cancelled"
 msgstr "操作已取消"
 
-#: main.py:507 main.py:875
+#: main.py:535 main.py:903
 msgid "Invalid input"
 msgstr "无效的输入"
 
-#: main.py:511
+#: main.py:539
 msgid "Yes"
 msgstr "是"
 
-#: main.py:514
+#: main.py:542
 msgid "No"
 msgstr "否"
 
-#: main.py:518 main.py:534 main.py:583 main.py:600 main.py:658 main.py:726
-#: main.py:742 main.py:802 main.py:812 main.py:837 main.py:849 main.py:861
-#: main.py:885 main.py:902 main.py:983 main.py:993
+#: main.py:546 main.py:562 main.py:611 main.py:628 main.py:686 main.py:754
+#: main.py:770 main.py:830 main.py:840 main.py:865 main.py:877 main.py:889
+#: main.py:913 main.py:938 main.py:1020 main.py:1030
 msgid "Back"
 msgstr "返回"
 
-#: main.py:519 main.py:585 main.py:678 main.py:728
+#: main.py:547 main.py:613 main.py:706 main.py:756
 msgid "Trigger: {}"
 msgstr "触发器：{}"
 
-#: main.py:520
+#: main.py:548
 msgid "Is this a regular expression?"
 msgstr "是否为正则表达式？"
 
-#: main.py:536
+#: main.py:564
 msgid "Invalid regular expression"
 msgstr "正则表达式不合法"
 
-#: main.py:539
+#: main.py:567
 msgid ""
 "Please send the response content. It can be text, stickers, photos and so on."
 msgstr "请发送自动回复的内容。可以试文本，贴纸，图片等类型。"
 
-#: main.py:552
+#: main.py:580
 msgid "The operation has timed out. Please initiate the process again."
 msgstr "操作已超时，请重新开始。"
 
-#: main.py:576
+#: main.py:604
 msgid "Forward message"
 msgstr "转发消息"
 
-#: main.py:579
+#: main.py:607
 msgid "Do not forward message"
 msgstr "不转发消息"
 
-#: main.py:586 main.py:679 main.py:729
+#: main.py:614 main.py:707 main.py:757
 msgid "Response: {}"
 msgstr "回复：{}"
 
-#: main.py:589 main.py:682 main.py:732
+#: main.py:617 main.py:710 main.py:760
 msgid "Is regex: {}"
 msgstr "是否为正则表达式：{}"
 
-#: main.py:590
+#: main.py:618
 msgid "Do you want to forward the message to the user?"
 msgstr "自动回复触发时，是否转发用户的消息？"
 
-#: main.py:603 main.py:919 main.py:932 main.py:938 main.py:946 main.py:952
+#: main.py:631 main.py:955 main.py:968 main.py:974 main.py:982 main.py:988
 msgid "Invalid action"
 msgstr "无效的操作"
 
-#: main.py:613
+#: main.py:641
 msgid "Auto reply added"
 msgstr "自动回复已添加"
 
-#: main.py:619 main.py:914
+#: main.py:647 main.py:950
 msgid "Auto Reply"
 msgstr "自动回复"
 
-#: main.py:621 main.py:850
+#: main.py:649 main.py:878
 msgid "Default Message"
 msgstr "默认消息"
 
-#: main.py:623
+#: main.py:651
 msgid "Banned Users"
 msgstr "用户封禁"
 
-#: main.py:625 main.py:984
+#: main.py:653 main.py:1021
 msgid "Captcha Settings"
 msgstr "验证码设置"
 
-#: main.py:627
+#: main.py:655
 msgid "Broadcast Message"
 msgstr "消息公告"
 
-#: main.py:630 main.py:632
+#: main.py:658 main.py:660
 msgid "Menu"
 msgstr "菜单"
 
-#: main.py:639
+#: main.py:667
 msgid ""
 "I'm a bot that forwards messages, so please just tell me what you want to "
 "say."
 msgstr "我是消息转发Bot，请告诉我你想说的话"
 
-#: main.py:672
+#: main.py:700
 msgid "Auto Reply List:"
 msgstr "自动回复列表："
 
-#: main.py:672
+#: main.py:700
 msgid "Total: {}"
 msgstr "总计：{}"
 
-#: main.py:672
+#: main.py:700
 msgid "Page: {}"
 msgstr "页数：{}"
 
-#: main.py:681 main.py:731
+#: main.py:709 main.py:759
 msgid "Forward message: {}"
 msgstr "是否转发消息：{}"
 
-#: main.py:694 main.py:702
+#: main.py:722 main.py:730
 msgid "Previous Page"
 msgstr "上一页"
 
-#: main.py:697 main.py:706
+#: main.py:725 main.py:734
 msgid "Next Page"
 msgstr "下一页"
 
-#: main.py:721
+#: main.py:749
 msgid "Auto reply not found"
 msgstr "未找到该自动回复"
 
-#: main.py:724
+#: main.py:752
 msgid "Delete"
 msgstr "删除"
 
-#: main.py:743
+#: main.py:771
 msgid "Auto reply deleted"
 msgstr "已删除自动回复"
 
-#: main.py:748
+#: main.py:776
 msgid "This command is not available in the main chat."
 msgstr "无法在主会话里使用该指令"
 
-#: main.py:759
+#: main.py:787
 msgid "User banned"
 msgstr "用户已被封禁"
 
-#: main.py:779 main.py:804 main.py:806
+#: main.py:807 main.py:832 main.py:834
 msgid "User unbanned"
 msgstr "用户已解封"
 
-#: main.py:792 main.py:831
+#: main.py:820 main.py:859 main.py:1157
 msgid "User not found"
 msgstr "未找到该用户"
 
-#: main.py:815
+#: main.py:843
 msgid "Banned User List:"
 msgstr "封禁用户列表："
 
-#: main.py:834
+#: main.py:862
 msgid "Unban"
 msgstr "解封"
 
-#: main.py:845
+#: main.py:873
 msgid "Edit Message"
 msgstr "编辑消息"
 
-#: main.py:847
+#: main.py:875
 msgid "Set to Default"
 msgstr "设为默认值"
 
-#: main.py:852
+#: main.py:880
 msgid "The default message is an auto-reply to the commands /help and /start"
 msgstr "\"默认消息\"是用户执行/help和/start时的自动回复"
 
-#: main.py:863
+#: main.py:891
 msgid "Default message has been restored."
 msgstr "默认消息已被设为初始值"
 
-#: main.py:868
+#: main.py:896
 msgid ""
 "Let's set up the default message.\n"
 "Send /cancel to cancel this operation.\n"
@@ -357,55 +369,59 @@ msgstr ""
 "\n"
 "请输入消息的内容"
 
-#: main.py:887
+#: main.py:915
 msgid "Default message has been updated."
 msgstr "默认消息已被更新"
 
-#: main.py:891
+#: main.py:919
 msgid "Invalid callback data received"
 msgstr "接收到无效的callback"
 
-#: main.py:899
+#: main.py:925
 msgid "Invalid JSON data received"
 msgstr "接收到无效的JSON数据"
 
-#: main.py:907
+#: main.py:943
 msgid "Add Auto Reply"
 msgstr "添加自动回复"
 
-#: main.py:910
+#: main.py:946
 msgid "Manage Existing Auto Reply"
 msgstr "管理自动回复"
 
-#: main.py:968
+#: main.py:1004
 msgid "Invalid action received"
 msgstr "接收到无效的操作"
 
-#: main.py:973
+#: main.py:1009
 msgid "Disable Captcha"
 msgstr "禁用验证码"
 
-#: main.py:974
+#: main.py:1010
 msgid "Math Captcha"
 msgstr "数学验证码"
 
-#: main.py:980
+#: main.py:1011
+msgid "Button Captcha"
+msgstr "按钮验证码"
+
+#: main.py:1017
 msgid "(Selected) "
 msgstr "(已选择) "
 
-#: main.py:995
+#: main.py:1032
 msgid "Captcha settings updated"
 msgstr "验证码设置已更新"
 
-#: main.py:1020
+#: main.py:1057
 msgid "(edited)"
 msgstr "(已编辑)"
 
-#: main.py:1026
+#: main.py:1063
 msgid "Please reply to the message you want to delete"
 msgstr "请回复你需要删除的消息"
 
-#: main.py:1058
+#: main.py:1095
 msgid ""
 "Please send the content you want to broadcast.\n"
 "Send /cancel to cancel this operation."
@@ -413,18 +429,34 @@ msgstr ""
 "请发送你要广播的内容\n"
 "发送 /cancel 取消操作"
 
-#: main.py:1100 main.py:1101
+#: main.py:1137 main.py:1138
 msgid "Failed to send message to user {}"
 msgstr "向用户{}发送广播失败"
 
-#: main.py:1102
+#: main.py:1139
 msgid "Broadcast message sent successfully."
 msgstr "消息广播成功"
 
-#: main.py:1107
+#: main.py:1147
+msgid ""
+"Invalid command format.\n"
+"Use /verify <true/false>"
+msgstr ""
+"无效的指令格式\n"
+"请使用 /verify <true/false>"
+
+#: main.py:1162
+msgid "User verified successfully."
+msgstr "设置用户验证成功"
+
+#: main.py:1166
+msgid "User verification removed."
+msgstr "已移除用户的验证"
+
+#: main.py:1174
 msgid "Token or group ID is empty"
 msgstr "Token或群组ID为空"
 
-#: main.py:1112
+#: main.py:1179
 msgid "Exiting..."
 msgstr "退出中……"
