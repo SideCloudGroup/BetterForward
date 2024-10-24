@@ -653,7 +653,7 @@ class TGBot:
         markup.add(types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
                                               callback_data=json.dumps({"action": "captcha_settings"})))
         markup.add(types.InlineKeyboardButton("📢" + _("Broadcast Message"),
-                                              callback_data=json.dumps({"action": "broadcast_message"})))  # 新增按钮
+                                              callback_data=json.dumps({"action": "broadcast_message"})))
         if edit:
             self.bot.edit_message_text(_("Menu"), message.chat.id, message.message_id, reply_markup=markup)
         else:
@@ -1000,6 +1000,14 @@ class TGBot:
                 self.set_captcha(call.message, data["value"])
             case "broadcast_message":
                 self.broadcast_message(call.message)
+            case "confirm_broadcast":
+                self.bot.delete_message(self.group_id, call.message.message_id)
+                self.confirm_broadcast_message(call)
+            case "cancel_broadcast":
+                self.bot.delete_message(self.group_id, call.message.message_id)
+                self.bot.send_message(self.group_id, _("Broadcast cancelled"))
+                self.cache.delete("broadcast_content")
+                self.cache.delete("broadcast_content_type")
             case _:
                 logger.error(_("Invalid action received") + action)
         return
@@ -1097,11 +1105,11 @@ class TGBot:
         self.bot.register_next_step_handler(msg, self.handle_broadcast_message)
 
     def handle_broadcast_message(self, message: Message):
-        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+        if (isinstance(message.text, str) and message.text.startswith("/cancel")) or not self.check_valid_chat(message):
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
+
         content_type = message.content_type
-        content = None
         if content_type == "text":
             content = message.text
         elif content_type == "photo":
@@ -1116,6 +1124,36 @@ class TGBot:
             self.bot.send_message(self.group_id, _("Unsupported message type"))
             return
 
+        # Store the message content and type in cache
+        self.cache.set("broadcast_content", content, 300)
+        self.cache.set("broadcast_content_type", content_type, 300)
+
+        # Send preview message with confirmation button
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("✅" + _("Confirm"), callback_data=json.dumps({"action": "confirm_broadcast"})))
+        markup.add(
+            types.InlineKeyboardButton("❌" + _("Cancel"), callback_data=json.dumps({"action": "cancel_broadcast"})))
+
+        if content_type == "text":
+            self.bot.send_message(self.group_id, content, reply_markup=markup)
+        elif content_type == "photo":
+            self.bot.send_photo(self.group_id, content, reply_markup=markup)
+        elif content_type == "document":
+            self.bot.send_document(self.group_id, content, reply_markup=markup)
+        elif content_type == "video":
+            self.bot.send_video(self.group_id, content, reply_markup=markup)
+        elif content_type == "sticker":
+            self.bot.send_sticker(self.group_id, content, reply_markup=markup)
+
+    def confirm_broadcast_message(self, call: types.CallbackQuery):
+        content = self.cache.get("broadcast_content")
+        content_type = self.cache.get("broadcast_content_type")
+
+        if content is None or content_type is None:
+            self.bot.send_message(self.group_id, _("The operation has timed out. Please initiate the process again."))
+            return
+
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
             db_cursor.execute("SELECT user_id, thread_id FROM topics")
@@ -1126,17 +1164,20 @@ class TGBot:
                     if content_type == "text":
                         self.bot.send_message(user_id, content)
                     elif content_type == "photo":
-                        self.bot.send_photo(user_id, content, caption=message.caption)
+                        self.bot.send_photo(user_id, content)
                     elif content_type == "document":
-                        self.bot.send_document(user_id, content, caption=message.caption)
+                        self.bot.send_document(user_id, content)
                     elif content_type == "video":
-                        self.bot.send_video(user_id, content, caption=message.caption)
+                        self.bot.send_video(user_id, content)
                     elif content_type == "sticker":
                         self.bot.send_sticker(user_id, content)
                 except ApiTelegramException as e:
                     self.bot.send_message(self.group_id, _("Failed to send message to user {}").format(user_id))
                     logger.error(_("Failed to send message to user {}").format(user_id))
+
         self.bot.send_message(self.group_id, _("Broadcast message sent successfully."))
+        self.cache.delete("broadcast_content")
+        self.cache.delete("broadcast_content_type")
 
     def handle_verify(self, message: Message):
         if message.chat.id != self.group_id or message.message_thread_id is None:
