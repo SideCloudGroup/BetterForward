@@ -16,7 +16,7 @@ from diskcache import Cache
 from telebot import types, TeleBot
 from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegramException, delete_forum_topic, \
     reopen_forum_topic
-from telebot.types import Message
+from telebot.types import Message, MessageReactionUpdated
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("-token", type=str, required=True, help="Telegram bot token")
@@ -74,6 +74,7 @@ class TGBot:
         self.bot.message_handler(commands=["verify"])(self.handle_verify)
         self.bot.message_handler(func=lambda m: True, content_types=["photo", "text", "sticker", "video", "document"])(
             self.push_messages)
+        self.bot.message_reaction_handler(func=lambda message: True)(self.handle_reaction)
         self.bot.callback_query_handler(func=lambda call: True)(self.callback_query)
         self.db_path = db_path
         # Check path exists
@@ -98,7 +99,9 @@ class TGBot:
         self.message_queue = queue.Queue()
         self.message_processor = threading.Thread(target=self.process_messages)
         self.message_processor.start()
-        self.bot.infinity_polling(skip_pending=True, timeout=30)
+        self.bot.infinity_polling(skip_pending=True, timeout=30,
+                                  allowed_updates=['message', 'edited_message', 'callback_query', 'my_chat_member',
+                                                   'message_reaction', 'message_reaction_count', ])
 
     def check_valid_chat(self, message: Message):
         return message.chat.id == self.group_id and message.message_thread_id is None
@@ -1210,6 +1213,35 @@ class TGBot:
                 self.cache.delete("verified_users")
 
             db.commit()
+
+    def handle_reaction(self, message: MessageReactionUpdated):
+        if message.chat.id == self.group_id and message.chat.is_forum:
+            return
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            in_group = not (message.chat.id == self.group_id)
+            db_cursor.execute(
+                "SELECT topic_id, received_id FROM messages WHERE forwarded_id = ? AND in_group = ? LIMIT 1",
+                (message.message_id, in_group)
+            )
+            result = db_cursor.fetchone()
+            if result is None:
+                db_cursor.execute(
+                    "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? AND in_group = ? LIMIT 1",
+                    (message.message_id, not in_group)
+                )
+                result = db_cursor.fetchone()
+            if result is None:
+                return
+            topic_id, forwarded_id = result
+            if in_group:
+                self.bot.set_message_reaction(chat_id=self.group_id, message_id=forwarded_id,
+                                              reaction=[message.new_reaction[-1]] if message.new_reaction else [])
+            else:
+                db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
+                user_id = db_cursor.fetchone()
+                self.bot.set_message_reaction(chat_id=user_id, message_id=forwarded_id,
+                                              reaction=[message.new_reaction[-1]] if message.new_reaction else [])
 
 
 if __name__ == "__main__":
