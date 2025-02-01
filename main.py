@@ -10,8 +10,10 @@ import re
 import signal
 import sqlite3
 import threading
+from datetime import datetime
 from traceback import print_exc
 
+import pytz
 from diskcache import Cache
 from telebot import types, TeleBot
 from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegramException, delete_forum_topic, \
@@ -95,6 +97,8 @@ class TGBot:
         ], scope=types.BotCommandScopeChat(self.group_id))
         self.cache = Cache()
         self.load_settings()
+        self.time_zone = None
+        self.update_self_time_zone()
         self.check_permission()
         self.message_queue = queue.Queue()
         self.message_processor = threading.Thread(target=self.process_messages)
@@ -105,6 +109,9 @@ class TGBot:
 
     def check_valid_chat(self, message: Message):
         return message.chat.id == self.group_id and message.message_thread_id is None
+
+    def update_self_time_zone(self):
+        self.time_zone = pytz.timezone(self.cache.get("setting_time_zone"))
 
     def upgrade_db(self):
         try:
@@ -228,27 +235,47 @@ class TGBot:
     def match_auto_response(self, text):
         if text is None:
             return None
-        with sqlite3.connect(self.db_path) as db:
-            # Check for exact match
-            db_cursor = db.cursor()
-            db_cursor.execute(
-                "SELECT value, topic_action, type FROM auto_response WHERE key = ? AND is_regex = 0 LIMIT 1",
-                (text,))
-            result = db_cursor.fetchone()
-            if result is not None:
-                return {"response": result[0], "topic_action": result[1], "type": result[2]}
 
-            # Check for regex
-            db_cursor.execute("SELECT key, value, topic_action, type FROM auto_response WHERE is_regex = 1")
-            result = db_cursor.fetchall()
-            for row in result:
+        current_time = datetime.now(self.time_zone).time()
+
+        with sqlite3.connect(self.db_path) as db:
+            db.row_factory = sqlite3.Row
+            db_cursor = db.cursor()
+
+            # Check for exact match
+            db_cursor.execute(
+                "SELECT value, type, start_time, end_time FROM auto_response WHERE key = ? AND is_regex = 0",
+                (text,))
+            results = db_cursor.fetchall()
+            for result in results:
+                if self.is_within_time_range(current_time, result['start_time'], result['end_time']):
+                    return {"response": result['value'], "type": result['type']}
+
+            # Check for regex match
+            db_cursor.execute(
+                "SELECT key, value, type, start_time, end_time FROM auto_response WHERE is_regex = 1")
+            results = db_cursor.fetchall()
+            for row in results:
                 try:
-                    if re.match(row[0], text):
-                        return {"response": row[1], "topic_action": row[2], "type": row[3]}
+                    if re.match(row['key'], text) and self.is_within_time_range(current_time, row['start_time'],
+                                                                                row['end_time']):
+                        return {"response": row['value'], "type": row['type']}
                 except re.error:
-                    logger.error(_("Invalid regular expression: {}").format(row[0]))
+                    logger.error(_("Invalid regular expression: {}").format(row['key']))
                     return None
-            return None
+        return None
+
+    def is_within_time_range(self, current_time, start_time, end_time):
+        if start_time is None or end_time is None:
+            return True
+
+        start_time = datetime.strptime(start_time, "%H:%M").time()
+        end_time = datetime.strptime(end_time, "%H:%M").time()
+
+        if start_time <= end_time:
+            return start_time <= current_time <= end_time
+        else:
+            return current_time >= start_time or current_time <= end_time
 
     # Push messages to the queue
     def push_messages(self, message: Message):
@@ -315,7 +342,6 @@ class TGBot:
                     logger.info(_("User {} is banned").format(message.from_user.id))
                     return
                 # Auto response
-                topic_action = False
                 auto_response = None
                 if (auto_response_result := self.match_auto_response(message.text)) is not None:
                     if not retry:
@@ -337,11 +363,7 @@ class TGBot:
                                                        document=auto_response_result["response"])
                             case _:
                                 logger.error(_("Unsupported message type") + auto_response_result["type"])
-                    if auto_response_result["topic_action"]:
-                        topic_action = True
-                        auto_response = auto_response_result["response"]
-                    else:
-                        return
+                    auto_response = auto_response_result["response"]
                 # Forward message to group
                 userid = message.from_user.id
                 if (thread_id := self.cache.get(f"chat_{userid}_threadid")) is None:
@@ -351,7 +373,8 @@ class TGBot:
                         # Create a new thread
                         logger.info(_("Creating a new thread for user {}").format(userid))
                         try:
-                            topic = create_forum_topic(chat_id=self.group_id, name=message.from_user.first_name,
+                            topic = create_forum_topic(chat_id=self.group_id,
+                                                       name=f"{message.from_user.first_name} | {userid}",
                                                        token=self.bot.token)
                         except Exception as e:
                             logger.error(e)
@@ -432,9 +455,8 @@ class TGBot:
                                               message_thread_id=None)
                         self.bot.forward_message(self.group_id, message.chat.id, message_id=message.message_id)
                         return
-                if topic_action:
-                    self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
-                                          message_thread_id=thread_id)
+                self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
+                                      message_thread_id=thread_id)
             else:
                 # Forward message to user
                 if (user_id := self.cache.get(f"threadid_{message.message_thread_id}_userid")) is None:
@@ -501,6 +523,7 @@ class TGBot:
                 continue  # Skip to the next iteration if the queue is empty
             except Exception as e:
                 logger.error(_("Failed to process message: {}").format(e))
+                print_exc()
         self.bot.stop_bot()
 
     def check_permission(self):
@@ -528,7 +551,6 @@ class TGBot:
         self.bot.register_next_step_handler(msg, self.add_auto_response_type)
 
     def add_auto_response_type(self, message: Message):
-        # 选择是否是正则表达式
         if not self.check_valid_chat(message):
             return
         if isinstance(message.text, str) and message.text == "/cancel":
@@ -538,18 +560,13 @@ class TGBot:
             self.bot.send_message(self.group_id, _("Invalid input"))
             return
         self.cache.set("auto_response_key", message.text, 300)
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("✅" + _("Yes"),
-                                              callback_data=json.dumps(
-                                                  {"action": "set_auto_reply_type", "regex": True})))
-        markup.add(types.InlineKeyboardButton("❌" + _("No"),
-                                              callback_data=json.dumps(
-                                                  {"action": "set_auto_reply_type", "regex": False})))
-        markup.add(
-            types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "auto_reply"})))
-        help_text = _("Trigger: {}").format(self.cache.get("auto_response_key")) + "\n\n"
-        help_text += _("Is this a regular expression?")
-        self.bot.send_message(text=help_text, chat_id=self.group_id, reply_markup=markup)
+        try:
+            re.compile(message.text)
+            is_regex = True
+        except re.error:
+            is_regex = False
+        self.cache.set("auto_response_regex", is_regex, 300)
+        self.add_auto_response_value(message)
 
     def add_auto_response_value(self, message: Message):
         if not self.check_valid_chat(message):
@@ -564,20 +581,23 @@ class TGBot:
                 markup = types.InlineKeyboardMarkup()
                 markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                                       callback_data=json.dumps({"action": "auto_reply"})))
-                self.bot.edit_message_text(text=_("Invalid regular expression"), chat_id=self.group_id,
-                                           message_id=message.message_id, reply_markup=markup)
+                self.bot.send_message(
+                    text=_("Invalid regular expression"),
+                    chat_id=self.group_id,
+                    message_thread_id=None,
+                    reply_markup=markup)
                 return
-        msg = self.bot.edit_message_text(text=_("Please send the response content. It can be text, stickers, photos "
-                                                "and so on."),
-                                         chat_id=self.group_id, message_id=message.message_id)
-        self.bot.register_next_step_handler(msg, self.add_auto_response_topic_action)
+        msg = self.bot.send_message(text=_("Please send the response content. It can be text, stickers, photos "
+                                           "and so on."),
+                                    chat_id=self.group_id,
+                                    message_thread_id=None)
+        self.bot.register_next_step_handler(msg, self.add_auto_response_time)
 
-    def add_auto_response_topic_action(self, message: Message):
+    def add_auto_response_time(self, message: Message):
         if not self.check_valid_chat(message):
             return
         if isinstance(message.text, str) and message.text == "/cancel":
             self.bot.send_message(self.group_id, _("Operation cancelled"))
-            self.cache.delete("auto_response_key")
             return
         if self.cache.get("auto_response_key") is None:
             self.bot.send_message(self.group_id, _("The operation has timed out. Please initiate the process again."))
@@ -604,59 +624,102 @@ class TGBot:
                 return
         self.cache.set("auto_response_regex", self.cache.get("auto_response_regex"), 300)
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("✅" + _("Forward message"),
-                                              callback_data=json.dumps(
-                                                  {"action": "add_auto_reply", "topic_action": True})))
-        markup.add(types.InlineKeyboardButton("❌" + _("Do not forward message"),
-                                              callback_data=json.dumps(
-                                                  {"action": "add_auto_reply", "topic_action": False})))
-        markup.add(
-            types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "add_auto_reply"})))
-        help_text = ""
-        help_text += _("Trigger: {}").format(self.cache.get("auto_response_key")) + "\n"
-        help_text += _("Response: {}").format(
-            self.cache.get("auto_response_value") if self.cache.get("auto_response_type") == "text" else self.cache.get(
-                "auto_response_type")) + "\n"
-        help_text += _("Is regex: {}").format("✅" if self.cache.get("auto_response_regex") else "❌") + "\n\n"
-        self.bot.send_message(self.group_id, help_text + _("Do you want to forward the message to the user?"),
-                              reply_markup=markup,
-                              message_thread_id=None)
+        markup.add(types.InlineKeyboardButton("✅" + _("Yes"), callback_data=json.dumps(
+            {"action": "set_auto_response_time", "value": "yes"})))
+        markup.add(types.InlineKeyboardButton("❌" + _("No"), callback_data=json.dumps(
+            {"action": "set_auto_response_time", "value": "no"})))
+        self.bot.send_message(self.group_id, _("Do you want to set a start and end time for this auto response?"),
+                              reply_markup=markup)
 
-    def process_add_auto_reply(self, message: Message, data: dict):
+    def handle_auto_response_time(self, message: Message):
+        if not self.check_valid_chat(message):
+            return
+        if message.text.lower() == "no":
+            self.cache.set("auto_response_start_time", None, 300)
+            self.cache.set("auto_response_end_time", None, 300)
+            self.process_add_auto_reply(message)
+        elif message.text.lower() == "yes":
+            msg = self.bot.send_message(self.group_id,
+                                        _("Please enter the start time in HH:MM format (24-hour clock):"))
+            self.bot.register_next_step_handler(msg, self.set_auto_response_start_time)
+        else:
+            msg = self.bot.send_message(self.group_id, _("Invalid input. Please enter 'yes' or 'no':"))
+            self.bot.register_next_step_handler(msg, self.handle_auto_response_time)
+
+    def set_auto_response_start_time(self, message: Message):
+        if not self.check_valid_chat(message):
+            return
+        try:
+            start_time = datetime.strptime(message.text, "%H:%M").time()
+            self.cache.set("auto_response_start_time", start_time, 300)
+            msg = self.bot.send_message(self.group_id, _("Please enter the end time in HH:MM format (24-hour clock):"))
+            self.bot.register_next_step_handler(msg, self.set_auto_response_end_time)
+        except ValueError:
+            msg = self.bot.send_message(self.group_id,
+                                        _("Invalid time format.") + "\n" + _(
+                                            "Please enter the start time in HH:MM format (24-hour clock):"))
+            self.bot.register_next_step_handler(msg, self.set_auto_response_start_time)
+
+    def set_auto_response_end_time(self, message: Message):
+        if not self.check_valid_chat(message):
+            return
+        try:
+            end_time = datetime.strptime(message.text, "%H:%M").time()
+            self.cache.set("auto_response_end_time", end_time, 300)
+            self.process_add_auto_reply(message)
+        except ValueError:
+            msg = self.bot.send_message(self.group_id,
+                                        _("Invalid time format.") + "\n" + _(
+                                            "Please enter the end time in HH:MM format (24-hour clock):"))
+            self.bot.register_next_step_handler(msg, self.set_auto_response_end_time)
+
+    def process_add_auto_reply(self, message: Message):
         key = self.cache.pop("auto_response_key")
         value = self.cache.pop("auto_response_value")
         is_regex = self.cache.pop("auto_response_regex")
         type = self.cache.pop("auto_response_type")
+        start_time = self.cache.pop("auto_response_start_time")
+        end_time = self.cache.pop("auto_response_end_time")
+        if start_time is not None and end_time is not None:
+            start_time = start_time.strftime("%H:%M")
+            end_time = end_time.strftime("%H:%M")
         markup = types.InlineKeyboardMarkup()
         back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
-        if "topic_action" not in data or None in [key, value, is_regex, type]:
+        if None in [key, value, is_regex, type]:
             self.bot.delete_message(self.group_id, message.id)
             self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
             return
-        topic_action = data["topic_action"]
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
             db_cursor.execute(
-                "INSERT INTO auto_response (key, value, topic_action, is_regex, type) VALUES (?, ?, ?, ?, ?)",
-                (key, value, topic_action, is_regex, type))
+                "INSERT INTO auto_response (key, value, is_regex, type, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)",
+                (key, value, is_regex, type, start_time, end_time))
             db.commit()
         markup.add(back_button)
-        self.bot.edit_message_text(_("Auto reply added"), message.chat.id, message.message_id, reply_markup=markup)
+        self.bot.send_message(text=_("Auto reply added"),
+                              chat_id=message.chat.id,
+                              message_thread_id=None,
+                              reply_markup=markup)
 
     def menu(self, message, edit=False):
         if not self.check_valid_chat(message):
             return
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("💬" + _("Auto Reply"),
-                                              callback_data=json.dumps({"action": "auto_reply"})))
-        markup.add(types.InlineKeyboardButton("📙" + _("Default Message"),
-                                              callback_data=json.dumps({"action": "default_msg"})))
-        markup.add(types.InlineKeyboardButton("⛔" + _("Banned Users"),
-                                              callback_data=json.dumps({"action": "ban_user"})))
-        markup.add(types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
-                                              callback_data=json.dumps({"action": "captcha_settings"})))
-        markup.add(types.InlineKeyboardButton("📢" + _("Broadcast Message"),
-                                              callback_data=json.dumps({"action": "broadcast_message"})))
+        buttons = [
+            types.InlineKeyboardButton("💬" + _("Auto Reply"), callback_data=json.dumps({"action": "auto_reply"})),
+            types.InlineKeyboardButton("📙" + _("Default Message"), callback_data=json.dumps({"action": "default_msg"})),
+            types.InlineKeyboardButton("⛔" + _("Banned Users"), callback_data=json.dumps({"action": "ban_user"})),
+            types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
+                                       callback_data=json.dumps({"action": "captcha_settings"})),
+            types.InlineKeyboardButton("🌍" + _("Time Zone Settings"),
+                                       callback_data=json.dumps({"action": "time_zone_settings"})),
+            types.InlineKeyboardButton("📢" + _("Broadcast Message"),
+                                       callback_data=json.dumps({"action": "broadcast_message"}))
+        ]
+
+        for i in range(0, len(buttons), 2):
+            markup.row(*buttons[i:i + 2])
+
         if edit:
             self.bot.edit_message_text(_("Menu"), message.chat.id, message.message_id, reply_markup=markup)
         else:
@@ -682,8 +745,44 @@ class TGBot:
             result = db_cursor.fetchone()
             return result[0] if result else None
 
+    def validate_time_zone(self, message: Message):
+        time_zone = message.text
+        if time_zone == "/cancel":
+            self.bot.send_message(message.chat.id, _("Operation cancelled"))
+            return
+        if time_zone in pytz.all_timezones:
+            self.set_time_zone(message, time_zone)
+        else:
+            msg = self.bot.send_message(message.chat.id, _("Invalid time zone. Please try again:"))
+            self.bot.register_next_step_handler(msg, self.validate_time_zone)
+
+    def time_zone_settings_menu(self, message: Message):
+        if not self.check_valid_chat(message):
+            return
+        current_time_zone = self.get_setting('time_zone')
+        msg = self.bot.send_message(
+            text=_(
+                "Current time zone: {}.\nPlease enter the new time zone (e.g., Europe/London):\n\nSend /cancel to cancel this operation.").format(
+                current_time_zone),
+            chat_id=message.chat.id,
+            message_thread_id=None
+        )
+        self.bot.register_next_step_handler(msg, self.validate_time_zone)
+
+    def set_time_zone(self, message: Message, value: str):
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("UPDATE settings SET value = ? WHERE key = 'time_zone'", (value,))
+            db.commit()
+        self.cache.set("setting_time_zone", value)
+        self.update_self_time_zone()
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"})))
+        self.bot.send_message(message.chat.id, _("Time zone updated to {}").format(value), reply_markup=markup)
+
     def manage_auto_reply(self, message: Message, page: int = 1, page_size: int = 5):
         with sqlite3.connect(self.db_path) as db:
+            db.row_factory = sqlite3.Row
             db_cursor = db.cursor()
             markup = types.InlineKeyboardMarkup()
             back_button = types.InlineKeyboardButton("⬅️" + _("Back"),
@@ -696,8 +795,9 @@ class TGBot:
             total_pages = (total_responses + page_size - 1) // page_size
 
             # Fetch data with limits
-            db_cursor.execute("SELECT id, key, value, topic_action, is_regex, type FROM auto_response LIMIT ? OFFSET ?",
-                              (page_size, offset))
+            db_cursor.execute(
+                "SELECT id, key, value, is_regex, type, start_time, end_time FROM auto_response LIMIT ? OFFSET ?",
+                (page_size, offset))
             auto_responses = db_cursor.fetchall()
 
             text = _("Auto Reply List:") + "\n" + _("Total: {}").format(total_responses) + "\n" + _("Page: {}").format(
@@ -705,15 +805,20 @@ class TGBot:
             id_buttons = []
             for auto_response in auto_responses:
                 text += "-" * 20 + "\n"
-                text += f"ID: {auto_response[0]}\n"
-                text += _("Trigger: {}").format(auto_response[1]) + "\n"
+                text += f"ID: {auto_response['id']}\n"
+                text += _("Trigger: {}").format(auto_response['key']) + "\n"
                 text += _("Response: {}").format(
-                    auto_response[2] if auto_response[5] == "text" else auto_response[5]) + "\n"
-                text += _("Forward message: {}").format("✅" if auto_response[3] else "❌") + "\n"
-                text += _("Is regex: {}").format("✅" if auto_response[4] else "❌") + "\n\n"
-                id_buttons.append(types.InlineKeyboardButton(text=auto_response[0],
+                    auto_response['value'] if auto_response['type'] == "text" else auto_response['type']) + "\n"
+                text += _("Is regex: {}").format("✅" if auto_response['is_regex'] else "❌") + "\n"
+                text += _("Active time: ")
+                if auto_response['start_time'] and auto_response['end_time']:
+                    text += "{}~{}".format(auto_response['start_time'],
+                                           auto_response['end_time']) + "\n\n"
+                else:
+                    text += _("Disabled") + "\n\n"
+                id_buttons.append(types.InlineKeyboardButton(text=f"#{auto_response['id']}",
                                                              callback_data=json.dumps({"action": "select_auto_reply",
-                                                                                       "id": auto_response[0]})))
+                                                                                       "id": auto_response['id']})))
 
             # Add ID buttons in a single row
             if id_buttons:
@@ -744,9 +849,11 @@ class TGBot:
 
     def select_auto_reply(self, message: Message, id: int):
         with sqlite3.connect(self.db_path) as db:
+            db.row_factory = sqlite3.Row
             db_cursor = db.cursor()
-            db_cursor.execute("SELECT key, value, topic_action, is_regex, type FROM auto_response WHERE id = ? LIMIT 1",
-                              (id,))
+            db_cursor.execute(
+                "SELECT key, value, is_regex, type, start_time, end_time FROM auto_response WHERE id = ? LIMIT 1",
+                (id,))
             auto_response = db_cursor.fetchone()
             if auto_response is None:
                 self.bot.send_message(self.group_id, _("Auto reply not found"))
@@ -754,13 +861,18 @@ class TGBot:
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("❌" + _("Delete"),
                                                   callback_data=json.dumps({"action": "delete_auto_reply", "id": id})))
-            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
-                                                  callback_data=json.dumps({"action": "manage_auto_reply"})))
-            text = _("Trigger: {}").format(auto_response[0]) + "\n"
+            markup.add(
+                types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "manage_auto_reply"})))
+            text = _("Trigger: {}").format(auto_response["key"]) + "\n"
             text += _("Response: {}").format(
-                auto_response[1] if auto_response[4] == "text" else auto_response[4]) + "\n"
-            text += _("Forward message: {}").format("✅" if auto_response[2] else "❌") + "\n"
-            text += _("Is regex: {}").format("✅" if auto_response[3] else "❌") + "\n\n"
+                auto_response["value"] if auto_response["type"] == "text" else auto_response["type"]) + "\n"
+            text += _("Is regex: {}").format("✅" if auto_response["is_regex"] else "❌") + "\n"
+            text += _("Active time: ")
+            if auto_response['start_time'] and auto_response['end_time']:
+                text += "{}~{}".format(auto_response['start_time'],
+                                       auto_response['end_time']) + "\n\n"
+            else:
+                text += _("Disabled") + "\n\n"
             self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
 
     def delete_auto_reply(self, message: Message, id: int):
@@ -851,7 +963,10 @@ class TGBot:
                                                       callback_data=json.dumps(
                                                           {"action": "select_ban_user", "id": user[0]})))
             markup.add(back_button)
-            self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
+            self.bot.send_message(text=text,
+                                  chat_id=message.chat.id,
+                                  message_thread_id=None,
+                                  reply_markup=markup)
 
     def select_ban_user(self, message: Message, id: int):
         with sqlite3.connect(self.db_path) as db:
@@ -878,10 +993,11 @@ class TGBot:
         markup.add(types.InlineKeyboardButton("🔄️" + _("Set to Default"),
                                               callback_data=json.dumps({"action": "empty_default_msg"})))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"})))
-        self.bot.edit_message_text(_("Default Message") +
+        self.bot.send_message(text=_("Default Message") +
                                    "\n" +
                                    _("The default message is an auto-reply to the commands /help and /start"),
-                                   message.chat.id, message.message_id, reply_markup=markup)
+                              chat_id=message.chat.id,
+                              message_thread_id=None, reply_markup=markup)
 
     def empty_default_msg(self, message: Message):
         with sqlite3.connect(self.db_path) as db:
@@ -927,7 +1043,7 @@ class TGBot:
         except json.JSONDecodeError:
             logger.error(_("Invalid JSON data received"))
             return
-
+        self.bot.answer_callback_query(call.id)
         # User end
         match action:
             case "verify_button":
@@ -950,8 +1066,20 @@ class TGBot:
                                                       callback_data=json.dumps({"action": "manage_auto_reply"}))
                            )
                 markup.add(back_button)
-                self.bot.edit_message_text(_("Auto Reply"), call.message.chat.id, call.message.message_id,
-                                           reply_markup=markup)
+                self.bot.send_message(text=_("Auto Reply"),
+                                      chat_id=call.message.chat.id,
+                                      message_thread_id=None,
+                                      reply_markup=markup)
+            case "set_auto_response_time":
+                self.bot.delete_message(self.group_id, call.message.message_id)
+                if data["value"] == "no":
+                    self.cache.set("auto_response_start_time", None, 300)
+                    self.cache.set("auto_response_end_time", None, 300)
+                    self.process_add_auto_reply(call.message)
+                elif data["value"] == "yes":
+                    msg = self.bot.send_message(self.group_id,
+                                                _("Please enter the start time in HH:MM format (24-hour clock):"))
+                    self.bot.register_next_step_handler(msg, self.set_auto_response_start_time)
             case "set_auto_reply_type":
                 if "regex" not in data:
                     self.bot.delete_message(self.group_id, call.message.message_id)
@@ -962,7 +1090,7 @@ class TGBot:
             case "start_add_auto_reply":
                 self.add_auto_response(call.message)
             case "add_auto_reply":
-                self.process_add_auto_reply(call.message, data)
+                self.process_add_auto_reply(call.message)
             case "manage_auto_reply":
                 self.manage_auto_reply(call.message, page=data.get("page", 1))
             case "select_auto_reply":
@@ -1011,6 +1139,10 @@ class TGBot:
                 self.bot.send_message(self.group_id, _("Broadcast cancelled"))
                 self.cache.delete("broadcast_content")
                 self.cache.delete("broadcast_content_type")
+            case "time_zone_settings":
+                self.time_zone_settings_menu(call.message)
+            case "set_time_zone":
+                self.set_time_zone(call.message, data["value"])
             case _:
                 logger.error(_("Invalid action received") + action)
         return
@@ -1029,8 +1161,10 @@ class TGBot:
             markup.add(types.InlineKeyboardButton(icon + key,
                                                   callback_data=json.dumps({"action": "set_captcha", "value": value})))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"})))
-        self.bot.edit_message_text(_("Captcha Settings") + "\n", message.chat.id, message.message_id,
-                                   reply_markup=markup)
+        self.bot.send_message(text=_("Captcha Settings") + "\n",
+                              chat_id=message.chat.id,
+                              message_thread_id=None,
+                              reply_markup=markup)
 
     def set_captcha(self, message: Message, value: str):
         with sqlite3.connect(self.db_path) as db:
@@ -1102,9 +1236,9 @@ class TGBot:
     def broadcast_message(self, message: Message):
         if not self.check_valid_chat(message):
             return
-        msg = self.bot.edit_message_text(text=_(
+        msg = self.bot.send_message(text=_(
             "Please send the content you want to broadcast.\nSend /cancel to cancel this operation."),
-            chat_id=self.group_id, message_id=message.message_id)
+            chat_id=self.group_id, message_thread_id=None)
         self.bot.register_next_step_handler(msg, self.handle_broadcast_message)
 
     def handle_broadcast_message(self, message: Message):
