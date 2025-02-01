@@ -14,7 +14,7 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
 - Flexibility: Each user corresponds to an independent topic, and the experience is almost the same as private chat.
 - Teamwork: Multiple admins can handle users' messages.
 - Multi-language: Supports multiple languages, including English, Chinese and Japanese.
-- Auto Response: Automatically replies to users' messages with predefined messages, and supports detection with regex.
+- Auto Response: Automatically replies to users' messages with predefined messages, and supports detection with regex. Allows setting active time for auto-reply.
 - Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending of spam messages.
 - Broadcast Message: Allows admins to send a message to all users at once.
 
