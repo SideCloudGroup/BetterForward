@@ -103,7 +103,7 @@ class TGBot:
         self.message_queue = queue.Queue()
         self.message_processor = threading.Thread(target=self.process_messages)
         self.message_processor.start()
-        self.bot.infinity_polling(skip_pending=True, timeout=30,
+        self.bot.infinity_polling(skip_pending=True, timeout=5,
                                   allowed_updates=['message', 'edited_message', 'callback_query', 'my_chat_member',
                                                    'message_reaction', 'message_reaction_count', ])
 
@@ -455,8 +455,9 @@ class TGBot:
                                               message_thread_id=None)
                         self.bot.forward_message(self.group_id, message.chat.id, message_id=message.message_id)
                         return
-                self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
-                                      message_thread_id=thread_id)
+                if auto_response is not None:
+                    self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
+                                          message_thread_id=thread_id)
             else:
                 # Forward message to user
                 if (user_id := self.cache.get(f"threadid_{message.message_thread_id}_userid")) is None:
@@ -1188,18 +1189,19 @@ class TGBot:
             if (result := db_cursor.fetchone()) is None:
                 return
             topic_id, forwarded_id = result
+            edit_time = datetime.now().astimezone(self.time_zone).strftime("%Y-%m-%d %H:%M:%S")
+            edited_text = message.text + f"\n\n({_("Edited at")} {edit_time})"
             if message.chat.id == self.group_id:
                 db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
                 if (user_id := db_cursor.fetchone()[0]) is None:
                     return
                 match message.content_type:
                     case "text":
-                        self.bot.edit_message_text(chat_id=user_id, message_id=forwarded_id, text=message.text)
+                        self.bot.edit_message_text(chat_id=user_id, message_id=forwarded_id, text=edited_text)
             else:
                 match message.content_type:
                     case "text":
-                        self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id,
-                                                   text=message.text + "\n\n" + _("(edited)"))
+                        self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id, text=edited_text)
 
     def delete_message(self, message: Message):
         if self.check_valid_chat(message):
