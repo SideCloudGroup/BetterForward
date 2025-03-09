@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2025-02-15 10:58+0000\n"
-"PO-Revision-Date: 2025-02-15 10:58+0000\n"
+"POT-Creation-Date: 2025-03-09 10:41+0000\n"
+"PO-Revision-Date: 2025-03-09 10:41+0000\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -82,7 +82,7 @@ msgstr "会话已被删除"
 msgid "Failed to terminate the thread"
 msgstr "无法删除该会话"
 
-#: main.py:233 main.py:895 main.py:908
+#: main.py:233 main.py:903 main.py:916
 msgid "This command is only available to admin users."
 msgstr "只有管理员可以使用该指令"
 
@@ -120,7 +120,7 @@ msgstr "验证码已启用。请回答以下问题并直接发送结果\n"
 msgid "User {} is banned"
 msgstr "用户{}已被封禁"
 
-#: main.py:365 main.py:441 main.py:506 main.py:624 main.py:1263
+#: main.py:365 main.py:441 main.py:507 main.py:632 main.py:1271
 msgid "Unsupported message type"
 msgstr "不支持的消息种类"
 
@@ -140,35 +140,43 @@ msgstr "转发用户{}的消息失败"
 msgid "[Auto Response]"
 msgstr "[自动回复]"
 
-#: main.py:512
+#: main.py:513 main.py:516
+msgid "Failed to forward message to user {}"
+msgstr "无法向用户{}发送消息"
+
+#: main.py:516
+msgid "[Alert]"
+msgstr "[警告]"
+
+#: main.py:520
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
-#: main.py:526
+#: main.py:534
 msgid "Failed to process message: {}"
 msgstr "无法处理消息：{}"
 
-#: main.py:532 main.py:533
+#: main.py:540 main.py:541
 msgid "Topic function is not enabled in this group"
 msgstr "话题功能在群组中未启用"
 
-#: main.py:536
+#: main.py:544
 msgid "Manage Topics"
 msgstr "管理话题"
 
-#: main.py:537
+#: main.py:545
 msgid "Delete Messages"
 msgstr "删除消息"
 
-#: main.py:541 main.py:542
+#: main.py:549 main.py:550
 msgid "Bot doesn't have {} permission"
 msgstr "Bot缺少{}权限"
 
-#: main.py:543
+#: main.py:551
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:549
+#: main.py:557
 msgid ""
 "Let's set up an automatic response.\n"
 "Send /cancel to cancel this operation.\n"
@@ -181,108 +189,108 @@ msgstr ""
 "\n"
 "请输入触发关键词或正则表达式"
 
-#: main.py:558 main.py:576 main.py:601 main.py:752 main.py:1026 main.py:1248
+#: main.py:566 main.py:584 main.py:609 main.py:760 main.py:1034 main.py:1256
 msgid "Operation cancelled"
 msgstr "操作已取消"
 
-#: main.py:561 main.py:1023
+#: main.py:569 main.py:1031
 msgid "Invalid input"
 msgstr "无效的输入"
 
-#: main.py:583 main.py:688 main.py:781 main.py:789 main.py:866 main.py:886
-#: main.py:946 main.py:956 main.py:984 main.py:996 main.py:1009 main.py:1033
-#: main.py:1058 main.py:1164 main.py:1176
+#: main.py:591 main.py:696 main.py:789 main.py:797 main.py:874 main.py:894
+#: main.py:954 main.py:964 main.py:992 main.py:1004 main.py:1017 main.py:1041
+#: main.py:1066 main.py:1172 main.py:1184
 msgid "Back"
 msgstr "返回"
 
-#: main.py:586
+#: main.py:594
 msgid "Invalid regular expression"
 msgstr "正则表达式不合法"
 
-#: main.py:591
+#: main.py:599
 msgid ""
 "Please send the response content. It can be text, stickers, photos and so on."
 msgstr "请发送自动回复的内容。可以是文本，贴纸，图片等类型。"
 
-#: main.py:604 main.py:1293
+#: main.py:612 main.py:1301
 msgid "The operation has timed out. Please initiate the process again."
 msgstr "操作已超时，请重新开始。"
 
-#: main.py:628
+#: main.py:636
 msgid "Yes"
 msgstr "是"
 
-#: main.py:630
+#: main.py:638
 msgid "No"
 msgstr "否"
 
-#: main.py:632
+#: main.py:640
 msgid "Do you want to set a start and end time for this auto response?"
 msgstr "是否为这条自动回复设置生效时间？"
 
-#: main.py:644 main.py:661 main.py:1082
+#: main.py:652 main.py:669 main.py:1090
 msgid "Please enter the start time in HH:MM format (24-hour clock):"
 msgstr "请输入生效时间，格式为HH:MM（24小时制）"
 
-#: main.py:647
+#: main.py:655
 msgid "Invalid input. Please enter 'yes' or 'no':"
 msgstr "无效输入，请选择’是‘或’否‘"
 
-#: main.py:656 main.py:674
+#: main.py:664 main.py:682
 msgid "Please enter the end time in HH:MM format (24-hour clock):"
 msgstr "请输入结束时间，格式为HH:MM（24小时制）"
 
-#: main.py:660 main.py:673
+#: main.py:668 main.py:681
 msgid "Invalid time format."
 msgstr "无效的时间格式"
 
-#: main.py:691 main.py:1087 main.py:1100 main.py:1106 main.py:1114 main.py:1120
+#: main.py:699 main.py:1095 main.py:1108 main.py:1114 main.py:1122 main.py:1128
 msgid "Invalid action"
 msgstr "无效的操作"
 
-#: main.py:700
+#: main.py:708
 msgid "Auto reply added"
 msgstr "自动回复已添加"
 
-#: main.py:710 main.py:1070
+#: main.py:718 main.py:1078
 msgid "Auto Reply"
 msgstr "自动回复"
 
-#: main.py:711 main.py:997
+#: main.py:719 main.py:1005
 msgid "Default Message"
 msgstr "默认消息"
 
-#: main.py:712
+#: main.py:720
 msgid "Banned Users"
 msgstr "用户封禁"
 
-#: main.py:713 main.py:1165
+#: main.py:721 main.py:1173
 msgid "Captcha Settings"
 msgstr "验证码设置"
 
-#: main.py:715
+#: main.py:723
 msgid "Time Zone Settings"
 msgstr "时区设置"
 
-#: main.py:717
+#: main.py:725
 msgid "Broadcast Message"
 msgstr "消息公告"
 
-#: main.py:725 main.py:727
+#: main.py:733 main.py:735
 msgid "Menu"
 msgstr "菜单"
 
-#: main.py:734
+#: main.py:742
 msgid ""
 "I'm a bot that forwards messages, so please just tell me what you want to "
 "say."
 msgstr "我是消息转发Bot，请告诉我你想说的话"
 
-#: main.py:757
+#: main.py:765
 msgid "Invalid time zone. Please try again:"
 msgstr "无效的时区，请重新输入："
 
-#: main.py:766
+#: main.py:774
 msgid ""
 "Current time zone: {}.\n"
 "Please enter the new time zone (e.g., Europe/London):\n"
@@ -294,103 +302,103 @@ msgstr ""
 "\n"
 "输入 /cancel 取消操作"
 
-#: main.py:782
+#: main.py:790
 msgid "Time zone updated to {}"
 msgstr "时区已调整为{}"
 
-#: main.py:804
+#: main.py:812
 msgid "Auto Reply List:"
 msgstr "自动回复列表："
 
-#: main.py:804
+#: main.py:812
 msgid "Total: {}"
 msgstr "总计：{}"
 
-#: main.py:804
+#: main.py:812
 msgid "Page: {}"
 msgstr "页数：{}"
 
-#: main.py:810 main.py:867
+#: main.py:818 main.py:875
 msgid "Trigger: {}"
 msgstr "触发器：{}"
 
-#: main.py:811 main.py:868
+#: main.py:819 main.py:876
 msgid "Response: {}"
 msgstr "回复：{}"
 
-#: main.py:813 main.py:870
+#: main.py:821 main.py:878
 msgid "Is regex: {}"
 msgstr "是否为正则表达式：{}"
 
-#: main.py:814 main.py:871
+#: main.py:822 main.py:879
 msgid "Active time: "
 msgstr "生效时间："
 
-#: main.py:819 main.py:876
+#: main.py:827 main.py:884
 msgid "Disabled"
 msgstr "已禁用"
 
-#: main.py:831 main.py:839
+#: main.py:839 main.py:847
 msgid "Previous Page"
 msgstr "上一页"
 
-#: main.py:834 main.py:843
+#: main.py:842 main.py:851
 msgid "Next Page"
 msgstr "下一页"
 
-#: main.py:860
+#: main.py:868
 msgid "Auto reply not found"
 msgstr "未找到该自动回复"
 
-#: main.py:863
+#: main.py:871
 msgid "Delete"
 msgstr "删除"
 
-#: main.py:887
+#: main.py:895
 msgid "Auto reply deleted"
 msgstr "已删除自动回复"
 
-#: main.py:892
+#: main.py:900
 msgid "This command is not available in the main chat."
 msgstr "无法在主会话里使用该指令"
 
-#: main.py:903
+#: main.py:911
 msgid "User banned"
 msgstr "用户已被封禁"
 
-#: main.py:923 main.py:948 main.py:950
+#: main.py:931 main.py:956 main.py:958
 msgid "User unbanned"
 msgstr "用户已解封"
 
-#: main.py:936 main.py:978 main.py:1337
+#: main.py:944 main.py:986 main.py:1345
 msgid "User not found"
 msgstr "未找到该用户"
 
-#: main.py:959
+#: main.py:967
 msgid "Banned User List:"
 msgstr "封禁用户列表："
 
-#: main.py:981
+#: main.py:989
 msgid "Unban"
 msgstr "解封"
 
-#: main.py:992
+#: main.py:1000
 msgid "Edit Message"
 msgstr "编辑消息"
 
-#: main.py:994
+#: main.py:1002
 msgid "Set to Default"
 msgstr "设为默认值"
 
-#: main.py:999
+#: main.py:1007
 msgid "The default message is an auto-reply to the commands /help and /start"
 msgstr "\"默认消息\"是用户执行/help和/start时的自动回复"
 
-#: main.py:1011
+#: main.py:1019
 msgid "Default message has been restored."
 msgstr "默认消息已被设为初始值"
 
-#: main.py:1016
+#: main.py:1024
 msgid ""
 "Let's set up the default message.\n"
 "Send /cancel to cancel this operation.\n"
@@ -402,59 +410,59 @@ msgstr ""
 "\n"
 "请输入消息的内容"
 
-#: main.py:1035
+#: main.py:1043
 msgid "Default message has been updated."
 msgstr "默认消息已被更新"
 
-#: main.py:1039
+#: main.py:1047
 msgid "Invalid callback data received"
 msgstr "接收到无效的callback"
 
-#: main.py:1045
+#: main.py:1053
 msgid "Invalid JSON data received"
 msgstr "接收到无效的JSON数据"
 
-#: main.py:1063
+#: main.py:1071
 msgid "Add Auto Reply"
 msgstr "添加自动回复"
 
-#: main.py:1066
+#: main.py:1074
 msgid "Manage Existing Auto Reply"
 msgstr "管理自动回复"
 
-#: main.py:1140
+#: main.py:1148
 msgid "Broadcast cancelled"
 msgstr "消息广播已取消"
 
-#: main.py:1148
+#: main.py:1156
 msgid "Invalid action received"
 msgstr "接收到无效的操作"
 
-#: main.py:1153
+#: main.py:1161
 msgid "Disable Captcha"
 msgstr "禁用验证码"
 
-#: main.py:1154
+#: main.py:1162
 msgid "Math Captcha"
 msgstr "数学验证码"
 
-#: main.py:1155
+#: main.py:1163
 msgid "Button Captcha"
 msgstr "按钮验证码"
 
-#: main.py:1161
+#: main.py:1169
 msgid "(Selected) "
 msgstr "(已选择) "
 
-#: main.py:1178
+#: main.py:1186
 msgid "Captcha settings updated"
 msgstr "验证码设置已更新"
 
-#: main.py:1210
+#: main.py:1218
 msgid "Please reply to the message you want to delete"
 msgstr "请回复你需要删除的消息"
 
-#: main.py:1242
+#: main.py:1250
 msgid ""
 "Please send the content you want to broadcast.\n"
 "Send /cancel to cancel this operation."
@@ -462,23 +470,23 @@ msgstr ""
 "请发送你要广播的内容\n"
 "发送 /cancel 取消操作"
 
-#: main.py:1273
+#: main.py:1281
 msgid "Confirm"
 msgstr "确认"
 
-#: main.py:1275
+#: main.py:1283
 msgid "Cancel"
 msgstr "取消"
 
-#: main.py:1314 main.py:1315
+#: main.py:1322 main.py:1323
 msgid "Failed to send message to user {}"
 msgstr "向用户{}发送广播失败"
 
-#: main.py:1317
+#: main.py:1325
 msgid "Broadcast message sent successfully."
 msgstr "消息广播成功"
 
-#: main.py:1327
+#: main.py:1335
 msgid ""
 "Invalid command format.\n"
 "Use /verify <true/false>"
@@ -486,19 +494,19 @@ msgstr ""
 "无效的指令格式\n"
 "请使用 /verify <true/false>"
 
-#: main.py:1342
+#: main.py:1350
 msgid "User verified successfully."
 msgstr "设置用户验证成功"
 
-#: main.py:1347
+#: main.py:1355
 msgid "User verification removed."
 msgstr "已移除用户的验证"
 
-#: main.py:1385
+#: main.py:1393
 msgid "Token or group ID is empty"
 msgstr "Token或群组ID为空"
 
-#: main.py:1390
+#: main.py:1398
 msgid "Exiting..."
 msgstr "退出中……"
 

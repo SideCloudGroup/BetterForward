@@ -448,10 +448,10 @@ class TGBot:
                         self.terminate_thread(thread_id=thread_id)
                         return self.handle_message(message, retry=True)
                     else:
-                        logger.error(_("Failed to forward message from user {}".format(message.from_user.id)))
+                        logger.error(_("Failed to forward message from user {}").format(message.from_user.id))
                         logger.error(e)
                         self.bot.send_message(self.group_id,
-                                              _("Failed to forward message from user {}".format(message.from_user.id)),
+                                              _("Failed to forward message from user {}").format(message.from_user.id),
                                               message_thread_id=None)
                         self.bot.forward_message(self.group_id, message.chat.id, message_id=message.message_id)
                         return
@@ -478,36 +478,45 @@ class TGBot:
                                 (message.reply_to_message.message_id, message.message_thread_id, False,))
                         if (result := curser.fetchone()) is not None:
                             reply_id = int(result[0])
-                    match message.content_type:
-                        case "photo":
-                            fwd_msg = self.bot.send_photo(chat_id=user_id,
-                                                          photo=message.photo[-1].file_id,
-                                                          caption=message.caption,
-                                                          reply_to_message_id=reply_id)
-                        case "text":
-                            fwd_msg = self.bot.send_message(chat_id=user_id,
-                                                            text=message.text,
-                                                            reply_to_message_id=reply_id)
-                        case "sticker":
-                            fwd_msg = self.bot.send_sticker(chat_id=user_id,
-                                                            sticker=message.sticker.file_id,
-                                                            reply_to_message_id=reply_id)
-                        case "video":
-                            fwd_msg = self.bot.send_video(chat_id=user_id,
-                                                          video=message.video.file_id,
-                                                          caption=message.caption,
-                                                          reply_to_message_id=reply_id)
-                        case "document":
-                            fwd_msg = self.bot.send_document(chat_id=user_id,
-                                                             document=message.document.file_id,
-                                                             caption=message.caption,
-                                                             reply_to_message_id=reply_id)
-                        case _:
-                            logger.error(_("Unsupported message type") + message.content_type)
-                            return
-                    curser.execute(
-                        "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
-                        (message.message_id, fwd_msg.message_id, message.message_thread_id, True,))
+                    try:
+                        match message.content_type:
+                            case "photo":
+                                fwd_msg = self.bot.send_photo(chat_id=user_id,
+                                                              photo=message.photo[-1].file_id,
+                                                              caption=message.caption,
+                                                              reply_to_message_id=reply_id)
+                            case "text":
+                                fwd_msg = self.bot.send_message(chat_id=user_id,
+                                                                text=message.text,
+                                                                reply_to_message_id=reply_id)
+                            case "sticker":
+                                fwd_msg = self.bot.send_sticker(chat_id=user_id,
+                                                                sticker=message.sticker.file_id,
+                                                                reply_to_message_id=reply_id)
+                            case "video":
+                                fwd_msg = self.bot.send_video(chat_id=user_id,
+                                                              video=message.video.file_id,
+                                                              caption=message.caption,
+                                                              reply_to_message_id=reply_id)
+                            case "document":
+                                fwd_msg = self.bot.send_document(chat_id=user_id,
+                                                                 document=message.document.file_id,
+                                                                 caption=message.caption,
+                                                                 reply_to_message_id=reply_id)
+                            case _:
+                                logger.error(_("Unsupported message type") + message.content_type)
+                                return
+                        curser.execute(
+                            "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+                            (message.message_id, fwd_msg.message_id, message.message_thread_id, True,))
+                    except ApiTelegramException as e:
+                        logger.error(_("Failed to forward message to user {}").format(user_id))
+                        logger.error(e)
+                        self.bot.send_message(self.group_id,
+                                              _("[Alert]") + _("Failed to forward message to user {}").format(
+                                                  user_id) + "\n" + str(e),
+                                              message_thread_id=message.message_thread_id)
+                        return
                 else:
                     self.bot.send_message(self.group_id, _("Chat not found, please remove this topic manually"),
                                           message_thread_id=message.message_thread_id)
