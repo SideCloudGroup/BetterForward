@@ -74,8 +74,16 @@ class TGBot:
         self.bot.message_handler(commands=["terminate"])(self.handle_terminate)
         self.bot.message_handler(commands=["delete"])(self.delete_message)
         self.bot.message_handler(commands=["verify"])(self.handle_verify)
-        self.bot.message_handler(func=lambda m: True, content_types=["photo", "text", "sticker", "video", "document"])(
-            self.push_messages)
+        self.bot.message_handler(func=lambda m: True, content_types=["photo",
+                                                                     "text",
+                                                                     "sticker",
+                                                                     "video",
+                                                                     "document",
+                                                                     "voice",
+                                                                     "audio",
+                                                                     "animation",
+                                                                     "contact"]
+                                 )(self.push_messages)
         self.bot.message_reaction_handler(func=lambda message: True)(self.handle_reaction)
         self.bot.callback_query_handler(func=lambda call: True)(self.callback_query)
         self.db_path = db_path
@@ -437,6 +445,31 @@ class TGBot:
                                                              caption=message.caption,
                                                              message_thread_id=thread_id,
                                                              reply_to_message_id=reply_id)
+                        case "audio":
+                            fwd_msg = self.bot.send_audio(chat_id=self.group_id,
+                                                          audio=message.audio.file_id,
+                                                          caption=message.caption,
+                                                          message_thread_id=thread_id,
+                                                          reply_to_message_id=reply_id)
+                        case "voice":
+                            fwd_msg = self.bot.send_voice(chat_id=self.group_id,
+                                                          voice=message.voice.file_id,
+                                                          caption=message.caption,
+                                                          message_thread_id=thread_id,
+                                                          reply_to_message_id=reply_id)
+                        case "animation":
+                            fwd_msg = self.bot.send_animation(chat_id=self.group_id,
+                                                              animation=message.animation.file_id,
+                                                              caption=message.caption,
+                                                              message_thread_id=thread_id,
+                                                              reply_to_message_id=reply_id)
+                        case "contact":
+                            fwd_msg = self.bot.send_contact(chat_id=self.group_id,
+                                                            phone_number=message.contact.phone_number,
+                                                            first_name=message.contact.first_name,
+                                                            last_name=message.contact.last_name,
+                                                            message_thread_id=thread_id,
+                                                            reply_to_message_id=reply_id)
                         case _:
                             logger.error(_("Unsupported message type") + message.content_type)
                             return
@@ -503,6 +536,27 @@ class TGBot:
                                                                  document=message.document.file_id,
                                                                  caption=message.caption,
                                                                  reply_to_message_id=reply_id)
+                            case "audio":
+                                fwd_msg = self.bot.send_audio(chat_id=user_id,
+                                                              audio=message.audio.file_id,
+                                                              caption=message.caption,
+                                                              reply_to_message_id=reply_id)
+                            case "voice":
+                                fwd_msg = self.bot.send_voice(chat_id=user_id,
+                                                              voice=message.voice.file_id,
+                                                              caption=message.caption,
+                                                              reply_to_message_id=reply_id)
+                            case "animation":
+                                fwd_msg = self.bot.send_animation(chat_id=user_id,
+                                                                  animation=message.animation.file_id,
+                                                                  caption=message.caption,
+                                                                  reply_to_message_id=reply_id)
+                            case "contact":
+                                fwd_msg = self.bot.send_contact(chat_id=user_id,
+                                                                phone_number=message.contact.phone_number,
+                                                                first_name=message.contact.first_name,
+                                                                last_name=message.contact.last_name,
+                                                                reply_to_message_id=reply_id)
                             case _:
                                 logger.error(_("Unsupported message type") + message.content_type)
                                 return
