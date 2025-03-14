@@ -103,6 +103,7 @@ class TGBot:
             types.BotCommand("terminate", _("Terminate a thread")),
             types.BotCommand("verify", _("Set verified status")),
         ], scope=types.BotCommandScopeChat(self.group_id))
+        self.bot.delete_webhook()
         self.cache = Cache()
         self.load_settings()
         self.time_zone = None
@@ -1287,7 +1288,9 @@ class TGBot:
                     return
                 self.bot.delete_message(chat_id=user_id, message_id=forwarded_id)
             else:
-                self.bot.delete_message(chat_id=self.group_id, message_id=forwarded_id)
+                self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id,
+                                           text=_("Message deleted at") + datetime.now().astimezone(
+                                               self.time_zone).strftime(" %Y-%m-%d %H:%M:%S"))
 
             # Delete the message from the database
             db_cursor.execute("DELETE FROM messages WHERE received_id = ? AND in_group = ?",
@@ -1414,33 +1417,26 @@ class TGBot:
             db.commit()
 
     def handle_reaction(self, message: MessageReactionUpdated):
-        if message.chat.id == self.group_id and message.chat.is_forum:
-            return
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
-            in_group = not (message.chat.id == self.group_id)
             db_cursor.execute(
-                "SELECT topic_id, received_id FROM messages WHERE forwarded_id = ? AND in_group = ? LIMIT 1",
-                (message.message_id, in_group)
-            )
-            result = db_cursor.fetchone()
-            if result is None:
+                "SELECT topic_id, received_id FROM messages WHERE forwarded_id = ? LIMIT 1",
+                (message.message_id,))
+            if (result := db_cursor.fetchone()) is None:
                 db_cursor.execute(
-                    "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? AND in_group = ? LIMIT 1",
-                    (message.message_id, not in_group)
-                )
-                result = db_cursor.fetchone()
-            if result is None:
-                return
+                    "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? LIMIT 1",
+                    (message.message_id,))
+                if (result := db_cursor.fetchone()) is None:
+                    return
             topic_id, forwarded_id = result
-            if in_group:
-                self.bot.set_message_reaction(chat_id=self.group_id, message_id=forwarded_id,
-                                              reaction=[message.new_reaction[-1]] if message.new_reaction else [])
-            else:
+            if message.chat.id == self.group_id:
                 db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
-                user_id = db_cursor.fetchone()
-                self.bot.set_message_reaction(chat_id=user_id, message_id=forwarded_id,
-                                              reaction=[message.new_reaction[-1]] if message.new_reaction else [])
+                if (chat_id := db_cursor.fetchone()[0]) is None:
+                    return
+            else:
+                chat_id = self.group_id
+            self.bot.set_message_reaction(chat_id=chat_id, message_id=forwarded_id,
+                                          reaction=[message.new_reaction[-1]] if message.new_reaction else [])
 
 
 if __name__ == "__main__":
