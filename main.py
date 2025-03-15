@@ -291,7 +291,7 @@ class TGBot:
         self.message_queue.put(message)
 
     # Main message handler
-    def handle_message(self, message: Message, retry=False):
+    def handle_message(self, message: Message):
         # Not responding in General topic
         if self.check_valid_chat(message):
             return
@@ -353,25 +353,24 @@ class TGBot:
                 # Auto response
                 auto_response = None
                 if (auto_response_result := self.match_auto_response(message.text)) is not None:
-                    if not retry:
-                        match auto_response_result["type"]:
-                            case "text":
-                                self.bot.send_message(message.chat.id,
-                                                      auto_response_result["response"])
-                            case "photo":
-                                self.bot.send_photo(message.chat.id,
-                                                    photo=auto_response_result["response"])
-                            case "sticker":
-                                self.bot.send_sticker(message.chat.id,
-                                                      sticker=auto_response_result["response"])
-                            case "video":
-                                self.bot.send_video(message.chat.id,
-                                                    video=auto_response_result["response"])
-                            case "document":
-                                self.bot.send_document(message.chat.id,
-                                                       document=auto_response_result["response"])
-                            case _:
-                                logger.error(_("Unsupported message type") + auto_response_result["type"])
+                    match auto_response_result["type"]:
+                        case "text":
+                            self.bot.send_message(message.chat.id,
+                                                  auto_response_result["response"])
+                        case "photo":
+                            self.bot.send_photo(message.chat.id,
+                                                photo=auto_response_result["response"])
+                        case "sticker":
+                            self.bot.send_sticker(message.chat.id,
+                                                  sticker=auto_response_result["response"])
+                        case "video":
+                            self.bot.send_video(message.chat.id,
+                                                video=auto_response_result["response"])
+                        case "document":
+                            self.bot.send_document(message.chat.id,
+                                                   document=auto_response_result["response"])
+                        case _:
+                            logger.error(_("Unsupported message type") + auto_response_result["type"])
                     auto_response = auto_response_result["response"]
                 # Forward message to group
                 userid = message.from_user.id
@@ -478,17 +477,13 @@ class TGBot:
                         "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
                         (message.message_id, fwd_msg.message_id, thread_id, False,))
                 except ApiTelegramException as e:
-                    if not retry:
-                        self.terminate_thread(thread_id=thread_id)
-                        return self.handle_message(message, retry=True)
-                    else:
-                        logger.error(_("Failed to forward message from user {}").format(message.from_user.id))
-                        logger.error(e)
-                        self.bot.send_message(self.group_id,
-                                              _("Failed to forward message from user {}").format(message.from_user.id),
-                                              message_thread_id=None)
-                        self.bot.forward_message(self.group_id, message.chat.id, message_id=message.message_id)
-                        return
+                    logger.error(_("Failed to forward message from user {}").format(message.from_user.id))
+                    logger.error(e)
+                    self.bot.send_message(self.group_id,
+                                          _("Failed to forward message from user {}").format(message.from_user.id),
+                                          message_thread_id=None)
+                    self.bot.forward_message(self.group_id, message.chat.id, message_id=message.message_id)
+                    return
                 if auto_response is not None:
                     self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
                                           message_thread_id=thread_id)
@@ -497,9 +492,10 @@ class TGBot:
                 if (user_id := self.cache.get(f"threadid_{message.message_thread_id}_userid")) is None:
                     result = curser.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
                                             (message.message_thread_id,))
-                    user_id = result.fetchone()[0]
-                    self.cache.set(f"threadid_{message.message_thread_id}_userid", user_id)
+                    user_id = result.fetchone()
                 if user_id is not None:
+                    user_id = user_id[0]
+                    self.cache.set(f"threadid_{message.message_thread_id}_userid", user_id)
                     reply_id = None
                     if message.reply_to_message is not None:
                         if message.reply_to_message.from_user.id == message.from_user.id:
@@ -575,8 +571,11 @@ class TGBot:
                 else:
                     self.bot.send_message(self.group_id, _("Chat not found, please remove this topic manually"),
                                           message_thread_id=message.message_thread_id)
-                    close_forum_topic(chat_id=self.group_id, message_thread_id=message.message_thread_id,
-                                      token=self.bot.token)
+                    try:
+                        close_forum_topic(chat_id=self.group_id, message_thread_id=message.message_thread_id,
+                                          token=self.bot.token)
+                    except ApiTelegramException as e:
+                        pass
 
     # Process messages in the queue
     def process_messages(self):
