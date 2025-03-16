@@ -1287,10 +1287,11 @@ class TGBot:
                     return
                 self.bot.delete_message(chat_id=user_id, message_id=forwarded_id)
             else:
-                self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id,
-                                           text=_("Message deleted at") + datetime.now().astimezone(
-                                               self.time_zone).strftime(" %Y-%m-%d %H:%M:%S"))
-
+                # self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id,
+                #                            text=_("Message deleted at") + datetime.now().astimezone(
+                #                                self.time_zone).strftime(" %Y-%m-%d %H:%M:%S"))
+                self.bot.send_message(chat_id=self.group_id, text=_("[Alert]") + _("Message deleted by user"),
+                                      reply_to_message_id=forwarded_id)
             # Delete the message from the database
             db_cursor.execute("DELETE FROM messages WHERE received_id = ? AND in_group = ?",
                               (msg_id, message.chat.id == self.group_id))
