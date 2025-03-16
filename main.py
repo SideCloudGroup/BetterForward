@@ -477,6 +477,13 @@ class TGBot:
                         "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
                         (message.message_id, fwd_msg.message_id, thread_id, False,))
                 except ApiTelegramException as e:
+                    if "message thread not found" in str(e):
+                        curser.execute("DELETE FROM topics WHERE thread_id = ?", (thread_id,))
+                        db.commit()
+                        self.cache.delete(f"threadid_{message.message_thread_id}_userid")
+                        self.cache.delete(f"chat_{userid}_threadid")
+                        self.message_queue.put(message)
+                        return
                     logger.error(_("Failed to forward message from user {}").format(message.from_user.id))
                     logger.error(e)
                     self.bot.send_message(self.group_id,
@@ -493,8 +500,8 @@ class TGBot:
                     result = curser.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
                                             (message.message_thread_id,))
                     user_id = result.fetchone()
+                    user_id = user_id[0] if user_id is not None else None
                 if user_id is not None:
-                    user_id = user_id[0]
                     self.cache.set(f"threadid_{message.message_thread_id}_userid", user_id)
                     reply_id = None
                     if message.reply_to_message is not None:
