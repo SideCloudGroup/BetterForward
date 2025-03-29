@@ -14,6 +14,7 @@ from datetime import datetime
 from traceback import print_exc
 
 import pytz
+import telebot.apihelper
 from diskcache import Cache
 from telebot import types, TeleBot
 from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegramException, delete_forum_topic, \
@@ -24,6 +25,7 @@ parser = argparse.ArgumentParser(description="")
 parser.add_argument("-token", type=str, required=True, help="Telegram bot token")
 parser.add_argument("-group_id", type=str, required=True, help="Group ID")
 parser.add_argument("-language", type=str, default="en_US", help="Language", choices=["en_US", "zh_CN", "ja_JP"])
+parser.add_argument("-tg_api", type=str, required=False, default="", help="Telegram API URL")
 args = parser.parse_args()
 
 logger = logging.getLogger()
@@ -45,6 +47,9 @@ except FileNotFoundError:
     _ = gettext.gettext
 
 stop = False
+
+if args.tg_api != "":
+    telebot.apihelper.API_URL = f"{args.tg_api}/bot{{0}}/{{1}}"
 
 
 def handle_sigterm(*args):

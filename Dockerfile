@@ -14,5 +14,6 @@ RUN rm requirements.txt
 ENV TOKEN=""
 ENV GROUP_ID=""
 ENV LANGUAGE="en_US"
+ENV TG_API=""
 
-CMD python -u /app/main.py -token "$TOKEN" -group_id "$GROUP_ID" -language "$LANGUAGE"
+CMD python -u /app/main.py -token "$TOKEN" -group_id "$GROUP_ID" -language "$LANGUAGE" -TG_API "$TG_API"
