@@ -1,5 +1,6 @@
 import argparse
 import gettext
+import html
 import importlib
 import json
 import logging
@@ -19,6 +20,7 @@ from diskcache import Cache
 from telebot import types, TeleBot
 from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegramException, delete_forum_topic, \
     reopen_forum_topic
+from telebot.formatting import apply_html_entities
 from telebot.types import Message, MessageReactionUpdated
 
 parser = argparse.ArgumentParser(description="")
@@ -300,6 +302,20 @@ class TGBot:
         # Not responding in General topic
         if self.check_valid_chat(message):
             return
+        if message.text is not None:
+            if message.entities:
+                msg_text = apply_html_entities(message.text, message.entities, None)
+            else:
+                msg_text = html.escape(message.text)
+        else:
+            msg_text = None
+        if message.caption is not None:
+            if message.entities:
+                msg_caption = apply_html_entities(message.caption, message.entities, None)
+            else:
+                msg_caption = html.escape(message.caption)
+        else:
+            msg_caption = None
         with sqlite3.connect(self.db_path) as db:
             curser = db.cursor()
             if message.chat.id != self.group_id:
@@ -425,14 +441,16 @@ class TGBot:
                         case "photo":
                             fwd_msg = self.bot.send_photo(chat_id=self.group_id,
                                                           photo=message.photo[-1].file_id,
-                                                          caption=message.caption,
+                                                          caption=msg_caption,
                                                           message_thread_id=thread_id,
-                                                          reply_to_message_id=reply_id)
+                                                          reply_to_message_id=reply_id,
+                                                          parse_mode='HTML')
                         case "text":
                             fwd_msg = self.bot.send_message(chat_id=self.group_id,
-                                                            text=message.text,
+                                                            text=msg_text,
                                                             message_thread_id=thread_id,
-                                                            reply_to_message_id=reply_id)
+                                                            reply_to_message_id=reply_id,
+                                                            parse_mode='HTML')
                         case "sticker":
                             fwd_msg = self.bot.send_sticker(chat_id=self.group_id,
                                                             sticker=message.sticker.file_id,
@@ -441,33 +459,38 @@ class TGBot:
                         case "video":
                             fwd_msg = self.bot.send_video(chat_id=self.group_id,
                                                           video=message.video.file_id,
-                                                          caption=message.caption,
+                                                          caption=msg_caption,
                                                           message_thread_id=thread_id,
-                                                          reply_to_message_id=reply_id)
+                                                          reply_to_message_id=reply_id,
+                                                          parse_mode='HTML')
                         case "document":
                             fwd_msg = self.bot.send_document(chat_id=self.group_id,
                                                              document=message.document.file_id,
-                                                             caption=message.caption,
+                                                             caption=msg_caption,
                                                              message_thread_id=thread_id,
-                                                             reply_to_message_id=reply_id)
+                                                             reply_to_message_id=reply_id,
+                                                             parse_mode='HTML')
                         case "audio":
                             fwd_msg = self.bot.send_audio(chat_id=self.group_id,
                                                           audio=message.audio.file_id,
-                                                          caption=message.caption,
+                                                          caption=msg_caption,
                                                           message_thread_id=thread_id,
-                                                          reply_to_message_id=reply_id)
+                                                          reply_to_message_id=reply_id,
+                                                          parse_mode='HTML')
                         case "voice":
                             fwd_msg = self.bot.send_voice(chat_id=self.group_id,
                                                           voice=message.voice.file_id,
-                                                          caption=message.caption,
+                                                          caption=msg_caption,
                                                           message_thread_id=thread_id,
-                                                          reply_to_message_id=reply_id)
+                                                          reply_to_message_id=reply_id,
+                                                          parse_mode='HTML')
                         case "animation":
                             fwd_msg = self.bot.send_animation(chat_id=self.group_id,
                                                               animation=message.animation.file_id,
-                                                              caption=message.caption,
+                                                              caption=msg_caption,
                                                               message_thread_id=thread_id,
-                                                              reply_to_message_id=reply_id)
+                                                              reply_to_message_id=reply_id,
+                                                              parse_mode='HTML')
                         case "contact":
                             fwd_msg = self.bot.send_contact(chat_id=self.group_id,
                                                             phone_number=message.contact.phone_number,
@@ -525,12 +548,14 @@ class TGBot:
                             case "photo":
                                 fwd_msg = self.bot.send_photo(chat_id=user_id,
                                                               photo=message.photo[-1].file_id,
-                                                              caption=message.caption,
-                                                              reply_to_message_id=reply_id)
+                                                              caption=msg_caption,
+                                                              reply_to_message_id=reply_id,
+                                                              parse_mode='HTML')
                             case "text":
                                 fwd_msg = self.bot.send_message(chat_id=user_id,
-                                                                text=message.text,
-                                                                reply_to_message_id=reply_id)
+                                                                text=msg_text,
+                                                                reply_to_message_id=reply_id,
+                                                                parse_mode='HTML')
                             case "sticker":
                                 fwd_msg = self.bot.send_sticker(chat_id=user_id,
                                                                 sticker=message.sticker.file_id,
@@ -538,28 +563,33 @@ class TGBot:
                             case "video":
                                 fwd_msg = self.bot.send_video(chat_id=user_id,
                                                               video=message.video.file_id,
-                                                              caption=message.caption,
-                                                              reply_to_message_id=reply_id)
+                                                              caption=msg_caption,
+                                                              reply_to_message_id=reply_id,
+                                                              parse_mode='HTML')
                             case "document":
                                 fwd_msg = self.bot.send_document(chat_id=user_id,
                                                                  document=message.document.file_id,
-                                                                 caption=message.caption,
-                                                                 reply_to_message_id=reply_id)
+                                                                 caption=msg_caption,
+                                                                 reply_to_message_id=reply_id,
+                                                                 parse_mode='HTML')
                             case "audio":
                                 fwd_msg = self.bot.send_audio(chat_id=user_id,
                                                               audio=message.audio.file_id,
-                                                              caption=message.caption,
-                                                              reply_to_message_id=reply_id)
+                                                              caption=msg_caption,
+                                                              reply_to_message_id=reply_id,
+                                                              parse_mode='HTML')
                             case "voice":
                                 fwd_msg = self.bot.send_voice(chat_id=user_id,
                                                               voice=message.voice.file_id,
-                                                              caption=message.caption,
-                                                              reply_to_message_id=reply_id)
+                                                              caption=msg_caption,
+                                                              reply_to_message_id=reply_id,
+                                                              parse_mode='HTML')
                             case "animation":
                                 fwd_msg = self.bot.send_animation(chat_id=user_id,
                                                                   animation=message.animation.file_id,
-                                                                  caption=message.caption,
-                                                                  reply_to_message_id=reply_id)
+                                                                  caption=msg_caption,
+                                                                  reply_to_message_id=reply_id,
+                                                                  parse_mode='HTML')
                             case "contact":
                                 fwd_msg = self.bot.send_contact(chat_id=user_id,
                                                                 phone_number=message.contact.phone_number,

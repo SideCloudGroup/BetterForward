@@ -1,4 +1,4 @@
-# Better Forward
+# BetterForward
 
 [中文README](README_zh.md)
 
@@ -34,7 +34,7 @@ More options and settings can be found by sending the `/help` command to the bot
 
 The following are the available language options:
 
-- English - `en`
+- English - `en_US`
 - Chinese - `zh_CN`
 - Japanese - `ja_JP`
 

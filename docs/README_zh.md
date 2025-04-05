@@ -1,4 +1,4 @@
-# Better Forward
+# BetterForward
 
 为更好地转发 Telegram 消息而设计。
 
@@ -32,7 +32,7 @@
 以下是可用的语言选项：
 
 - 简体中文 - `zh_CN`
-- 英语 - `en`
+- 英语 - `en_US`
 - 日语 - `ja_JP`
 
 我们欢迎贡献以添加更多语言。
