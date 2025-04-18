@@ -22,6 +22,7 @@ from telebot.apihelper import create_forum_topic, close_forum_topic, ApiTelegram
     reopen_forum_topic
 from telebot.formatting import apply_html_entities
 from telebot.types import Message, MessageReactionUpdated
+from telebot.util import antiflood
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("-token", type=str, required=True, help="Telegram bot token")
@@ -302,18 +303,15 @@ class TGBot:
         # Not responding in General topic
         if self.check_valid_chat(message):
             return
-        if message.text is not None:
-            if message.entities:
-                msg_text = apply_html_entities(message.text, message.entities, None)
-            else:
-                msg_text = html.escape(message.text)
+        if message.text:
+            msg_text = apply_html_entities(message.text, message.entities, None) if message.entities else html.escape(
+                message.text)
         else:
             msg_text = None
-        if message.caption is not None:
-            if message.entities:
-                msg_caption = apply_html_entities(message.caption, message.entities, None)
-            else:
-                msg_caption = html.escape(message.caption)
+
+        if message.caption:
+            msg_caption = apply_html_entities(message.caption, message.entities,
+                                              None) if message.entities else html.escape(message.caption)
         else:
             msg_caption = None
         with sqlite3.connect(self.db_path) as db:
@@ -624,7 +622,7 @@ class TGBot:
         while stop is False:
             try:
                 message = self.message_queue.get(timeout=1)
-                self.handle_message(message)
+                antiflood(self.handle_message, message)
             except queue.Empty:
                 continue  # Skip to the next iteration if the queue is empty
             except Exception as e:
