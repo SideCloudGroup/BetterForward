@@ -49,6 +49,10 @@ docker run -d --name betterforward \
     pplulee/betterforward:latest
 ```
 
+## 自定义 API
+
+如果需要使用自定义 API，可以设置环境变量 `TG_API`。留空或不设置将使用默认 API。
+
 ## 更新
 
 如果您使用 Docker 进行部署此项目，可以使用[WatchTower](https://github.com/containrrr/watchtower)实现快速更新。**请您自行调整容器名

@@ -52,6 +52,8 @@ docker run -d --name betterforward \
     pplulee/betterforward:latest
 ```
 
+If you need to use a custom API, you can set the environment variable `TG_API`. Leave it empty or unset to use the default API.
+
 ## Upgrade
 
 If you deploy this project using Docker, you can use [WatchTower](https://github.com/containrrr/watchtower) to quickly
