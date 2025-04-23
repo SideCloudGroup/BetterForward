@@ -8,7 +8,7 @@ ADD db_migrate /app/db_migrate
 ADD requirements.txt /app
 
 RUN mkdir /app/data
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 RUN rm requirements.txt
 
 ENV TOKEN=""
