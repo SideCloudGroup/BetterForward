@@ -657,7 +657,7 @@ class TGBot:
     def add_auto_response_type(self, message: Message):
         if not self.check_valid_chat(message):
             return
-        if isinstance(message.text, str) and message.text == "/cancel":
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
         if message.content_type != "text":
@@ -675,7 +675,7 @@ class TGBot:
     def add_auto_response_value(self, message: Message):
         if not self.check_valid_chat(message):
             return
-        if isinstance(message.text, str) and message.text == "/cancel":
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
         if self.cache.get("auto_response_regex") is True:
@@ -700,7 +700,7 @@ class TGBot:
     def add_auto_response_time(self, message: Message):
         if not self.check_valid_chat(message):
             return
-        if isinstance(message.text, str) and message.text == "/cancel":
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
         if self.cache.get("auto_response_key") is None:
@@ -851,8 +851,8 @@ class TGBot:
 
     def validate_time_zone(self, message: Message):
         time_zone = message.text
-        if time_zone == "/cancel":
-            self.bot.send_message(message.chat.id, _("Operation cancelled"))
+        if (not isinstance(message.text, str)) or message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
         if time_zone in pytz.all_timezones:
             self.set_time_zone(message, time_zone)
@@ -1125,7 +1125,7 @@ class TGBot:
         if not isinstance(message.text, str):
             self.bot.send_message(self.group_id, _("Invalid input"))
             return
-        if message.text == "/cancel":
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
         with sqlite3.connect(self.db_path) as db:
