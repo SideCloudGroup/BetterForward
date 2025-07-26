@@ -224,7 +224,8 @@ class TGBot:
 
     # To terminate and totally delete the topic
     def handle_terminate(self, message: Message):
-        if message.chat.id == self.group_id:
+        if (message.chat.id == self.group_id) and (
+                self.bot.get_chat_member(message.chat.id, message.from_user.id).status in ["administrator", "creator"]):
             user_id = None
             thread_id = None
             if message.message_thread_id is None:
@@ -239,13 +240,20 @@ class TGBot:
             if thread_id == 1:
                 self.bot.reply_to(message, _("Cannot terminate main thread"))
                 return
-            try:
-                self.terminate_thread(thread_id=thread_id, user_id=user_id)
-                if message.message_thread_id is None:
-                    self.bot.reply_to(message, _("Thread terminated"))
-            except Exception:
-                logger.error(_("Failed to terminate the thread") + str(thread_id))
-                self.bot.reply_to(message, _("Failed to terminate the thread"))
+            markup = types.InlineKeyboardMarkup()
+            confirm_button = types.InlineKeyboardButton(
+                f"✅{_("Confirm")}",
+                callback_data=json.dumps(
+                    {"action": "confirm_terminate", "thread_id": thread_id} if thread_id is not None else
+                    {"action": "confirm_terminate", "user_id": user_id}
+                )
+            )
+            cancel_button = types.InlineKeyboardButton(
+                f"❌{_("Cancel")}",
+                callback_data=json.dumps({"action": "cancel_terminate"})
+            )
+            markup.add(confirm_button, cancel_button)
+            self.bot.reply_to(message, _("Are you sure you want to terminate this thread?"), reply_markup=markup)
         else:
             self.bot.send_message(message.chat.id, _("This command is only available to admin users."))
 
@@ -619,7 +627,7 @@ class TGBot:
 
     # Process messages in the queue
     def process_messages(self):
-        while stop is False:
+        while not stop:
             try:
                 message = self.message_queue.get(timeout=1)
                 antiflood(self.handle_message, message)
@@ -1153,9 +1161,8 @@ class TGBot:
             case "verify_button":
                 self.handle_button_captcha(call)
                 return
-
         # Admin end
-        if call.message.chat.id != self.group_id or call.message.message_thread_id is not None:
+        if call.message.chat.id != self.group_id:
             return
         markup = types.InlineKeyboardMarkup()
         back_button = types.InlineKeyboardButton("⬅️" + _("Back"), callback_data=json.dumps({"action": "menu"}))
@@ -1247,6 +1254,17 @@ class TGBot:
                 self.time_zone_settings_menu(call.message)
             case "set_time_zone":
                 self.set_time_zone(call.message, data["value"])
+            case "confirm_terminate":
+                # Only allow the user who initiated the request
+                if call.message.from_user.id != call.from_user.id:
+                    return
+                try:
+                    self.terminate_thread(thread_id=data.get("thread_id"), user_id=data.get("user_id"))
+                except Exception:
+                    logger.error(_("Failed to terminate the thread"))
+                    self.bot.send_message(self.group_id, _("Failed to terminate the thread"))
+            case "cancel_terminate":
+                self.bot.edit_message_text(_("Operation cancelled"), call.message.chat.id, call.message.message_id)
             case _:
                 logger.error(_("Invalid action received") + action)
         return
