@@ -1255,9 +1255,6 @@ class TGBot:
             case "set_time_zone":
                 self.set_time_zone(call.message, data["value"])
             case "confirm_terminate":
-                # Only allow the user who initiated the request
-                if call.message.from_user.id != call.from_user.id:
-                    return
                 try:
                     self.terminate_thread(thread_id=data.get("thread_id"), user_id=data.get("user_id"))
                 except Exception:
