@@ -12,7 +12,7 @@ if __name__ == "__main__":
         logger.error(_("Token or group ID is empty"))
         exit(1)
     try:
-        bot = TGBot(args.token, args.group_id)
+        bot = TGBot(args.token, args.group_id, num_workers=args.workers)
     except KeyboardInterrupt:
         logger.info(_("Exiting..."))
         exit(0)

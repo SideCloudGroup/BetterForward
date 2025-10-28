@@ -1,12 +1,8 @@
 """Main bot class for BetterForward."""
 
-import queue
-import threading
-
 import pytz
 from diskcache import Cache
 from telebot import types, TeleBot
-from telebot.util import antiflood
 
 from src.config import logger, _
 from src.database import Database
@@ -16,16 +12,28 @@ from src.handlers.command_handler import CommandHandler
 from src.handlers.message_handler import MessageHandler
 from src.utils.auto_response import AutoResponseManager
 from src.utils.captcha import CaptchaManager
+from src.utils.message_queue import MessageQueueManager
 
 
 class TGBot:
     """Main Telegram bot class."""
 
-    def __init__(self, bot_token: str, group_id: str, db_path: str = "./data/storage.db"):
+    def __init__(self, bot_token: str, group_id: str, db_path: str = "./data/storage.db",
+                 num_workers: int = 5):
+        """
+        Initialize the bot.
+        
+        Args:
+            bot_token: Telegram bot token
+            group_id: Target group ID
+            db_path: Path to SQLite database
+            num_workers: Number of worker threads for message processing (default: 5)
+        """
         logger.info(_("Starting BetterForward..."))
         self.group_id = int(group_id)
         self.bot = TeleBot(token=bot_token)
         self.db_path = db_path
+        self.num_workers = num_workers
 
         # Initialize database
         self.database = Database(db_path)
@@ -74,10 +82,13 @@ class TGBot:
         # Check permissions
         self.check_permission()
 
-        # Setup message queue and processor
-        self.message_queue = queue.Queue()
-        self.message_processor = threading.Thread(target=self.process_messages)
-        self.message_processor.start()
+        # Setup multi-threaded message queue
+        self.message_queue_manager = MessageQueueManager(
+            handler_func=self.message_handler.handle_message,
+            num_workers=self.num_workers
+        )
+
+        logger.info(_("Message queue initialized with {} workers").format(self.num_workers))
 
         # Start polling
         self.bot.infinity_polling(
@@ -166,19 +177,15 @@ class TGBot:
 
     def push_messages(self, message):
         """Push messages to the queue for processing."""
-        self.message_queue.put(message)
+        self.message_queue_manager.put(message)
 
-    def process_messages(self):
-        """Process messages from the queue."""
-        global stop
-        while not stop:
-            try:
-                message = self.message_queue.get(timeout=1)
-                antiflood(self.message_handler.handle_message, message)
-            except queue.Empty:
-                continue
-            except Exception as e:
-                logger.error(_("Failed to process message: {}").format(e))
-                from traceback import print_exc
-                print_exc()
+    def get_queue_stats(self) -> dict:
+        """Get current message queue statistics."""
+        return self.message_queue_manager.get_stats()
+
+    def stop(self):
+        """Stop the bot and cleanup resources."""
+        logger.info(_("Stopping bot..."))
+        self.message_queue_manager.stop()
         self.bot.stop_bot()
+        logger.info(_("Bot stopped"))

@@ -15,6 +15,8 @@ parser.add_argument("-group_id", type=str, required=True, help="Group ID")
 parser.add_argument("-language", type=str, default="en_US", help="Language",
                     choices=["en_US", "zh_CN", "ja_JP"])
 parser.add_argument("-tg_api", type=str, required=False, default="", help="Telegram API URL")
+parser.add_argument("-workers", type=int, default=5,
+                    help="Number of worker threads for message processing (default: 5)")
 args = parser.parse_args()
 
 # Setup logging
