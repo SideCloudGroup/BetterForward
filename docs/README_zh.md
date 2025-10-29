@@ -72,7 +72,7 @@ docker run -d --name betterforward \
     -e WORKER=2 \
     -v /path/to/data:/app/data \
     --restart unless-stopped \
-    pplulee/betterforward:latest
+    ghcr.io/sidecloudgroup/betterforward:latest
 ```
 
 ## 自定义 API

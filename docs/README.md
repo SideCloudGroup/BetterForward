@@ -77,7 +77,7 @@ docker run -d --name betterforward \
     -e WORKER=2 \
     -v /path/to/data:/app/data \
     --restart unless-stopped \
-    pplulee/betterforward:latest
+    ghcr.io/sidecloudgroup/betterforward:latest
 ```
 
 If you need to use a custom API, you can set the environment variable `TG_API`. Leave it empty or unset to use the

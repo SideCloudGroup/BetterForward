@@ -2,8 +2,7 @@ version: '3.8'
 
 services:
   betterforward:
-    image: pplulee/betterforward:latest
-    container_name: betterforward
+    image: ghcr.io/sidecloudgroup/betterforward:latest
     restart: unless-stopped
     environment:
       - TOKEN=your_bot_token_here
