@@ -66,3 +66,4 @@ def with_db_connection(func):
             return func(*args, **kwargs)
 
     return wrapper
+

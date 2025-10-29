@@ -39,11 +39,37 @@
 
 ### Docker (推荐)
 
+#### 使用 Docker Compose (推荐)
+
+1. 下载 `docker-compose.yml` 文件：
+
+```bash
+wget https://github.com/SideCloudGroup/BetterForward/raw/refs/heads/main/docker-compose.yml
+```
+
+2. 编辑 `docker-compose.yml` 文件并替换占位符值：
+    - `your_bot_token_here` 替换为您的实际机器人令牌
+    - `your_group_id_here` 替换为您的实际群组 ID
+    - `zh_CN` 替换为您偏好的语言 (`en_US`, `zh_CN`, 或 `ja_JP`)
+    - `TG_API` 留空或设置您的自定义 API 端点
+    - `WORKER=2` 设置工作线程数量（默认：2）
+
+3. 使用 Docker Compose 运行：
+
+```bash
+docker compose up -d
+```
+
+#### 使用 Docker Run
+
+将 `/path/to/data` 替换为您的实际数据目录路径：
+
 ```bash
 docker run -d --name betterforward \
     -e TOKEN=<your_bot_token> \
     -e GROUP_ID=<your_group_id> \
     -e LANGUAGE=zh_CN \
+    -e WORKER=2 \
     -v /path/to/data:/app/data \
     --restart unless-stopped \
     pplulee/betterforward:latest
@@ -52,6 +78,15 @@ docker run -d --name betterforward \
 ## 自定义 API
 
 如果需要使用自定义 API，可以设置环境变量 `TG_API`。留空或不设置将使用默认 API。
+
+## 多线程支持
+
+BetterForward 通过 `WORKER` 参数支持多线程，以提高性能并处理并发请求：
+
+- **默认**：`WORKER=2` - 适用于大多数部署的平衡性能
+- **高流量**：`WORKER=3-5` - 推荐用于高流量场景
+- **线程安全**：应用程序使用线程安全的数据库操作和消息队列来防止冲突
+- **冲突解决**：数据库事务和锁定机制确保多个工作线程之间的数据一致性
 
 ## 更新
 

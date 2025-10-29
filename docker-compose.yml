@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  betterforward:
+    image: pplulee/betterforward:latest
+    container_name: betterforward
+    restart: unless-stopped
+    environment:
+      - TOKEN=your_bot_token_here
+      - GROUP_ID=your_group_id_here
+      - LANGUAGE=zh_CN
+      - TG_API=
+      - WORKER=2
+    volumes:
+      - ./data:/app/data

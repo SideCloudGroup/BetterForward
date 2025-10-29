@@ -309,3 +309,4 @@ class CommandHandler:
             db_cursor.execute("SELECT value FROM settings WHERE key = ? LIMIT 1", (key,))
             result = db_cursor.fetchone()
             return result[0] if result else None
+

@@ -3,9 +3,8 @@ BetterForward - A Telegram bot for forwarding messages with topic support.
 Entry point for the application.
 """
 
-from src.config import args, logger, _
 from src.bot import TGBot
-
+from src.config import args, logger, _
 
 if __name__ == "__main__":
     if not args.token or not args.group_id:

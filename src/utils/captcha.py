@@ -68,3 +68,4 @@ class CaptchaManager:
         cursor.execute("DELETE FROM verified_users WHERE user_id = ?", (user_id,))
         db.commit()
         self.cache.delete(f"verified_{user_id}")
+

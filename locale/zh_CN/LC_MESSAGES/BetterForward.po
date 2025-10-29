@@ -1,186 +1,147 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2025-07-26 15:14+0100\n"
-"PO-Revision-Date: 2025-07-26 15:14+0100\n"
+"POT-Creation-Date: 2025-10-29 11:09+0800\n"
+"PO-Revision-Date: 2025-10-29 11:11+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.6\n"
+"X-Generator: Poedit 3.8\n"
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-KeywordsList: _\n"
 "X-Poedit-SearchPath-0: main.py\n"
+"X-Poedit-SearchPath-1: src\n"
 
-#: main.py:75
+#: main.py:11
+msgid "Token or group ID is empty"
+msgstr "Token或群组ID为空"
+
+#: main.py:16
+msgid "Exiting..."
+msgstr "退出中……"
+
+#: src/bot.py:32
 msgid "Starting BetterForward..."
 msgstr "正在启动BetterForward……"
 
-#: main.py:103 main.py:110
+#: src/bot.py:91
+#, python-brace-format
+msgid "Message queue initialized with {} workers"
+msgstr "消息队列已初始化，包含 {} 个工作线程"
+
+#: src/bot.py:133 src/bot.py:141
 msgid "Delete a message"
 msgstr "删除消息"
 
-#: main.py:104 main.py:107
+#: src/bot.py:134 src/bot.py:138
 msgid "Show help"
 msgstr "显示帮助菜单"
 
-#: main.py:108
+#: src/bot.py:139
 msgid "Ban a user"
 msgstr "封禁用户"
 
-#: main.py:109
+#: src/bot.py:140
 msgid "Unban a user"
 msgstr "解封用户"
 
-#: main.py:111
+#: src/bot.py:142
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: main.py:112
+#: src/bot.py:143
 msgid "Set verified status"
 msgstr "设置人机验证状态"
 
-#: main.py:147
-msgid "Upgrading database to version {}"
-msgstr "升级到数据库版本{}"
-
-#: main.py:155
-msgid "Failed to upgrade database"
-msgstr "升级数据库失败"
-
-#: main.py:179
-msgid "Please click the button to verify."
-msgstr "请点击按钮以完成验证"
-
-#: main.py:181 main.py:368 main.py:370
-msgid "Invalid captcha setting"
-msgstr "无效的验证码设置"
-
-#: main.py:190 main.py:339
-msgid "Verification successful, you can now send messages"
-msgstr "验证成功，现在你可以发送消息了"
-
-#: main.py:199
-msgid "Invalid user ID"
-msgstr "无效的用户ID"
-
-#: main.py:223
-msgid "Terminating thread"
-msgstr "删除会话"
-
-#: main.py:241
-msgid "Cannot terminate main thread"
-msgstr "无法删除默认会话"
-
-#: main.py:245 main.py:1397
-msgid "Confirm"
-msgstr "确认"
-
-#: main.py:252 main.py:1399
-msgid "Cancel"
-msgstr "取消"
-
-#: main.py:256
-msgid "Are you sure you want to terminate this thread?"
-msgstr "请确认是否要删除该会话？"
-
-#: main.py:258 main.py:1006 main.py:1019
-msgid "This command is only available to admin users."
-msgstr "只有管理员可以使用该指令"
-
-#: main.py:289
-msgid "Invalid regular expression: {}"
-msgstr "正则表达式{}不合法"
-
-#: main.py:329
-msgid "Received message from {}, content: {}, type: {}"
-msgstr "收到来自{}的消息，内容：{}，类型：{}"
-
-#: main.py:335
-msgid "User {} entered an incorrect answer"
-msgstr "用户{}提交了错误的验证码"
-
-#: main.py:336
-msgid "The answer is incorrect, please try again"
-msgstr "回答不正确，请重新输入"
-
-#: main.py:338
-msgid "User {} passed the captcha"
-msgstr "用户{}通过了人机验证"
-
-#: main.py:357
-msgid "User {} is not verified"
-msgstr "用户{}未通过验证"
-
-#: main.py:365
-msgid ""
-"Captcha is enabled. Please solve the following question and send the result "
-"directly\n"
-msgstr "验证码已启用。请回答以下问题并直接发送结果\n"
-
-#: main.py:378
-msgid "User {} is banned"
-msgstr "用户{}已被封禁"
-
-#: main.py:400 main.py:508 main.py:606 main.py:735 main.py:1387
-msgid "Unsupported message type"
-msgstr "不支持的消息种类"
-
-#: main.py:409
-msgid "Creating a new thread for user {}"
-msgstr "与用户{}新建话题"
-
-#: main.py:422
-msgid "Not set"
-msgstr "未设置"
-
-#: main.py:521 main.py:524
-msgid "Failed to forward message from user {}"
-msgstr "转发用户{}的消息失败"
-
-#: main.py:529
-msgid "[Auto Response]"
-msgstr "[自动回复]"
-
-#: main.py:612 main.py:615
-msgid "Failed to forward message to user {}"
-msgstr "无法向用户{}发送消息"
-
-#: main.py:615 main.py:1351
-msgid "[Alert]"
-msgstr "[提示]"
-
-#: main.py:620
-msgid "Chat not found, please remove this topic manually"
-msgstr "未找到对应会话，请手动删除当前话题"
-
-#: main.py:637
-msgid "Failed to process message: {}"
-msgstr "无法处理消息：{}"
-
-#: main.py:643 main.py:644
+#: src/bot.py:162 src/bot.py:163
 msgid "Topic function is not enabled in this group"
 msgstr "话题功能在群组中未启用"
 
-#: main.py:647
+#: src/bot.py:167
 msgid "Manage Topics"
 msgstr "管理话题"
 
-#: main.py:648
+#: src/bot.py:168
 msgid "Delete Messages"
 msgstr "删除消息"
 
-#: main.py:652 main.py:653
+#: src/bot.py:173 src/bot.py:174
+#, python-brace-format
 msgid "Bot doesn't have {} permission"
 msgstr "Bot缺少{}权限"
 
-#: main.py:654
+#: src/bot.py:176
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: main.py:660
+#: src/bot.py:188
+msgid "Stopping bot..."
+msgstr "正在关闭机器人……"
+
+#: src/bot.py:191
+msgid "Bot stopped"
+msgstr "机器人已停止"
+
+#: src/database.py:63
+#, python-brace-format
+msgid "Upgrading database to version {}"
+msgstr "升级到数据库版本{}"
+
+#: src/database.py:75
+msgid "Failed to upgrade database"
+msgstr "升级数据库失败"
+
+#: src/handlers/admin_handler.py:50 src/handlers/admin_handler.py:84
+msgid "Auto Reply"
+msgstr "自动回复"
+
+#: src/handlers/admin_handler.py:52 src/handlers/admin_handler.py:407
+msgid "Default Message"
+msgstr "默认消息"
+
+#: src/handlers/admin_handler.py:54
+msgid "Banned Users"
+msgstr "用户封禁"
+
+#: src/handlers/admin_handler.py:56 src/handlers/admin_handler.py:465
+msgid "Captcha Settings"
+msgstr "验证码设置"
+
+#: src/handlers/admin_handler.py:58
+msgid "Time Zone Settings"
+msgstr "时区设置"
+
+#: src/handlers/admin_handler.py:60
+msgid "Broadcast Message"
+msgstr "消息公告"
+
+#: src/handlers/admin_handler.py:68 src/handlers/admin_handler.py:71
+msgid "Menu"
+msgstr "菜单"
+
+#: src/handlers/admin_handler.py:78
+msgid "Add Auto Reply"
+msgstr "添加自动回复"
+
+#: src/handlers/admin_handler.py:80
+msgid "Manage Existing Auto Reply"
+msgstr "管理自动回复"
+
+#: src/handlers/admin_handler.py:82 src/handlers/admin_handler.py:132
+#: src/handlers/admin_handler.py:249 src/handlers/admin_handler.py:269
+#: src/handlers/admin_handler.py:328 src/handlers/admin_handler.py:347
+#: src/handlers/admin_handler.py:358 src/handlers/admin_handler.py:389
+#: src/handlers/admin_handler.py:404 src/handlers/admin_handler.py:432
+#: src/handlers/admin_handler.py:441 src/handlers/admin_handler.py:463
+#: src/handlers/admin_handler.py:475 src/handlers/admin_handler.py:513
+#: src/handlers/callback_handler.py:64 src/handlers/command_handler.py:111
+msgid "Back"
+msgstr "返回"
+
+#: src/handlers/admin_handler.py:94
 msgid ""
 "Let's set up an automatic response.\n"
 "Send /cancel to cancel this operation.\n"
@@ -193,217 +154,153 @@ msgstr ""
 "\n"
 "请输入触发关键词或正则表达式"
 
-#: main.py:669 main.py:687 main.py:712 main.py:863 main.py:1137 main.py:1267
-#: main.py:1372
+#: src/handlers/admin_handler.py:104 src/handlers/admin_handler.py:124
+#: src/handlers/admin_handler.py:152 src/handlers/admin_handler.py:427
+#: src/handlers/admin_handler.py:497 src/handlers/admin_handler.py:532
+#: src/handlers/callback_handler.py:135
 msgid "Operation cancelled"
 msgstr "操作已取消"
 
-#: main.py:672 main.py:1134
+#: src/handlers/admin_handler.py:107 src/handlers/admin_handler.py:424
 msgid "Invalid input"
 msgstr "无效的输入"
 
-#: main.py:694 main.py:799 main.py:892 main.py:900 main.py:977 main.py:997
-#: main.py:1057 main.py:1067 main.py:1095 main.py:1107 main.py:1120
-#: main.py:1144 main.py:1168 main.py:1285 main.py:1297
-msgid "Back"
-msgstr "返回"
-
-#: main.py:697
+#: src/handlers/admin_handler.py:135
 msgid "Invalid regular expression"
 msgstr "正则表达式不合法"
 
-#: main.py:702
+#: src/handlers/admin_handler.py:142
 msgid ""
 "Please send the response content. It can be text, stickers, photos and so on."
 msgstr "请发送自动回复的内容。可以是文本，贴纸，图片等类型。"
 
-#: main.py:715 main.py:1417
+#: src/handlers/admin_handler.py:156 src/handlers/admin_handler.py:579
 msgid "The operation has timed out. Please initiate the process again."
 msgstr "操作已超时，请重新开始。"
 
-#: main.py:739
+#: src/handlers/admin_handler.py:178 src/handlers/admin_handler.py:547
+#: src/handlers/message_handler.py:140 src/handlers/message_handler.py:301
+#: src/handlers/message_handler.py:302
+msgid "Unsupported message type"
+msgstr "不支持的消息种类"
+
+#: src/handlers/admin_handler.py:183
 msgid "Yes"
 msgstr "是"
 
-#: main.py:741
+#: src/handlers/admin_handler.py:186
 msgid "No"
 msgstr "否"
 
-#: main.py:743
+#: src/handlers/admin_handler.py:190
 msgid "Do you want to set a start and end time for this auto response?"
 msgstr "是否为这条自动回复设置生效时间？"
 
-#: main.py:755 main.py:772 main.py:1192
+#: src/handlers/admin_handler.py:202 src/handlers/admin_handler.py:218
 msgid "Please enter the start time in HH:MM format (24-hour clock):"
 msgstr "请输入生效时间，格式为HH:MM（24小时制）"
 
-#: main.py:758
-msgid "Invalid input. Please enter 'yes' or 'no':"
-msgstr "无效输入，请选择’是‘或’否‘"
-
-#: main.py:767 main.py:785
+#: src/handlers/admin_handler.py:213 src/handlers/admin_handler.py:232
 msgid "Please enter the end time in HH:MM format (24-hour clock):"
 msgstr "请输入结束时间，格式为HH:MM（24小时制）"
 
-#: main.py:771 main.py:784
+#: src/handlers/admin_handler.py:217 src/handlers/admin_handler.py:231
 msgid "Invalid time format."
 msgstr "无效的时间格式"
 
-#: main.py:802 main.py:1197 main.py:1210 main.py:1216 main.py:1224 main.py:1230
+#: src/handlers/admin_handler.py:253 src/handlers/callback_handler.py:83
+#: src/handlers/callback_handler.py:89 src/handlers/callback_handler.py:97
+#: src/handlers/callback_handler.py:103
 msgid "Invalid action"
 msgstr "无效的操作"
 
-#: main.py:811
+#: src/handlers/admin_handler.py:259
 msgid "Auto reply added"
 msgstr "自动回复已添加"
 
-#: main.py:821 main.py:1180
-msgid "Auto Reply"
-msgstr "自动回复"
-
-#: main.py:822 main.py:1108
-msgid "Default Message"
-msgstr "默认消息"
-
-#: main.py:823
-msgid "Banned Users"
-msgstr "用户封禁"
-
-#: main.py:824 main.py:1286
-msgid "Captcha Settings"
-msgstr "验证码设置"
-
-#: main.py:826
-msgid "Time Zone Settings"
-msgstr "时区设置"
-
-#: main.py:828
-msgid "Broadcast Message"
-msgstr "消息公告"
-
-#: main.py:836 main.py:838
-msgid "Menu"
-msgstr "菜单"
-
-#: main.py:845
-msgid ""
-"I'm a bot that forwards messages, so please just tell me what you want to "
-"say."
-msgstr "我是消息转发Bot，请告诉我你想说的话"
-
-#: main.py:868
-msgid "Invalid time zone. Please try again:"
-msgstr "无效的时区，请重新输入："
-
-#: main.py:877
-msgid ""
-"Current time zone: {}.\n"
-"Please enter the new time zone (e.g., Europe/London):\n"
-"\n"
-"Send /cancel to cancel this operation."
-msgstr ""
-"当前时区：{}\n"
-"请输入新的时区（例如 Asia/Shanghai）：\n"
-"\n"
-"输入 /cancel 取消操作"
-
-#: main.py:893
-msgid "Time zone updated to {}"
-msgstr "时区已调整为{}"
-
-#: main.py:915
+#: src/handlers/admin_handler.py:272
 msgid "Auto Reply List:"
 msgstr "自动回复列表："
 
-#: main.py:915
+#: src/handlers/admin_handler.py:273
+#, python-brace-format
 msgid "Total: {}"
 msgstr "总计：{}"
 
-#: main.py:915
+#: src/handlers/admin_handler.py:274
+#, python-brace-format
 msgid "Page: {}"
 msgstr "页数：{}"
 
-#: main.py:921 main.py:978
+#: src/handlers/admin_handler.py:280 src/handlers/admin_handler.py:331
+#, python-brace-format
 msgid "Trigger: {}"
 msgstr "触发器：{}"
 
-#: main.py:922 main.py:979
+#: src/handlers/admin_handler.py:281 src/handlers/admin_handler.py:332
+#, python-brace-format
 msgid "Response: {}"
 msgstr "回复：{}"
 
-#: main.py:924 main.py:981
+#: src/handlers/admin_handler.py:283 src/handlers/admin_handler.py:334
+#, python-brace-format
 msgid "Is regex: {}"
 msgstr "是否为正则表达式：{}"
 
-#: main.py:925 main.py:982
+#: src/handlers/admin_handler.py:284 src/handlers/admin_handler.py:335
 msgid "Active time: "
 msgstr "生效时间："
 
-#: main.py:930 main.py:987
+#: src/handlers/admin_handler.py:288 src/handlers/admin_handler.py:339
 msgid "Disabled"
 msgstr "已禁用"
 
-#: main.py:942 main.py:950
+#: src/handlers/admin_handler.py:299 src/handlers/admin_handler.py:306
 msgid "Previous Page"
 msgstr "上一页"
 
-#: main.py:945 main.py:954
+#: src/handlers/admin_handler.py:302 src/handlers/admin_handler.py:310
 msgid "Next Page"
 msgstr "下一页"
 
-#: main.py:971
+#: src/handlers/admin_handler.py:321
 msgid "Auto reply not found"
 msgstr "未找到该自动回复"
 
-#: main.py:974
+#: src/handlers/admin_handler.py:325
 msgid "Delete"
 msgstr "删除"
 
-#: main.py:998
+#: src/handlers/admin_handler.py:349
 msgid "Auto reply deleted"
 msgstr "已删除自动回复"
 
-#: main.py:1003
-msgid "This command is not available in the main chat."
-msgstr "无法在主会话里使用该指令"
-
-#: main.py:1014
-msgid "User banned"
-msgstr "用户已被封禁"
-
-#: main.py:1034 main.py:1059 main.py:1061
-msgid "User unbanned"
-msgstr "用户已解封"
-
-#: main.py:1047 main.py:1089 main.py:1461
-msgid "User not found"
-msgstr "未找到该用户"
-
-#: main.py:1070
+#: src/handlers/admin_handler.py:362
 msgid "Banned User List:"
 msgstr "封禁用户列表："
 
-#: main.py:1092
+#: src/handlers/admin_handler.py:382 src/handlers/command_handler.py:101
+#: src/handlers/command_handler.py:240
+msgid "User not found"
+msgstr "未找到该用户"
+
+#: src/handlers/admin_handler.py:386
 msgid "Unban"
 msgstr "解封"
 
-#: main.py:1103
+#: src/handlers/admin_handler.py:400
 msgid "Edit Message"
 msgstr "编辑消息"
 
-#: main.py:1105
+#: src/handlers/admin_handler.py:402
 msgid "Set to Default"
 msgstr "设为默认值"
 
-#: main.py:1110
+#: src/handlers/admin_handler.py:408
 msgid "The default message is an auto-reply to the commands /help and /start"
 msgstr "\"默认消息\"是用户执行/help和/start时的自动回复"
 
-#: main.py:1122
-msgid "Default message has been restored."
-msgstr "默认消息已被设为初始值"
-
-#: main.py:1127
+#: src/handlers/admin_handler.py:416
 msgid ""
 "Let's set up the default message.\n"
 "Send /cancel to cancel this operation.\n"
@@ -415,71 +312,57 @@ msgstr ""
 "\n"
 "请输入消息的内容"
 
-#: main.py:1146
+#: src/handlers/admin_handler.py:434
 msgid "Default message has been updated."
 msgstr "默认消息已被更新"
 
-#: main.py:1150
-msgid "Invalid callback data received"
-msgstr "接收到无效的callback"
+#: src/handlers/admin_handler.py:443
+msgid "Default message has been restored."
+msgstr "默认消息已被设为初始值"
 
-#: main.py:1156
-msgid "Invalid JSON data received"
-msgstr "接收到无效的JSON数据"
-
-#: main.py:1173
-msgid "Add Auto Reply"
-msgstr "添加自动回复"
-
-#: main.py:1176
-msgid "Manage Existing Auto Reply"
-msgstr "管理自动回复"
-
-#: main.py:1250
-msgid "Broadcast cancelled"
-msgstr "消息广播已取消"
-
-#: main.py:1264 main.py:1265
-msgid "Failed to terminate the thread"
-msgstr "无法删除该会话"
-
-#: main.py:1269
-msgid "Invalid action received"
-msgstr "接收到无效的操作"
-
-#: main.py:1274
+#: src/handlers/admin_handler.py:450
 msgid "Disable Captcha"
 msgstr "禁用验证码"
 
-#: main.py:1275
+#: src/handlers/admin_handler.py:451
 msgid "Math Captcha"
 msgstr "数学验证码"
 
-#: main.py:1276
+#: src/handlers/admin_handler.py:452
 msgid "Button Captcha"
 msgstr "按钮验证码"
 
-#: main.py:1282
+#: src/handlers/admin_handler.py:459
 msgid "(Selected) "
 msgstr "(已选择) "
 
-#: main.py:1299
+#: src/handlers/admin_handler.py:477
 msgid "Captcha settings updated"
 msgstr "验证码设置已更新"
 
-#: main.py:1314
-msgid "Edited at"
-msgstr "编辑于"
+#: src/handlers/admin_handler.py:487
+#, python-brace-format
+msgid ""
+"Current time zone: {}.\n"
+"Please enter the new time zone (e.g., Europe/London):\n"
+"\n"
+"Send /cancel to cancel this operation."
+msgstr ""
+"当前时区：{}\n"
+"请输入新的时区（例如 Asia/Shanghai）：\n"
+"\n"
+"输入 /cancel 取消操作"
 
-#: main.py:1331
-msgid "Please reply to the message you want to delete"
-msgstr "请回复你需要删除的消息"
+#: src/handlers/admin_handler.py:502
+msgid "Invalid time zone. Please try again:"
+msgstr "无效的时区，请重新输入："
 
-#: main.py:1351
-msgid "Message deleted by user"
-msgstr "该消息已被用户删除"
+#: src/handlers/admin_handler.py:515
+#, python-brace-format
+msgid "Time zone updated to {}"
+msgstr "时区已调整为{}"
 
-#: main.py:1366
+#: src/handlers/admin_handler.py:524
 msgid ""
 "Please send the content you want to broadcast.\n"
 "Send /cancel to cancel this operation."
@@ -487,15 +370,100 @@ msgstr ""
 "请发送你要广播的内容\n"
 "发送 /cancel 取消操作"
 
-#: main.py:1438 main.py:1439
+#: src/handlers/admin_handler.py:556 src/handlers/command_handler.py:170
+msgid "Confirm"
+msgstr "确认"
+
+#: src/handlers/admin_handler.py:558 src/handlers/command_handler.py:177
+msgid "Cancel"
+msgstr "取消"
+
+#: src/handlers/admin_handler.py:601 src/handlers/admin_handler.py:602
+#, python-brace-format
 msgid "Failed to send message to user {}"
 msgstr "向用户{}发送广播失败"
 
-#: main.py:1441
+#: src/handlers/admin_handler.py:604
 msgid "Broadcast message sent successfully."
 msgstr "消息广播成功"
 
-#: main.py:1451
+#: src/handlers/callback_handler.py:23
+msgid "Invalid callback data received"
+msgstr "接收到无效的callback"
+
+#: src/handlers/callback_handler.py:30
+msgid "Invalid JSON data received"
+msgstr "接收到无效的JSON数据"
+
+#: src/handlers/callback_handler.py:55 src/handlers/message_handler.py:99
+msgid "Verification successful, you can now send messages"
+msgstr "验证成功，现在你可以发送消息了"
+
+#: src/handlers/callback_handler.py:59
+msgid "Invalid user ID"
+msgstr "无效的用户ID"
+
+#: src/handlers/callback_handler.py:123
+msgid "Broadcast cancelled"
+msgstr "消息广播已取消"
+
+#: src/handlers/callback_handler.py:132 src/handlers/callback_handler.py:133
+msgid "Failed to terminate the thread"
+msgstr "无法删除该会话"
+
+#: src/handlers/callback_handler.py:138
+msgid "Invalid action received"
+msgstr "接收到无效的操作"
+
+#: src/handlers/command_handler.py:37
+msgid ""
+"I'm a bot that forwards messages, so please just tell me what you want to "
+"say."
+msgstr "我是消息转发Bot，请告诉我你想说的话"
+
+#: src/handlers/command_handler.py:47
+msgid "This command is not available in the main chat."
+msgstr "无法在主会话里使用该指令"
+
+#: src/handlers/command_handler.py:50 src/handlers/command_handler.py:70
+#: src/handlers/command_handler.py:184
+msgid "This command is only available to admin users."
+msgstr "只有管理员可以使用该指令"
+
+#: src/handlers/command_handler.py:63
+msgid "User banned"
+msgstr "用户已被封禁"
+
+#: src/handlers/command_handler.py:88 src/handlers/command_handler.py:114
+#: src/handlers/command_handler.py:117
+msgid "User unbanned"
+msgstr "用户已解封"
+
+#: src/handlers/command_handler.py:148
+msgid "Terminating thread"
+msgstr "删除会话"
+
+#: src/handlers/command_handler.py:166
+msgid "Cannot terminate main thread"
+msgstr "无法删除默认会话"
+
+#: src/handlers/command_handler.py:181
+msgid "Are you sure you want to terminate this thread?"
+msgstr "请确认是否要删除该会话？"
+
+#: src/handlers/command_handler.py:191
+msgid "Please reply to the message you want to delete"
+msgstr "请回复你需要删除的消息"
+
+#: src/handlers/command_handler.py:210 src/handlers/message_handler.py:226
+msgid "[Alert]"
+msgstr "[提示]"
+
+#: src/handlers/command_handler.py:210
+msgid "Message deleted by user"
+msgstr "该消息已被用户删除"
+
+#: src/handlers/command_handler.py:229
 msgid ""
 "Invalid command format.\n"
 "Use /verify <true/false>"
@@ -503,21 +471,119 @@ msgstr ""
 "无效的指令格式\n"
 "请使用 /verify <true/false>"
 
-#: main.py:1466
+#: src/handlers/command_handler.py:246
 msgid "User verified successfully."
 msgstr "设置用户验证成功"
 
-#: main.py:1471
+#: src/handlers/command_handler.py:250
 msgid "User verification removed."
 msgstr "已移除用户的验证"
 
-#: main.py:1502
-msgid "Token or group ID is empty"
-msgstr "Token或群组ID为空"
+#: src/handlers/command_handler.py:267
+msgid "Edited at"
+msgstr "编辑于"
 
-#: main.py:1507
-msgid "Exiting..."
-msgstr "退出中……"
+#: src/handlers/message_handler.py:58
+#, python-brace-format
+msgid "Received message from {}, content: {}, type: {}"
+msgstr "收到来自{}的消息，内容：{}，类型：{}"
+
+#: src/handlers/message_handler.py:68
+#, python-brace-format
+msgid "User {} is banned"
+msgstr "用户{}已被封禁"
+
+#: src/handlers/message_handler.py:84
+msgid "[Auto Response]"
+msgstr "[自动回复]"
+
+#: src/handlers/message_handler.py:95
+#, python-brace-format
+msgid "User {} entered an incorrect answer"
+msgstr "用户{}提交了错误的验证码"
+
+#: src/handlers/message_handler.py:96
+msgid "The answer is incorrect, please try again"
+msgstr "回答不正确，请重新输入"
+
+#: src/handlers/message_handler.py:98
+#, python-brace-format
+msgid "User {} passed the captcha"
+msgstr "用户{}通过了人机验证"
+
+#: src/handlers/message_handler.py:106
+#, python-brace-format
+msgid "User {} is not verified"
+msgstr "用户{}未通过验证"
+
+#: src/handlers/message_handler.py:116
+msgid ""
+"Captcha is enabled. Please solve the following question and send the result "
+"directly\n"
+msgstr "验证码已启用。请回答以下问题并直接发送结果\n"
+
+#: src/handlers/message_handler.py:119 src/handlers/message_handler.py:121
+#: src/utils/captcha.py:38
+msgid "Invalid captcha setting"
+msgstr "无效的验证码设置"
+
+#: src/handlers/message_handler.py:152
+#, python-brace-format
+msgid "Creating a new thread for user {}"
+msgstr "与用户{}新建话题"
+
+#: src/handlers/message_handler.py:164
+msgid "Not set"
+msgstr "未设置"
+
+#: src/handlers/message_handler.py:196 src/handlers/message_handler.py:199
+#, python-brace-format
+msgid "Failed to forward message from user {}"
+msgstr "转发用户{}的消息失败"
+
+#: src/handlers/message_handler.py:223 src/handlers/message_handler.py:226
+#, python-brace-format
+msgid "Failed to forward message to user {}"
+msgstr "无法向用户{}发送消息"
+
+#: src/handlers/message_handler.py:230
+msgid "Chat not found, please remove this topic manually"
+msgstr "未找到对应会话，请手动删除当前话题"
+
+#: src/utils/auto_response.py:53
+#, python-brace-format
+msgid "Invalid regular expression: {}"
+msgstr "正则表达式{}不合法"
+
+#: src/utils/captcha.py:34
+msgid "Please click the button to verify."
+msgstr "请点击按钮以完成验证"
+
+#: src/utils/message_queue.py:64
+#, python-brace-format
+msgid "Started {} message processing workers"
+msgstr "已启动 {} 个消息处理工作线程"
+
+#: src/utils/message_queue.py:102
+#, python-brace-format
+msgid "Worker error: {}"
+msgstr "工作线程错误：{}"
+
+#: src/utils/message_queue.py:135 src/utils/message_queue.py:140
+#, python-brace-format
+msgid "Failed to process message for user {}: {}"
+msgstr "无法处理用户 {} 的消息：{}"
+
+#: src/utils/message_queue.py:162
+msgid "Stopping message queue manager..."
+msgstr "正在停止消息队列管理器……"
+
+#: src/utils/message_queue.py:171
+msgid "Message queue manager stopped"
+msgstr "消息队列管理器已停止"
+
+#~ msgid "Invalid input. Please enter 'yes' or 'no':"
+#~ msgstr "无效输入，请选择’是‘或’否‘"
 
 #~ msgid "Failed to fetch chat member info: {}"
 #~ msgstr "获取聊天成员信息失败：{}"

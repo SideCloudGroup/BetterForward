@@ -117,3 +117,4 @@ class AutoResponseManager:
                 "total_pages": total_pages,
                 "current_page": page
             }
+

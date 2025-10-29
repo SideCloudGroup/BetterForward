@@ -300,3 +300,4 @@ class MessageHandler:
             case _:
                 logger.error(_("Unsupported message type") + message.content_type)
                 raise ValueError(_("Unsupported message type") + message.content_type)
+

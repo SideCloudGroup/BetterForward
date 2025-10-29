@@ -14,8 +14,10 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
 - Flexibility: Each user corresponds to an independent topic, and the experience is almost the same as private chat.
 - Teamwork: Multiple admins can handle users' messages.
 - Multi-language: Supports multiple languages, including English, Chinese and Japanese.
-- Auto Response: Automatically replies to users' messages with predefined messages, and supports detection with regex. Allows setting active time for auto-reply.
-- Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending of spam messages.
+- Auto Response: Automatically replies to users' messages with predefined messages, and supports detection with regex.
+  Allows setting active time for auto-reply.
+- Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending
+  of spam messages.
 - Broadcast Message: Allows admins to send a message to all users at once.
 
 ## Usage
@@ -42,17 +44,55 @@ We welcome contributions to add more languages.
 
 ### Docker (Recommended)
 
+#### Using Docker Compose (Recommended)
+
+1. Download the `docker-compose.yml` file:
+
+```bash
+wget https://github.com/SideCloudGroup/BetterForward/raw/refs/heads/main/docker-compose.yml
+```
+
+2. Edit the `docker-compose.yml` file and replace the placeholder values:
+    - `your_bot_token_here` with your actual bot token
+    - `your_group_id_here` with your actual group ID
+    - `zh_CN` with your preferred language (`en_US`, `zh_CN`, or `ja_JP`)
+    - Leave `TG_API` empty or set your custom API endpoint
+    - `WORKER=2` sets the number of worker threads (default: 2)
+
+3. Run with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+#### Using Docker Run
+
+Replace `/path/to/data` with your actual data directory path:
+
 ```bash
 docker run -d --name betterforward \
     -e TOKEN=<your_bot_token> \
     -e GROUP_ID=<your_group_id> \
     -e LANGUAGE=<language> \
+    -e WORKER=2 \
     -v /path/to/data:/app/data \
     --restart unless-stopped \
     pplulee/betterforward:latest
 ```
 
-If you need to use a custom API, you can set the environment variable `TG_API`. Leave it empty or unset to use the default API.
+If you need to use a custom API, you can set the environment variable `TG_API`. Leave it empty or unset to use the
+default API.
+
+## Multithreading Support
+
+BetterForward supports multithreading through the `WORKER` parameter to improve performance and handle concurrent
+requests:
+
+- **Default**: `WORKER=2` - Balanced performance for most deployments
+- **High Traffic**: `WORKER=3-5` - Recommended for high-traffic scenarios
+- **Thread Safety**: The application uses thread-safe database operations and message queues to prevent conflicts
+- **Conflict Resolution**: Database transactions and locking mechanisms ensure data consistency across multiple worker
+  threads
 
 ## Upgrade
 
