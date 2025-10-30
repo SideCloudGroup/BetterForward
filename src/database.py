@@ -68,7 +68,6 @@ class Database:
                         db_cursor = db.cursor()
                         db_cursor.execute("UPDATE settings SET value = ? WHERE key = 'db_version'",
                                           (str(version),))
-                        db.execute("COMMIT")
                     finally:
                         db.close()
             except Exception:
@@ -93,7 +92,6 @@ class Database:
         try:
             db_cursor = db.cursor()
             db_cursor.execute("UPDATE settings SET value = ? WHERE key = ?", (value, key))
-            db.execute("COMMIT")
         finally:
             db.close()
 

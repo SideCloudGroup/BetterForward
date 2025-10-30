@@ -136,4 +136,3 @@ class CallbackHandler:
                                            call.message.chat.id, call.message.message_id)
             case _:
                 logger.error(_("Invalid action received") + action)
-

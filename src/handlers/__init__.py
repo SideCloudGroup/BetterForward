@@ -1,2 +1,1 @@
 """Handler modules for BetterForward."""
-
