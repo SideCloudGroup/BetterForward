@@ -1,124 +1,116 @@
 # BetterForward
 
-[中文README](README_zh.md)
+[English README](README_en.md)
 
-Designed for better message forwarding in Telegram.
+为更好地转发 Telegram 消息而设计。
 
-Use the "topic" feature to achieve a better PM bot.
+使用“话题”功能实现更好的Telegram PM Bot（私聊机器人）。
 
-Forward users' messages to topics in the group. Each user corresponds to a topic.
+将用户的消息转发到群组中，每个用户对应一个主题。
 
-## Features
+## 特点
 
-- Privacy: Admins' accounts are not exposed.
-- Flexibility: Each user corresponds to an independent topic, and the experience is almost the same as private chat.
-- Teamwork: Multiple admins can handle users' messages.
-- Multi-language: Supports multiple languages, including English, Chinese and Japanese.
-- Auto Response: Automatically replies to users' messages with predefined messages, and supports detection with regex.
-  Allows setting active time for auto-reply.
-- Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending
-  of spam messages.
-- Broadcast Message: Allows admins to send a message to all users at once.
+- 隐私：管理员的账号不会暴露。
+- 灵活性：每个用户对应一个独立的主题，对话体验几乎与私聊相同。
+- 团队协作：多个管理员可以同时处理用户的消息。
+- 多语言：支持多种语言，包括英语和中文。
+- 自动回复：自动回复用户的消息，回复内容可预设。支持正则表达式匹配关键词。允许设置自动回复的生效时间。
+- 验证码：增加了人机验证功能，以确保用户是真人操作，从而有效防止垃圾信息（SPAM）的发送。
+- 广播消息：允许管理员一次性向所有用户发送消息。
 
-## Usage
+## 使用方法
 
-1. Create a bot from [@BotFather](https://t.me/BotFather) and get the token.
-2. Create a group with topics, and add the bot as an admin.
-3. Get the group ID.
-   This step can be done by inviting [@sc_ui_bot](https://t.me/sc_ui_bot) to the group and use the command `/id`.
-4. Deploy BetterForward to a server.
+1. 从 [@BotFather](https://t.me/BotFather) 创建一个机器人并获取 token。
+2. 创建一个带有主题的群组，并将机器人添加为管理员。
+3. 获取群组 ID。这一步可以通过邀请 [@sc_ui_bot](https://t.me/sc_ui_bot) 到群组中并发送`/id`来完成。
+4. 将 BetterForward 部署到服务器。
 
-Any messages sent to the bot will be forwarded to the corresponding topic in the group.
+任何发送给机器人的消息都将转发到群组中的相应主题。
 
-More options and settings can be found by sending the `/help` command to the bot in the group.
+更多操作和设置项可以通过在群组内向机器人发送 `/help` 命令来查看。
 
-## Deployment
+## 部署
 
-The following are the available language options:
+以下是可用的语言选项：
 
-- English - `en_US`
-- Chinese - `zh_CN`
-- Japanese - `ja_JP`
+- 简体中文 - `zh_CN`
+- 英语 - `en_US`
+- 日语 - `ja_JP`
 
-We welcome contributions to add more languages.
+我们欢迎贡献以添加更多语言。
 
-### Docker (Recommended)
+### Docker (推荐)
 
-#### Using Docker Compose (Recommended)
+#### 使用 Docker Compose (推荐)
 
-1. Download the `docker-compose.yml` file:
+1. 下载 `docker-compose.yml` 文件：
 
 ```bash
 wget https://github.com/SideCloudGroup/BetterForward/raw/refs/heads/main/docker-compose.yml
 ```
 
-2. Edit the `docker-compose.yml` file and replace the placeholder values:
-    - `your_bot_token_here` with your actual bot token
-    - `your_group_id_here` with your actual group ID
-    - `zh_CN` with your preferred language (`en_US`, `zh_CN`, or `ja_JP`)
-    - Leave `TG_API` empty or set your custom API endpoint
-    - `WORKER=2` sets the number of worker threads (default: 2)
+2. 编辑 `docker-compose.yml` 文件并替换占位符值：
+    - `your_bot_token_here` 替换为您的实际机器人令牌
+    - `your_group_id_here` 替换为您的实际群组 ID
+    - `zh_CN` 替换为您偏好的语言 (`en_US`, `zh_CN`, 或 `ja_JP`)
+    - `TG_API` 留空或设置您的自定义 API 端点
+    - `WORKER=2` 设置工作线程数量（默认：2）
 
-3. Run with Docker Compose:
+3. 使用 Docker Compose 运行：
 
 ```bash
 docker compose up -d
 ```
 
-#### Using Docker Run
+#### 使用 Docker Run
 
-Replace `/path/to/data` with your actual data directory path:
+将 `/path/to/data` 替换为您的实际数据目录路径：
 
 ```bash
 docker run -d --name betterforward \
     -e TOKEN=<your_bot_token> \
     -e GROUP_ID=<your_group_id> \
-    -e LANGUAGE=<language> \
+    -e LANGUAGE=zh_CN \
     -e WORKER=2 \
     -v /path/to/data:/app/data \
     --restart unless-stopped \
     ghcr.io/sidecloudgroup/betterforward:latest
 ```
 
-If you need to use a custom API, you can set the environment variable `TG_API`. Leave it empty or unset to use the
-default API.
+## 自定义 API
 
-## Multithreading Support
+如果需要使用自定义 API，可以设置环境变量 `TG_API`。留空或不设置将使用默认 API。
 
-BetterForward supports multithreading through the `WORKER` parameter to improve performance and handle concurrent
-requests:
+## 多线程支持
 
-- **Default**: `WORKER=2` - Balanced performance for most deployments
-- **High Traffic**: `WORKER=3-5` - Recommended for high-traffic scenarios
-- **Thread Safety**: The application uses thread-safe database operations and message queues to prevent conflicts
-- **Conflict Resolution**: Database transactions and locking mechanisms ensure data consistency across multiple worker
-  threads
+BetterForward 通过 `WORKER` 参数支持多线程，以提高性能并处理并发请求：
 
-## Upgrade
+- **默认**：`WORKER=2` - 适用于大多数部署的平衡性能
+- **高流量**：`WORKER=3-5` - 推荐用于高流量场景
+- **线程安全**：应用程序使用线程安全的数据库操作和消息队列来防止冲突
+- **冲突解决**：数据库事务和锁定机制确保多个工作线程之间的数据一致性
 
-If you deploy this project using Docker, you can use [WatchTower](https://github.com/containrrr/watchtower) to quickly
-update. **Please adjust the container name yourself**. Use the following command to update:
+## 更新
+
+如果您使用 Docker 进行部署此项目，可以使用[WatchTower](https://github.com/containrrr/watchtower)实现快速更新。**请您自行调整容器名
+**。请使用以下命令更新：
 
 ```bash
 docker run --rm \
 -v /var/run/docker.sock:/var/run/docker.sock \
 containrrr/watchtower -cR \
-<Container Name>
+<容器名>
 ```
 
-## Admin Commands
+## 管理员命令
 
-- `/terminate [User ID]`: Ends the conversation with a specified user. When this command is issued within a conversation
-  thread, there is no need to include the User ID; the current conversation will be terminated automatically. The user
-  will not receive any further prompts or notifications.
-- `/help`: Displays the help menu, which includes a list of available commands and their instructions.
-- `/ban`: Prevents the user from sending more messages. This command is only applicable within the specific
-  conversation thread where it is executed.
-- `/unban [User ID]`: Reinstates the ability for a user to send messages. If no User ID is specified, the command will
-  apply to the user in the current conversation thread.
+- `/terminate [用户 ID]`：结束与用户的对话。如果该命令在对话主题中发出，则无需包括用户 ID；当前的对话将自动删除。用户将不会接收到任何提示。
+- `/help`：显示帮助菜单。
+- `/ban`：阻止用户发送更多消息。此命令只能在对话中使用。
+- `/unban [用户 ID]`：解除对用户的封禁。如果没有指定用户 ID，该命令将适用于当前对话主题中的用户。
 
-## Community
+## 交流社区
 
-- Telegram Channel [@betterforward](https://t.me/betterforward)
+- Telegram频道 [@betterforward](https://t.me/betterforward)
 
-Please use `issues` for bug reports and feature requests.
+请使用 `issues` 报告错误和提出功能请求。
