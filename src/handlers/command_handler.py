@@ -19,9 +19,21 @@ class CommandHandler:
         self.group_id = group_id
         self.db_path = db_path
         self.cache = cache
-        self.time_zone = time_zone
+        self._time_zone = time_zone  # Keep as fallback
         self.captcha_manager = captcha_manager
         self.spam_detector = spam_detector
+
+    @property
+    def time_zone(self):
+        """Get current timezone from cache (allows real-time updates)."""
+        import pytz
+        tz_str = self.cache.get("setting_time_zone")
+        if tz_str:
+            try:
+                return pytz.timezone(tz_str)
+            except Exception:
+                return self._time_zone
+        return self._time_zone
 
     def check_valid_chat(self, message: Message) -> bool:
         """Check if message is in valid chat context."""

@@ -161,11 +161,14 @@ class TGBot:
             self.cache.set(f"setting_{key}", value)
 
     def update_self_time_zone(self):
-        """Update the timezone from cache."""
+        """Update the timezone from cache and propagate to all handlers."""
         tz_str = self.cache.get("setting_time_zone")
         if tz_str:
             self.time_zone = pytz.timezone(tz_str)
+            # Update all components that use timezone
             self.auto_response_manager.update_time_zone(self.time_zone)
+            self.admin_handler.update_time_zone()
+            # command_handler uses property to read from cache, no update needed
 
     def check_permission(self):
         """Check if bot has necessary permissions."""

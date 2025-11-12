@@ -585,9 +585,15 @@ class AdminHandler:
         """Set the time zone."""
         self.database.set_setting('time_zone', value)
         self.cache.set("setting_time_zone", value)
-        # Update timezone for both admin_handler and auto_response_manager
+
+        # Update timezone for all components
         self.time_zone = pytz.timezone(value)
         self.auto_response_manager.update_time_zone(self.time_zone)
+
+        # Update bot instance timezone if available
+        if self.bot_instance:
+            self.bot_instance.update_self_time_zone()
+
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "menu"})))
