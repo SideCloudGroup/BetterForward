@@ -4,6 +4,10 @@ WORKDIR /app
 
 COPY locale /app/locale
 COPY requirements.txt /tmp/requirements.txt
+
+RUN apk add --no-cache ca-certificates && \
+    update-ca-certificates
+
 RUN pip install --no-cache-dir -r /tmp/requirements.txt \
     && rm -f /tmp/requirements.txt \
     && mkdir -p /app/data \

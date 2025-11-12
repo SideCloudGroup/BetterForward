@@ -1,4 +1,4 @@
 pyTelegramBotAPI==4.29.1
 diskcache==5.6.3
 pytz==2025.2
-requests
+httpx[http2]

@@ -3,7 +3,7 @@
 import json
 import re
 import sqlite3
-import requests
+import httpx
 from datetime import datetime
 
 import pytz
@@ -618,13 +618,23 @@ class AdminHandler:
         if not self.check_valid_chat(message):
             return
         try:
-            res = requests.get('https://ipapi.co/json', timeout=5)
+            headers = {
+                "User-Agent": "curl/8.4.0",
+                "Accept": "*/*"
+            }
+            with httpx.Client(http2=True, headers=headers, verify=True) as client:
+                res = client.get("https://ipapi.co/json", timeout=5)
             res.raise_for_status()
             data = res.json()
             ip = data.get('ip', _('Unknown'))
             country = data.get('country_name', _('Unknown'))
             city = data.get('city', _('Unknown'))
-        except requests.RequestException:
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to retrieve IP information: {e}")
+            self.bot.send_message(self.group_id, _("Failed to retrieve IP information"))
+            return
+        except httpx.RequestError as e:
+            logger.error(f"Failed to retrieve IP information: {e}")
             self.bot.send_message(self.group_id, _("Failed to retrieve IP information"))
             return
         markup = types.InlineKeyboardMarkup()
