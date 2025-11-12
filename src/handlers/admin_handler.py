@@ -3,6 +3,7 @@
 import json
 import re
 import sqlite3
+import requests
 from datetime import datetime
 
 import pytz
@@ -65,7 +66,9 @@ class AdminHandler:
             types.InlineKeyboardButton("🌍" + _("Time Zone Settings"),
                                        callback_data=json.dumps({"action": "time_zone_settings"})),
             types.InlineKeyboardButton("📢" + _("Broadcast Message"),
-                                       callback_data=json.dumps({"action": "broadcast_message"}))
+                                       callback_data=json.dumps({"action": "broadcast_message"})),
+            types.InlineKeyboardButton("📡" + _("Show Host IP Info"),
+                                       callback_data=json.dumps({"action": "show_host_ip"}))
         ]
 
         for i in range(0, len(buttons), 2):
@@ -609,6 +612,31 @@ class AdminHandler:
             text=_("Please send the content you want to broadcast.\nSend /cancel to cancel this operation."),
             chat_id=self.group_id, message_thread_id=None)
         self.bot.register_next_step_handler(msg, self.handle_broadcast_message)
+
+    def show_host_ip(self, message: Message):
+        """Show host IP information."""
+        if not self.check_valid_chat(message):
+            return
+        try:
+            res = requests.get('https://ipapi.co/json', timeout=5)
+            res.raise_for_status()
+            data = res.json()
+            ip = data.get('ip', _('Unknown'))
+            country = data.get('country_name', _('Unknown'))
+            city = data.get('city', _('Unknown'))
+        except requests.RequestException:
+            self.bot.send_message(self.group_id, _("Failed to retrieve IP information"))
+            return
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                callback_data=json.dumps({"action": "menu"})))
+        self.bot.send_message(text=_("Host IP Information") + "\n\n" +
+                                _("IP Address: {}").format(ip) + "\n" +
+                                _("Country: {}").format(country) + "\n" +
+                                _("City: {}").format(city),
+                                chat_id=message.chat.id,
+                                message_thread_id=None,
+                                reply_markup=markup)
 
     def handle_broadcast_message(self, message: Message):
         """Handle broadcast message content."""

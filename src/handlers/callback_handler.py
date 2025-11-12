@@ -183,5 +183,7 @@ class CallbackHandler:
                 self.admin_handler.reset_spam_topic(call.message)
             case "confirm_reset_spam_topic":
                 self.admin_handler.confirm_reset_spam_topic(call.message)
+            case "show_host_ip":
+                self.admin_handler.show_host_ip(call.message)
             case _:
                 logger.error(_("Invalid action received") + action)
