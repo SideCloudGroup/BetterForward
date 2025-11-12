@@ -2,6 +2,7 @@
 
 import html
 import sqlite3
+import time
 
 from telebot.apihelper import ApiTelegramException, create_forum_topic
 from telebot.formatting import apply_html_entities
@@ -14,13 +15,15 @@ from src.utils.helpers import escape_markdown
 class MessageHandler:
     """Handles message forwarding between users and group."""
 
-    def __init__(self, bot, group_id: int, db_path: str, cache, captcha_manager, auto_response_manager):
+    def __init__(self, bot, group_id: int, db_path: str, cache, captcha_manager, auto_response_manager,
+                 spam_detector_manager=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
         self.cache = cache
         self.captcha_manager = captcha_manager
         self.auto_response_manager = auto_response_manager
+        self.spam_detector_manager = spam_detector_manager
 
     def check_valid_chat(self, message: Message) -> bool:
         """Check if message is in valid chat context."""
@@ -54,19 +57,75 @@ class MessageHandler:
 
     def _handle_user_message(self, message: Message, msg_text: str, msg_caption: str, cursor, db):
         """Handle messages from users."""
+        start_time = time.time()
+
         logger.info(
             _("Received message from {}, content: {}, type: {}").format(
                 message.from_user.id, message.text, message.content_type))
 
         # Captcha handler
         if not self._check_captcha(message, cursor, db):
+            processing_time = (time.time() - start_time) * 1000
+            logger.info(_("Message from user {} blocked by captcha ({:.2f}ms)").format(
+                message.from_user.id, processing_time))
             return
 
         # Check if the user is banned
         if (result := cursor.execute("SELECT ban FROM topics WHERE user_id = ? LIMIT 1",
                                      (message.from_user.id,)).fetchone()) and result[0] == 1:
-            logger.info(_("User {} is banned").format(message.from_user.id))
+            processing_time = (time.time() - start_time) * 1000
+            logger.info(_("Message from banned user {} rejected ({:.2f}ms)").format(
+                message.from_user.id, processing_time))
             return
+
+        # Check for spam using detector manager
+        is_spam_detected = False
+        spam_info = None
+
+        if self.spam_detector_manager:
+            is_spam_detected, spam_info = self.spam_detector_manager.detect_spam(message)
+
+            if is_spam_detected:
+                # Get spam topic ID from cache
+                spam_topic_id = self.cache.get("spam_topic_id")
+                if spam_topic_id is None:
+                    # Fallback to main topic if spam topic not configured
+                    spam_topic_id = None
+                    logger.warning(_("Spam topic not configured, using main topic"))
+
+                # Forward directly to spam topic without creating user thread
+                fwd_msg = self._send_message_by_type(message, msg_text, msg_caption,
+                                                     self.group_id, spam_topic_id, None, silent=True)
+
+                # Build alert message based on detection info
+                alert_msg = f"🚫 {_('[Spam Detected]')}\n"
+                alert_msg += f"{_('User ID')}: {message.from_user.id}\n"
+
+                if spam_info:
+                    if "detector" in spam_info:
+                        alert_msg += f"{_('Detector')}: {spam_info['detector']}\n"
+                    if "method" in spam_info:
+                        alert_msg += f"{_('Method')}: {spam_info['method']}\n"
+                    if "matched" in spam_info:
+                        alert_msg += f"{_('Matched')}: {spam_info['matched']}\n"
+                    if "confidence" in spam_info:
+                        alert_msg += f"{_('Confidence')}: {spam_info['confidence']:.2%}\n"
+
+                self.bot.send_message(
+                    self.group_id,
+                    alert_msg,
+                    message_thread_id=spam_topic_id,
+                    reply_to_message_id=fwd_msg.message_id,
+                    disable_notification=True
+                )
+
+                # Log processing time
+                processing_time = (time.time() - start_time) * 1000
+                logger.info(_("Spam message from user {} processed in {:.2f}ms (matched: {})").format(
+                    message.from_user.id, processing_time, spam_info.get('matched', 'unknown')))
+
+                # Done, return early
+                return
 
         # Auto response
         auto_response = self._handle_auto_response(message)
@@ -76,6 +135,7 @@ class MessageHandler:
         if thread_id is None:
             return
 
+        # Forward the message
         fwd_msg = self._forward_to_group(message, msg_text, msg_caption, thread_id, cursor)
         if fwd_msg is None:
             return
@@ -83,6 +143,11 @@ class MessageHandler:
         if auto_response is not None:
             self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
                                   message_thread_id=thread_id)
+
+        # Log processing time
+        processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+        logger.info(_("Message from user {} processed in {:.2f}ms").format(
+            message.from_user.id, processing_time))
 
     def _check_captcha(self, message: Message, cursor, db) -> bool:
         """Check and handle captcha verification."""
@@ -161,14 +226,20 @@ class MessageHandler:
                                (userid, topic["message_thread_id"]))
                 db.commit()
                 thread_id = topic["message_thread_id"]
-                username = _("Not set") if message.from_user.username is None else f"@{message.from_user.username}"
-                last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
-                pin_message = self.bot.send_message(self.group_id,
-                                                    f"User ID: [{userid}](tg://openmessage?user_id={userid})\n"
-                                                    f"Full Name: {escape_markdown(f'{message.from_user.first_name}{last_name}')}\n"
-                                                    f"Username: {escape_markdown(username)}\n",
-                                                    message_thread_id=thread_id, parse_mode='markdown')
-                self.bot.pin_chat_message(self.group_id, pin_message.message_id)
+
+                # Send and pin user info message asynchronously to avoid blocking
+                try:
+                    username = _("Not set") if message.from_user.username is None else f"@{message.from_user.username}"
+                    last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
+                    pin_message = self.bot.send_message(self.group_id,
+                                                        f"User ID: [{userid}](tg://openmessage?user_id={userid})\n"
+                                                        f"Full Name: {escape_markdown(f'{message.from_user.first_name}{last_name}')}\n"
+                                                        f"Username: {escape_markdown(username)}\n",
+                                                        message_thread_id=thread_id, parse_mode='markdown')
+                    self.bot.pin_chat_message(self.group_id, pin_message.message_id)
+                except Exception as e:
+                    # Don't fail message forwarding if pinning fails
+                    logger.warning(f"Failed to pin info message for user {userid}: {e}")
             else:
                 thread_id = thread_id[0]
             self.cache.set(f"chat_{userid}_threadid", thread_id)
@@ -255,48 +326,58 @@ class MessageHandler:
         return None
 
     def _send_message_by_type(self, message: Message, msg_text: str, msg_caption: str,
-                              chat_id: int, thread_id: int = None, reply_id: int = None) -> Message:
+                              chat_id: int, thread_id: int = None, reply_id: int = None,
+                              silent: bool = False) -> Message:
         """Send a message based on its type."""
         match message.content_type:
             case "photo":
                 return self.bot.send_photo(chat_id=chat_id, photo=message.photo[-1].file_id,
                                            caption=msg_caption, message_thread_id=thread_id,
-                                           reply_to_message_id=reply_id, parse_mode='HTML')
+                                           reply_to_message_id=reply_id, parse_mode='HTML',
+                                           disable_notification=silent)
             case "text":
                 return self.bot.send_message(chat_id=chat_id, text=msg_text,
                                              message_thread_id=thread_id,
-                                             reply_to_message_id=reply_id, parse_mode='HTML')
+                                             reply_to_message_id=reply_id, parse_mode='HTML',
+                                             disable_notification=silent)
             case "sticker":
                 return self.bot.send_sticker(chat_id=chat_id, sticker=message.sticker.file_id,
                                              message_thread_id=thread_id,
-                                             reply_to_message_id=reply_id)
+                                             reply_to_message_id=reply_id,
+                                             disable_notification=silent)
             case "video":
                 return self.bot.send_video(chat_id=chat_id, video=message.video.file_id,
                                            caption=msg_caption, message_thread_id=thread_id,
-                                           reply_to_message_id=reply_id, parse_mode='HTML')
+                                           reply_to_message_id=reply_id, parse_mode='HTML',
+                                           disable_notification=silent)
             case "document":
                 return self.bot.send_document(chat_id=chat_id, document=message.document.file_id,
                                               caption=msg_caption, message_thread_id=thread_id,
-                                              reply_to_message_id=reply_id, parse_mode='HTML')
+                                              reply_to_message_id=reply_id, parse_mode='HTML',
+                                              disable_notification=silent)
             case "audio":
                 return self.bot.send_audio(chat_id=chat_id, audio=message.audio.file_id,
                                            caption=msg_caption, message_thread_id=thread_id,
-                                           reply_to_message_id=reply_id, parse_mode='HTML')
+                                           reply_to_message_id=reply_id, parse_mode='HTML',
+                                           disable_notification=silent)
             case "voice":
                 return self.bot.send_voice(chat_id=chat_id, voice=message.voice.file_id,
                                            caption=msg_caption, message_thread_id=thread_id,
-                                           reply_to_message_id=reply_id, parse_mode='HTML')
+                                           reply_to_message_id=reply_id, parse_mode='HTML',
+                                           disable_notification=silent)
             case "animation":
                 return self.bot.send_animation(chat_id=chat_id, animation=message.animation.file_id,
                                                caption=msg_caption, message_thread_id=thread_id,
-                                               reply_to_message_id=reply_id, parse_mode='HTML')
+                                               reply_to_message_id=reply_id, parse_mode='HTML',
+                                               disable_notification=silent)
             case "contact":
                 return self.bot.send_contact(chat_id=chat_id,
                                              phone_number=message.contact.phone_number,
                                              first_name=message.contact.first_name,
                                              last_name=message.contact.last_name,
                                              message_thread_id=thread_id,
-                                             reply_to_message_id=reply_id)
+                                             reply_to_message_id=reply_id,
+                                             disable_notification=silent)
             case _:
                 logger.error(_("Unsupported message type") + message.content_type)
                 raise ValueError(_("Unsupported message type") + message.content_type)

@@ -16,13 +16,15 @@ from src.config import logger, _
 class AdminHandler:
     """Handles administrative functions like settings, menus, and broadcasts."""
 
-    def __init__(self, bot, group_id: int, db_path: str, cache, database, auto_response_manager):
+    def __init__(self, bot, group_id: int, db_path: str, cache, database, auto_response_manager,
+                 spam_keyword_manager=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
         self.cache = cache
         self.database = database
         self.auto_response_manager = auto_response_manager
+        self.spam_keyword_manager = spam_keyword_manager
         # Get timezone from cache
         tz_str = self.cache.get("setting_time_zone")
         self.time_zone = pytz.timezone(tz_str) if tz_str else pytz.UTC
@@ -53,6 +55,8 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "default_msg"})),
             types.InlineKeyboardButton("⛔" + _("Banned Users"),
                                        callback_data=json.dumps({"action": "ban_user"})),
+            types.InlineKeyboardButton("🚫" + _("Spam Keywords"),
+                                       callback_data=json.dumps({"action": "spam_keywords"})),
             types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
                                        callback_data=json.dumps({"action": "captcha_settings"})),
             types.InlineKeyboardButton("🌍" + _("Time Zone Settings"),
@@ -609,3 +613,210 @@ class AdminHandler:
         """Cancel broadcast operation."""
         self.cache.delete("broadcast_content")
         self.cache.delete("broadcast_content_type")
+
+    # Spam Keywords Management
+    def spam_keywords_menu(self, message: Message):
+        """Display spam keywords management menu."""
+        if not self.spam_keyword_manager:
+            self.bot.send_message(self.group_id, _("Spam keywords management is not available"))
+            return
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("➕" + _("Add Keyword"),
+                                              callback_data=json.dumps({"action": "add_spam_keyword"})))
+        markup.add(types.InlineKeyboardButton("📋" + _("View Keywords"),
+                                              callback_data=json.dumps({"action": "view_spam_keywords"})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "menu"})))
+
+        keyword_count = self.spam_keyword_manager.get_keyword_count()
+        text = _("Spam Keywords Management") + "\n\n"
+        text += _("Total keywords: {}").format(keyword_count) + "\n"
+        text += _("Messages containing these keywords will be forwarded to the main topic silently.")
+
+        self.bot.send_message(text=text,
+                              chat_id=message.chat.id,
+                              message_thread_id=None,
+                              reply_markup=markup)
+
+    def add_spam_keyword(self, message: Message):
+        """Start the process of adding a spam keyword."""
+        if not self.check_valid_chat(message):
+            return
+
+        msg = self.bot.edit_message_text(
+            text=_("Please send the keyword you want to add to the spam filter.\n"
+                   "Send /cancel to cancel this operation."),
+            chat_id=self.group_id,
+            message_id=message.message_id)
+        self.bot.register_next_step_handler(msg, self.process_add_spam_keyword)
+
+    def process_add_spam_keyword(self, message: Message):
+        """Process adding a spam keyword."""
+        # Must be in the correct group and main topic
+        if not self.check_valid_chat(message):
+            logger.warning(
+                f"Keyword add attempt from wrong context: chat_id={message.chat.id}, thread_id={message.message_thread_id}")
+            return
+
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        if message.content_type != "text":
+            self.bot.send_message(self.group_id, _("Invalid input"))
+            return
+
+        keyword = message.text.strip()
+        if not keyword:
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "spam_keywords"})))
+            self.bot.send_message(self.group_id, _("Keyword cannot be empty"), reply_markup=markup)
+            return
+
+        try:
+            result = self.spam_keyword_manager.add_keyword(keyword)
+
+            if result:
+                markup = types.InlineKeyboardMarkup()
+                markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                      callback_data=json.dumps({"action": "spam_keywords"})))
+                self.bot.send_message(self.group_id,
+                                      _("Keyword added: {}").format(keyword),
+                                      reply_markup=markup)
+            else:
+                markup = types.InlineKeyboardMarkup()
+                markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                      callback_data=json.dumps({"action": "spam_keywords"})))
+                self.bot.send_message(self.group_id,
+                                      _("Keyword already exists or is invalid"),
+                                      reply_markup=markup)
+        except Exception as e:
+            logger.error(f"Error adding spam keyword: {e}")
+            from traceback import print_exc
+            print_exc()
+            self.bot.send_message(self.group_id,
+                                  _("Failed to add keyword: {}").format(str(e)))
+
+    def view_spam_keywords(self, message: Message, page: int = 1, page_size: int = 10):
+        """Display paginated list of spam keywords."""
+        if not self.spam_keyword_manager:
+            return
+
+        keywords = self.spam_keyword_manager.get_all_keywords()
+        total = len(keywords)
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+
+        # Ensure page is valid
+        page = max(1, min(page, total_pages))
+
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        page_keywords = keywords[start_idx:end_idx]
+
+        # Store keywords in cache for callback access
+        self.cache.set("spam_keywords_page", keywords, 300)
+
+        markup = types.InlineKeyboardMarkup()
+        back_button = types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                 callback_data=json.dumps({"action": "spam_keywords"}))
+
+        text = _("Spam Keywords List:") + "\n"
+        text += _("Total: {}").format(total) + "\n"
+        text += _("Page: {}").format(page) + "/" + str(total_pages) + "\n\n"
+
+        if not page_keywords:
+            text += _("No keywords found") + "\n"
+        else:
+            keyword_buttons = []
+            for idx, keyword in enumerate(page_keywords, start=start_idx):
+                text += f"{idx + 1}. {keyword}\n"
+                # Use index instead of keyword to avoid callback_data size limit
+                keyword_buttons.append(types.InlineKeyboardButton(
+                    text=f"#{idx + 1}",
+                    callback_data=json.dumps({"action": "select_spam_keyword", "idx": idx})))
+
+            # Add keyword selection buttons (max 5 per row)
+            for i in range(0, len(keyword_buttons), 5):
+                markup.row(*keyword_buttons[i:i + 5])
+
+        # Add pagination buttons
+        if 1 < page < total_pages:
+            markup.row(
+                types.InlineKeyboardButton("⬅️" + _("Previous Page"),
+                                           callback_data=json.dumps({"action": "view_spam_keywords",
+                                                                     "page": page - 1})),
+                types.InlineKeyboardButton("➡️" + _("Next Page"),
+                                           callback_data=json.dumps({"action": "view_spam_keywords",
+                                                                     "page": page + 1})))
+        elif page > 1:
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Previous Page"),
+                                                  callback_data=json.dumps({"action": "view_spam_keywords",
+                                                                            "page": page - 1})))
+        elif page < total_pages:
+            markup.add(types.InlineKeyboardButton("➡️" + _("Next Page"),
+                                                  callback_data=json.dumps({"action": "view_spam_keywords",
+                                                                            "page": page + 1})))
+
+        markup.add(back_button)
+        self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
+
+    def select_spam_keyword(self, message: Message, idx: int):
+        """Display options for a specific spam keyword."""
+        # Get keyword from cache
+        keywords = self.cache.get("spam_keywords_page")
+        if keywords is None or idx >= len(keywords):
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "view_spam_keywords"})))
+            self.bot.edit_message_text(_("Keyword not found or expired"),
+                                       message.chat.id, message.message_id,
+                                       reply_markup=markup)
+            return
+
+        keyword = keywords[idx]
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("❌" + _("Delete"),
+                                              callback_data=json.dumps({"action": "delete_spam_keyword",
+                                                                        "idx": idx})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "view_spam_keywords"})))
+
+        text = _("Keyword: {}").format(keyword) + "\n"
+        text += _("Select an action:")
+
+        self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
+
+    def delete_spam_keyword(self, message: Message, idx: int):
+        """Delete a spam keyword."""
+        # Get keyword from cache
+        keywords = self.cache.get("spam_keywords_page")
+        if keywords is None or idx >= len(keywords):
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "view_spam_keywords"})))
+            self.bot.edit_message_text(_("Keyword not found or expired"),
+                                       message.chat.id, message.message_id,
+                                       reply_markup=markup)
+            return
+
+        keyword = keywords[idx]
+
+        if self.spam_keyword_manager.remove_keyword(keyword):
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "view_spam_keywords"})))
+            self.bot.edit_message_text(_("Keyword deleted: {}").format(keyword),
+                                       chat_id=message.chat.id,
+                                       message_id=message.message_id,
+                                       reply_markup=markup)
+        else:
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "view_spam_keywords"})))
+            self.bot.edit_message_text(_("Failed to delete keyword"),
+                                       chat_id=message.chat.id,
+                                       message_id=message.message_id,
+                                       reply_markup=markup)

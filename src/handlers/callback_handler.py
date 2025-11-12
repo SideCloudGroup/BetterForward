@@ -10,12 +10,15 @@ from src.config import logger, _
 class CallbackHandler:
     """Handles callback queries from inline keyboards."""
 
-    def __init__(self, bot, group_id: int, admin_handler, command_handler, captcha_manager):
+    def __init__(self, bot, group_id: int, admin_handler, command_handler, captcha_manager, spam_detector=None,
+                 db_path: str = "./data/storage.db"):
         self.bot = bot
         self.group_id = group_id
         self.admin_handler = admin_handler
         self.command_handler = command_handler
         self.captcha_manager = captcha_manager
+        self.spam_detector = spam_detector
+        self.db_path = db_path
 
     def handle_callback_query(self, call: types.CallbackQuery):
         """Main callback query handler."""
@@ -134,5 +137,23 @@ class CallbackHandler:
             case "cancel_terminate":
                 self.bot.edit_message_text(_("Operation cancelled"),
                                            call.message.chat.id, call.message.message_id)
+            case "spam_keywords":
+                self.admin_handler.spam_keywords_menu(call.message)
+            case "add_spam_keyword":
+                self.admin_handler.add_spam_keyword(call.message)
+            case "view_spam_keywords":
+                self.admin_handler.view_spam_keywords(call.message, page=data.get("page", 1))
+            case "select_spam_keyword":
+                if "idx" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                self.admin_handler.select_spam_keyword(call.message, data["idx"])
+            case "delete_spam_keyword":
+                if "idx" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                self.admin_handler.delete_spam_keyword(call.message, data["idx"])
             case _:
                 logger.error(_("Invalid action received") + action)

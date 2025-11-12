@@ -14,13 +14,14 @@ from src.config import logger, _
 class CommandHandler:
     """Handles bot commands."""
 
-    def __init__(self, bot, group_id: int, db_path: str, cache, time_zone, captcha_manager):
+    def __init__(self, bot, group_id: int, db_path: str, cache, time_zone, captcha_manager, spam_detector=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
         self.cache = cache
         self.time_zone = time_zone
         self.captcha_manager = captcha_manager
+        self.spam_detector = spam_detector
 
     def check_valid_chat(self, message: Message) -> bool:
         """Check if message is in valid chat context."""

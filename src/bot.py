@@ -13,6 +13,8 @@ from src.handlers.message_handler import MessageHandler
 from src.utils.auto_response import AutoResponseManager
 from src.utils.captcha import CaptchaManager
 from src.utils.message_queue import MessageQueueManager
+from src.utils.spam_detector_manager import SpamDetectorManager
+from src.utils.spam_detectors import KeywordSpamDetector
 
 
 class TGBot:
@@ -52,10 +54,16 @@ class TGBot:
         self.captcha_manager = CaptchaManager(self.bot, self.cache)
         self.auto_response_manager = AutoResponseManager(db_path, self.time_zone)
 
+        # Initialize spam detection system
+        self.spam_detector_manager = SpamDetectorManager()
+        self.keyword_detector = KeywordSpamDetector()
+        self.spam_detector_manager.register_detector(self.keyword_detector)
+
         # Initialize handlers
         self.message_handler = MessageHandler(
             self.bot, self.group_id, db_path, self.cache,
-            self.captcha_manager, self.auto_response_manager
+            self.captcha_manager, self.auto_response_manager,
+            spam_detector_manager=self.spam_detector_manager
         )
         self.command_handler = CommandHandler(
             self.bot, self.group_id, db_path, self.cache,
@@ -63,7 +71,8 @@ class TGBot:
         )
         self.admin_handler = AdminHandler(
             self.bot, self.group_id, db_path, self.cache,
-            self.database, self.auto_response_manager
+            self.database, self.auto_response_manager,
+            spam_keyword_manager=self.keyword_detector
         )
         self.callback_handler = CallbackHandler(
             self.bot, self.group_id, self.admin_handler,
@@ -173,7 +182,49 @@ class TGBot:
                 logger.error(_("Bot doesn't have {} permission").format(key))
                 self.bot.send_message(self.group_id, _("Bot doesn't have {} permission").format(key))
 
+        # Check and create spam topic if not exists
+        self._ensure_spam_topic()
+
         self.bot.send_message(self.group_id, _("Bot started successfully"))
+
+    def _ensure_spam_topic(self):
+        """Ensure spam topic exists, create if not."""
+        spam_topic_id = self.database.get_setting('spam_topic')
+
+        # If spam topic ID is not set or is None, create a new topic
+        if spam_topic_id is None or spam_topic_id == 'None':
+            try:
+                from telebot.apihelper import create_forum_topic
+                logger.info(_("Creating spam topic..."))
+                topic = create_forum_topic(
+                    chat_id=self.group_id,
+                    name="🚫 Spam Messages",
+                    token=self.bot.token
+                )
+                spam_topic_id = topic["message_thread_id"]
+                self.database.set_setting('spam_topic', str(spam_topic_id))
+                self.cache.set("spam_topic_id", spam_topic_id)
+                logger.info(_("Spam topic created with ID: {}").format(spam_topic_id))
+
+                # Send a pin message to the spam topic
+                pin_msg = self.bot.send_message(
+                    self.group_id,
+                    _("This topic is used to collect spam messages detected by keywords.\n"
+                      "Messages here are automatically forwarded from users who sent spam content."),
+                    message_thread_id=spam_topic_id
+                )
+                self.bot.pin_chat_message(self.group_id, pin_msg.message_id)
+            except Exception as e:
+                logger.error(_("Failed to create spam topic: {}").format(str(e)))
+                return
+        else:
+            # Load existing spam topic ID into cache
+            try:
+                spam_topic_id = int(spam_topic_id)
+                self.cache.set("spam_topic_id", spam_topic_id)
+                logger.info(_("Spam topic loaded: {}").format(spam_topic_id))
+            except (ValueError, TypeError):
+                logger.error(_("Invalid spam topic ID in database: {}").format(spam_topic_id))
 
     def push_messages(self, message):
         """Push messages to the queue for processing."""
