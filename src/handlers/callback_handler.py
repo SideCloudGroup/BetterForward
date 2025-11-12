@@ -93,7 +93,7 @@ class CallbackHandler:
                     return
                 self.admin_handler.delete_auto_reply(call.message, data["id"])
             case "ban_user":
-                self.admin_handler.manage_ban_user(call.message)
+                self.admin_handler.manage_ban_user(call.message, page=data.get("page", 1))
             case "unban_user":
                 if "id" not in data:
                     self.bot.delete_message(self.group_id, call.message.message_id)
@@ -179,5 +179,9 @@ class CallbackHandler:
                 self.admin_handler.edit_blocked_reply_message(call.message)
             case "clear_blocked_reply_message":
                 self.admin_handler.clear_blocked_reply_message(call.message)
+            case "reset_spam_topic":
+                self.admin_handler.reset_spam_topic(call.message)
+            case "confirm_reset_spam_topic":
+                self.admin_handler.confirm_reset_spam_topic(call.message)
             case _:
                 logger.error(_("Invalid action received") + action)

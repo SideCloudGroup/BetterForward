@@ -16,7 +16,7 @@ class MessageHandler:
     """Handles message forwarding between users and group."""
 
     def __init__(self, bot, group_id: int, db_path: str, cache, captcha_manager, auto_response_manager,
-                 spam_detector_manager=None):
+                 spam_detector_manager=None, bot_instance=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
@@ -24,6 +24,7 @@ class MessageHandler:
         self.captcha_manager = captcha_manager
         self.auto_response_manager = auto_response_manager
         self.spam_detector_manager = spam_detector_manager
+        self.bot_instance = bot_instance
 
     def check_valid_chat(self, message: Message) -> bool:
         """Check if message is in valid chat context."""
@@ -73,12 +74,19 @@ class MessageHandler:
         # Check if the user is blocked
         is_blocked = cursor.execute("SELECT 1 FROM blocked_users WHERE user_id = ? LIMIT 1",
                                     (message.from_user.id,)).fetchone() is not None
-        
+
         if is_blocked:
+            # Update user info in blocked_users table
+            cursor.execute(
+                "UPDATE blocked_users SET username = ?, first_name = ?, last_name = ? WHERE user_id = ?",
+                (message.from_user.username, message.from_user.first_name,
+                 message.from_user.last_name, message.from_user.id)
+            )
+
             processing_time = (time.time() - start_time) * 1000
             logger.info(_("Message from blocked user {} rejected ({:.2f}ms)").format(
                 message.from_user.id, processing_time))
-            
+
             # Send auto-reply if enabled
             if self.cache.get("setting_blocked_user_reply_enabled") == "enable":
                 reply_message = self.cache.get("setting_blocked_user_reply_message")
@@ -89,7 +97,7 @@ class MessageHandler:
                     except Exception as e:
                         logger.error(_("Failed to send auto-reply to blocked user {}: {}").format(
                             message.from_user.id, str(e)))
-            
+
             return
 
         # Check for spam using detector manager
@@ -108,30 +116,77 @@ class MessageHandler:
                     logger.warning(_("Spam topic not configured, using main topic"))
 
                 # Forward directly to spam topic without creating user thread
-                fwd_msg = self._send_message_by_type(message, msg_text, msg_caption,
-                                                     self.group_id, spam_topic_id, None, silent=True)
+                try:
+                    fwd_msg = self._send_message_by_type(message, msg_text, msg_caption,
+                                                         self.group_id, spam_topic_id, None, silent=True)
 
-                # Build alert message based on detection info
-                alert_msg = f"🚫 {_('[Spam Detected]')}\n"
-                alert_msg += f"{_('User ID')}: {message.from_user.id}\n"
+                    # Build alert message based on detection info
+                    alert_msg = f"🚫 {_('[Spam Detected]')}\n"
+                    alert_msg += f"{_('User ID')}: {message.from_user.id}\n"
 
-                if spam_info:
-                    if "detector" in spam_info:
-                        alert_msg += f"{_('Detector')}: {spam_info['detector']}\n"
-                    if "method" in spam_info:
-                        alert_msg += f"{_('Method')}: {spam_info['method']}\n"
-                    if "matched" in spam_info:
-                        alert_msg += f"{_('Matched')}: {spam_info['matched']}\n"
-                    if "confidence" in spam_info:
-                        alert_msg += f"{_('Confidence')}: {spam_info['confidence']:.2%}\n"
+                    if spam_info:
+                        if "detector" in spam_info:
+                            alert_msg += f"{_('Detector')}: {spam_info['detector']}\n"
+                        if "method" in spam_info:
+                            alert_msg += f"{_('Method')}: {spam_info['method']}\n"
+                        if "matched" in spam_info:
+                            alert_msg += f"{_('Matched')}: {spam_info['matched']}\n"
+                        if "confidence" in spam_info:
+                            alert_msg += f"{_('Confidence')}: {spam_info['confidence']:.2%}\n"
 
-                self.bot.send_message(
-                    self.group_id,
-                    alert_msg,
-                    message_thread_id=spam_topic_id,
-                    reply_to_message_id=fwd_msg.message_id,
-                    disable_notification=True
-                )
+                    self.bot.send_message(
+                        self.group_id,
+                        alert_msg,
+                        message_thread_id=spam_topic_id,
+                        reply_to_message_id=fwd_msg.message_id,
+                        disable_notification=True
+                    )
+                except ApiTelegramException as e:
+                    # If spam topic not found, try to recreate it
+                    if "message thread not found" in str(e).lower() or "topic" in str(e).lower():
+                        logger.warning(_("Spam topic not found, attempting to recreate..."))
+                        if self.bot_instance:
+                            try:
+                                self.bot_instance._create_spam_topic()
+                                spam_topic_id = self.cache.get("spam_topic_id")
+                                logger.info(_("Spam topic recreated, retrying message forward..."))
+
+                                # Retry forwarding
+                                fwd_msg = self._send_message_by_type(message, msg_text, msg_caption,
+                                                                     self.group_id, spam_topic_id, None, silent=True)
+
+                                # Build and send alert message
+                                alert_msg = f"🚫 {_('[Spam Detected]')}\n"
+                                alert_msg += f"{_('User ID')}: {message.from_user.id}\n"
+                                if spam_info:
+                                    if "detector" in spam_info:
+                                        alert_msg += f"{_('Detector')}: {spam_info['detector']}\n"
+                                    if "method" in spam_info:
+                                        alert_msg += f"{_('Method')}: {spam_info['method']}\n"
+                                    if "matched" in spam_info:
+                                        alert_msg += f"{_('Matched')}: {spam_info['matched']}\n"
+
+                                self.bot.send_message(
+                                    self.group_id,
+                                    alert_msg,
+                                    message_thread_id=spam_topic_id,
+                                    reply_to_message_id=fwd_msg.message_id,
+                                    disable_notification=True
+                                )
+                            except Exception as retry_error:
+                                logger.error(
+                                    _("Failed to recreate spam topic and forward message: {}").format(str(retry_error)))
+                                # Fallback to main topic
+                                self.bot.send_message(
+                                    self.group_id,
+                                    f"⚠️ {_('[Spam - Topic Error]')}\n{_('User ID')}: {message.from_user.id}",
+                                    message_thread_id=None,
+                                    disable_notification=True
+                                )
+                        else:
+                            logger.error(_("Cannot recreate spam topic: bot instance not available"))
+                    else:
+                        logger.error(_("Failed to forward spam message: {}").format(str(e)))
 
                 # Log processing time
                 processing_time = (time.time() - start_time) * 1000

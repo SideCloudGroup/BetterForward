@@ -17,7 +17,7 @@ class AdminHandler:
     """Handles administrative functions like settings, menus, and broadcasts."""
 
     def __init__(self, bot, group_id: int, db_path: str, cache, database, auto_response_manager,
-                 spam_keyword_manager=None):
+                 spam_keyword_manager=None, bot_instance=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
@@ -25,6 +25,7 @@ class AdminHandler:
         self.database = database
         self.auto_response_manager = auto_response_manager
         self.spam_keyword_manager = spam_keyword_manager
+        self.bot_instance = bot_instance
         # Get timezone from cache
         tz_str = self.cache.get("setting_time_zone")
         self.time_zone = pytz.timezone(tz_str) if tz_str else pytz.UTC
@@ -356,24 +357,72 @@ class AdminHandler:
                                    message_id=message.message_id, reply_markup=markup)
 
     # Ban User Management
-    def manage_ban_user(self, message: Message):
-        """Display list of banned users."""
+    def manage_ban_user(self, message: Message, page: int = 1, page_size: int = 10):
+        """Display list of banned users with pagination."""
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
+
+            # Get total count
+            db_cursor.execute("SELECT COUNT(*) FROM blocked_users")
+            total = db_cursor.fetchone()[0]
+            total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+            page = max(1, min(page, total_pages))
+
+            # Query from blocked_users table with pagination
+            offset = (page - 1) * page_size
+            db_cursor.execute("""
+                              SELECT user_id, username, first_name, last_name, blocked_at
+                              FROM blocked_users
+                              ORDER BY blocked_at DESC LIMIT ?
+                              OFFSET ?
+                              """, (page_size, offset))
+            banned_users = db_cursor.fetchall()
+
             markup = types.InlineKeyboardMarkup()
             back_button = types.InlineKeyboardButton("⬅️" + _("Back"),
                                                      callback_data=json.dumps({"action": "menu"}))
-            # Query from blocked_users table instead of topics
-            db_cursor.execute("SELECT user_id FROM blocked_users ORDER BY blocked_at DESC")
-            banned_users = db_cursor.fetchall()
+
             text = _("Banned User List:") + "\n"
-            text += _("Total: {}").format(len(banned_users)) + "\n\n"
-            for user in banned_users:
-                text += "-" * 20 + "\n"
-                text += f"User ID: {user[0]}\n"
-                markup.add(types.InlineKeyboardButton(
-                    text=str(user[0]),
-                    callback_data=json.dumps({"action": "select_ban_user", "id": user[0]})))
+            text += _("Total: {}").format(total) + "\n"
+            text += _("Page: {}").format(page) + "/" + str(total_pages) + "\n\n"
+
+            if not banned_users:
+                text += _("No banned users") + "\n"
+            else:
+                for user in banned_users:
+                    user_id, username, first_name, last_name, blocked_at = user
+                    text += "-" * 20 + "\n"
+                    text += f"User ID: {user_id}\n"
+
+                    # Display name info if available
+                    if first_name or last_name:
+                        full_name = f"{first_name or ''} {last_name or ''}".strip()
+                        text += f"{_('Name')}: {full_name}\n"
+                    if username:
+                        text += f"{_('Username')}: @{username}\n"
+
+                    text += f"{_('Blocked at')}: {blocked_at}\n"
+
+                    markup.add(types.InlineKeyboardButton(
+                        text=f"ID: {user_id}",
+                        callback_data=json.dumps({"action": "select_ban_user", "id": user_id})))
+
+            # Add pagination buttons
+            if 1 < page < total_pages:
+                markup.row(
+                    types.InlineKeyboardButton("⬅️" + _("Previous Page"),
+                                               callback_data=json.dumps({"action": "ban_user", "page": page - 1})),
+                    types.InlineKeyboardButton("➡️" + _("Next Page"),
+                                               callback_data=json.dumps({"action": "ban_user", "page": page + 1})))
+            elif page > 1:
+                markup.add(types.InlineKeyboardButton("⬅️" + _("Previous Page"),
+                                                      callback_data=json.dumps(
+                                                          {"action": "ban_user", "page": page - 1})))
+            elif page < total_pages:
+                markup.add(types.InlineKeyboardButton("➡️" + _("Next Page"),
+                                                      callback_data=json.dumps(
+                                                          {"action": "ban_user", "page": page + 1})))
+
             markup.add(back_button)
             self.bot.send_message(text=text,
                                   chat_id=message.chat.id,
@@ -384,11 +433,22 @@ class AdminHandler:
         """Display options for a banned user."""
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
-            db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (user_id,))
-            thread_id = db_cursor.fetchone()
-            if thread_id is None:
-                self.bot.send_message(self.group_id, _("User not found"))
+            # Get user info from blocked_users
+            db_cursor.execute(
+                "SELECT username, first_name, last_name, blocked_at FROM blocked_users WHERE user_id = ? LIMIT 1",
+                (user_id,)
+            )
+            user_info = db_cursor.fetchone()
+
+            if user_info is None:
+                markup = types.InlineKeyboardMarkup()
+                markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                      callback_data=json.dumps({"action": "ban_user"})))
+                self.bot.edit_message_text(_("User not found"), message.chat.id, message.message_id,
+                                           reply_markup=markup)
                 return
+
+            username, first_name, last_name, blocked_at = user_info
 
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("❌" + _("Unban"),
@@ -396,7 +456,18 @@ class AdminHandler:
                                                                         "id": user_id})))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "ban_user"})))
-        self.bot.edit_message_text(f"User ID: {user_id}", message.chat.id, message.message_id,
+
+        # Build user info text
+        text = _("Blocked User Details") + "\n\n"
+        text += f"User ID: {user_id}\n"
+        if first_name or last_name:
+            full_name = f"{first_name or ''} {last_name or ''}".strip()
+            text += f"{_('Name')}: {full_name}\n"
+        if username:
+            text += f"{_('Username')}: @{username}\n"
+        text += f"{_('Blocked at')}: {blocked_at}\n"
+
+        self.bot.edit_message_text(text, message.chat.id, message.message_id,
                                    reply_markup=markup)
 
     # Default Message Settings
@@ -630,13 +701,18 @@ class AdminHandler:
                                               callback_data=json.dumps({"action": "add_spam_keyword"})))
         markup.add(types.InlineKeyboardButton("📋" + _("View Keywords"),
                                               callback_data=json.dumps({"action": "view_spam_keywords"})))
+        markup.add(types.InlineKeyboardButton("🔄" + _("Reset Spam Topic"),
+                                              callback_data=json.dumps({"action": "reset_spam_topic"})))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "menu"})))
 
         keyword_count = self.spam_keyword_manager.get_keyword_count()
+        spam_topic_id = self.cache.get("spam_topic_id")
+
         text = _("Spam Keywords Management") + "\n\n"
         text += _("Total keywords: {}").format(keyword_count) + "\n"
-        text += _("Messages containing these keywords will be forwarded to the main topic silently.")
+        text += _("Spam Topic ID: {}").format(spam_topic_id if spam_topic_id else _("Not set")) + "\n\n"
+        text += _("Messages containing these keywords will be forwarded to the spam topic silently.")
 
         self.bot.send_message(text=text,
                               chat_id=message.chat.id,
@@ -805,9 +881,9 @@ class AdminHandler:
                                        message.chat.id, message.message_id,
                                        reply_markup=markup)
             return
-        
+
         keyword = keywords[idx]
-        
+
         if self.spam_keyword_manager.remove_keyword(keyword):
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
@@ -830,12 +906,12 @@ class AdminHandler:
         """Display blocked user auto-reply settings menu."""
         if not self.check_valid_chat(message):
             return
-        
+
         current_enabled = self.database.get_setting('blocked_user_reply_enabled')
         current_message = self.database.get_setting('blocked_user_reply_message')
-        
+
         markup = types.InlineKeyboardMarkup()
-        
+
         # Enable/Disable toggle
         if current_enabled == 'enable':
             markup.add(types.InlineKeyboardButton(
@@ -847,29 +923,29 @@ class AdminHandler:
                 "🔔 " + _("Enable Auto Reply"),
                 callback_data=json.dumps({"action": "set_blocked_reply_enabled", "value": "enable"})
             ))
-        
+
         # Edit message button
         markup.add(types.InlineKeyboardButton(
             "✏️ " + _("Edit Reply Message"),
             callback_data=json.dumps({"action": "edit_blocked_reply_message"})
         ))
-        
+
         # Clear message button
         markup.add(types.InlineKeyboardButton(
             "🗑️ " + _("Clear Reply Message"),
             callback_data=json.dumps({"action": "clear_blocked_reply_message"})
         ))
-        
+
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "menu"})))
-        
+
         text = _("Blocked User Auto Reply Settings") + "\n\n"
         text += _("Status: {}").format(_("Enabled") if current_enabled == 'enable' else _("Disabled")) + "\n"
         text += _("Current message: {}").format(
             current_message if current_message else _("Not set (no reply will be sent)")
         ) + "\n\n"
         text += _("When enabled, blocked users will receive this message when they try to send messages.")
-        
+
         self.bot.send_message(text=text,
                               chat_id=message.chat.id,
                               message_thread_id=None,
@@ -879,11 +955,11 @@ class AdminHandler:
         """Toggle blocked user auto-reply."""
         self.database.set_setting('blocked_user_reply_enabled', value)
         self.cache.set("setting_blocked_user_reply_enabled", value)
-        
+
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "blocked_reply_settings"})))
-        
+
         status_text = _("Enabled") if value == "enable" else _("Disabled")
         self.bot.edit_message_text(_("Blocked user auto-reply has been {}.").format(status_text),
                                    message.chat.id, message.message_id,
@@ -895,42 +971,43 @@ class AdminHandler:
             text=_("Please send the message to reply to blocked users.\n"
                    "Send /cancel to cancel this operation.\n\n"
                    "Note: You can send an empty message to disable auto-reply."),
-            chat_id=self.group_id, 
+            chat_id=self.group_id,
             message_id=message.message_id)
         self.bot.register_next_step_handler(msg, self.process_edit_blocked_reply_message)
 
     def process_edit_blocked_reply_message(self, message: Message):
         """Process blocked user reply message editing."""
         if not self.check_valid_chat(message):
-            logger.warning(f"Blocked reply edit from wrong context: chat_id={message.chat.id}, thread_id={message.message_thread_id}")
+            logger.warning(
+                f"Blocked reply edit from wrong context: chat_id={message.chat.id}, thread_id={message.message_thread_id}")
             return
-        
+
         if isinstance(message.text, str) and message.text.startswith("/cancel"):
             self.bot.send_message(self.group_id, _("Operation cancelled"))
             return
-        
+
         if message.content_type != "text":
             self.bot.send_message(self.group_id, _("Invalid input"))
             return
-        
+
         reply_message = message.text.strip()
         # Allow empty message to disable reply
         if not reply_message:
             reply_message = None
-        
+
         self.database.set_setting('blocked_user_reply_message', reply_message)
         self.cache.set("setting_blocked_user_reply_message", reply_message)
-        
+
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "blocked_reply_settings"})))
-        
+
         if reply_message:
-            self.bot.send_message(self.group_id, 
+            self.bot.send_message(self.group_id,
                                   _("Blocked user reply message updated: {}").format(reply_message),
                                   reply_markup=markup)
         else:
-            self.bot.send_message(self.group_id, 
+            self.bot.send_message(self.group_id,
                                   _("Blocked user reply message cleared. No auto-reply will be sent."),
                                   reply_markup=markup)
 
@@ -938,10 +1015,70 @@ class AdminHandler:
         """Clear blocked user reply message."""
         self.database.set_setting('blocked_user_reply_message', None)
         self.cache.set("setting_blocked_user_reply_message", None)
-        
+
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "blocked_reply_settings"})))
         self.bot.edit_message_text(_("Blocked user reply message cleared."),
                                    message.chat.id, message.message_id,
                                    reply_markup=markup)
+
+    # Spam Topic Management
+    def reset_spam_topic(self, message: Message):
+        """Reset spam topic."""
+        if not self.bot_instance:
+            self.bot.send_message(self.group_id, _("Bot instance not available"))
+            return
+
+        # Confirm action
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(
+            "✅" + _("Confirm Reset"),
+            callback_data=json.dumps({"action": "confirm_reset_spam_topic"})
+        ))
+        markup.add(types.InlineKeyboardButton(
+            "❌" + _("Cancel"),
+            callback_data=json.dumps({"action": "spam_keywords"})
+        ))
+
+        self.bot.edit_message_text(
+            _("Are you sure you want to reset the spam topic?\n"
+              "This will create a new spam topic. The old topic will not be deleted."),
+            message.chat.id, message.message_id,
+            reply_markup=markup)
+
+    def confirm_reset_spam_topic(self, message: Message):
+        """Confirm and execute spam topic reset."""
+        if not self.bot_instance:
+            self.bot.edit_message_text(_("Bot instance not available"),
+                                       message.chat.id, message.message_id)
+            return
+
+        self.bot.edit_message_text(_("Resetting spam topic..."),
+                                   message.chat.id, message.message_id)
+
+        try:
+            if self.bot_instance.reset_spam_topic():
+                spam_topic_id = self.cache.get("spam_topic_id")
+                markup = types.InlineKeyboardMarkup()
+                markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                      callback_data=json.dumps({"action": "spam_keywords"})))
+                self.bot.edit_message_text(
+                    _("Spam topic reset successfully.\nNew Topic ID: {}").format(spam_topic_id),
+                    message.chat.id, message.message_id,
+                    reply_markup=markup)
+            else:
+                markup = types.InlineKeyboardMarkup()
+                markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                      callback_data=json.dumps({"action": "spam_keywords"})))
+                self.bot.edit_message_text(_("Failed to reset spam topic"),
+                                           message.chat.id, message.message_id,
+                                           reply_markup=markup)
+        except Exception as e:
+            logger.error(f"Error resetting spam topic: {e}")
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "spam_keywords"})))
+            self.bot.edit_message_text(_("Failed to reset spam topic: {}").format(str(e)),
+                                       message.chat.id, message.message_id,
+                                       reply_markup=markup)

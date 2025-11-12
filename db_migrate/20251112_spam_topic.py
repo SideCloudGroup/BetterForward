@@ -15,6 +15,9 @@ def upgrade(db_path):
         db_cursor.execute("""
             CREATE TABLE IF NOT EXISTS blocked_users (
                 user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
                 blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)

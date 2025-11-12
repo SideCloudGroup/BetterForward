@@ -58,8 +58,14 @@ class CommandHandler:
                               (message.message_thread_id,))
             if (user_id := db_cursor.fetchone()) is not None:
                 user_id = user_id[0]
-                # Add to blocked_users table
-                db_cursor.execute("INSERT OR IGNORE INTO blocked_users (user_id) VALUES (?)", (user_id,))
+                # Add to blocked_users table with user info
+                username = message.from_user.username if hasattr(message, 'from_user') else None
+                # Get user info from the message that triggered ban (we need to get it from the thread)
+                # Since we don't have direct access, we'll get it from the first message in thread
+                db_cursor.execute(
+                    "INSERT OR REPLACE INTO blocked_users (user_id, username, first_name, last_name) VALUES (?, ?, ?, ?)",
+                    (user_id, None, None, None)  # Will be updated when user sends next message
+                )
                 # Remove user from verified list
                 db_cursor.execute("DELETE FROM verified_users WHERE user_id = ?", (user_id,))
                 db.commit()
@@ -74,8 +80,8 @@ class CommandHandler:
             "🗑️ " + _("Delete This Thread"),
             callback_data=json.dumps({"action": "delete_banned_thread", "thread_id": message.message_thread_id})
         ))
-        
-        self.bot.send_message(self.group_id, _("User banned"), 
+
+        self.bot.send_message(self.group_id, _("User banned"),
                               message_thread_id=message.message_thread_id,
                               reply_markup=markup)
         close_forum_topic(chat_id=self.group_id, message_thread_id=message.message_thread_id,
@@ -117,19 +123,26 @@ class CommandHandler:
         else:
             with sqlite3.connect(self.db_path) as db:
                 db_cursor = db.cursor()
-                db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (user_id,))
-                thread_id = db_cursor.fetchone()
-                if thread_id is None:
+                # Check if user exists in blocked_users table
+                db_cursor.execute("SELECT 1 FROM blocked_users WHERE user_id = ? LIMIT 1", (user_id,))
+                if db_cursor.fetchone() is None:
                     self.bot.send_message(self.group_id, _("User not found"))
                     return
+
                 # Remove from blocked_users table
                 db_cursor.execute("DELETE FROM blocked_users WHERE user_id = ?", (user_id,))
                 db.commit()
-            try:
-                reopen_forum_topic(chat_id=self.group_id, message_thread_id=thread_id[0],
-                                   token=self.bot.token)
-            except ApiTelegramException:
-                pass
+
+                # Try to reopen thread if it exists
+                db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (user_id,))
+                thread_result = db_cursor.fetchone()
+                if thread_result is not None:
+                    try:
+                        reopen_forum_topic(chat_id=self.group_id, message_thread_id=thread_result[0],
+                                           token=self.bot.token)
+                    except ApiTelegramException:
+                        pass
+
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                                   callback_data=json.dumps({"action": "menu"})))
