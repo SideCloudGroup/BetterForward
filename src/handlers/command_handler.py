@@ -53,15 +53,31 @@ class CommandHandler:
 
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
-            db_cursor.execute("UPDATE topics SET ban = 1 WHERE thread_id = ?", (message.message_thread_id,))
-            # Remove user from verified list
+            # Get user_id from thread
             db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
                               (message.message_thread_id,))
             if (user_id := db_cursor.fetchone()) is not None:
-                db_cursor.execute("DELETE FROM verified_users WHERE user_id = ?", (user_id[0],))
-            db.commit()
+                user_id = user_id[0]
+                # Add to blocked_users table
+                db_cursor.execute("INSERT OR IGNORE INTO blocked_users (user_id) VALUES (?)", (user_id,))
+                # Remove user from verified list
+                db_cursor.execute("DELETE FROM verified_users WHERE user_id = ?", (user_id,))
+                db.commit()
+            else:
+                self.bot.send_message(self.group_id, _("User not found"),
+                                      message_thread_id=message.message_thread_id)
+                return
 
-        self.bot.send_message(self.group_id, _("User banned"), message_thread_id=message.message_thread_id)
+        # Send message with delete thread button
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(
+            "🗑️ " + _("Delete This Thread"),
+            callback_data=json.dumps({"action": "delete_banned_thread", "thread_id": message.message_thread_id})
+        ))
+        
+        self.bot.send_message(self.group_id, _("User banned"), 
+                              message_thread_id=message.message_thread_id,
+                              reply_markup=markup)
         close_forum_topic(chat_id=self.group_id, message_thread_id=message.message_thread_id,
                           token=self.bot.token)
 
@@ -83,9 +99,14 @@ class CommandHandler:
         if user_id is None:
             with sqlite3.connect(self.db_path) as db:
                 db_cursor = db.cursor()
-                db_cursor.execute("UPDATE topics SET ban = 0 WHERE thread_id = ?",
+                # Get user_id from thread
+                db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
                                   (message.message_thread_id,))
-                db.commit()
+                if (result := db_cursor.fetchone()) is not None:
+                    user_id = result[0]
+                    # Remove from blocked_users table
+                    db_cursor.execute("DELETE FROM blocked_users WHERE user_id = ?", (user_id,))
+                    db.commit()
             self.bot.send_message(self.group_id, _("User unbanned"),
                                   message_thread_id=message.message_thread_id)
             try:
@@ -101,7 +122,8 @@ class CommandHandler:
                 if thread_id is None:
                     self.bot.send_message(self.group_id, _("User not found"))
                     return
-                db_cursor.execute("UPDATE topics SET ban = 0 WHERE user_id = ?", (user_id,))
+                # Remove from blocked_users table
+                db_cursor.execute("DELETE FROM blocked_users WHERE user_id = ?", (user_id,))
                 db.commit()
             try:
                 reopen_forum_topic(chat_id=self.group_id, message_thread_id=thread_id[0],

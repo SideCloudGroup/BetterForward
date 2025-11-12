@@ -70,12 +70,26 @@ class MessageHandler:
                 message.from_user.id, processing_time))
             return
 
-        # Check if the user is banned
-        if (result := cursor.execute("SELECT ban FROM topics WHERE user_id = ? LIMIT 1",
-                                     (message.from_user.id,)).fetchone()) and result[0] == 1:
+        # Check if the user is blocked
+        is_blocked = cursor.execute("SELECT 1 FROM blocked_users WHERE user_id = ? LIMIT 1",
+                                    (message.from_user.id,)).fetchone() is not None
+        
+        if is_blocked:
             processing_time = (time.time() - start_time) * 1000
-            logger.info(_("Message from banned user {} rejected ({:.2f}ms)").format(
+            logger.info(_("Message from blocked user {} rejected ({:.2f}ms)").format(
                 message.from_user.id, processing_time))
+            
+            # Send auto-reply if enabled
+            if self.cache.get("setting_blocked_user_reply_enabled") == "enable":
+                reply_message = self.cache.get("setting_blocked_user_reply_message")
+                if reply_message:
+                    try:
+                        self.bot.send_message(message.chat.id, reply_message)
+                        logger.info(_("Sent auto-reply to blocked user {}").format(message.from_user.id))
+                    except Exception as e:
+                        logger.error(_("Failed to send auto-reply to blocked user {}: {}").format(
+                            message.from_user.id, str(e)))
+            
             return
 
         # Check for spam using detector manager

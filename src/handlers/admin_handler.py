@@ -57,6 +57,8 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "ban_user"})),
             types.InlineKeyboardButton("🚫" + _("Spam Keywords"),
                                        callback_data=json.dumps({"action": "spam_keywords"})),
+            types.InlineKeyboardButton("🚷" + _("Blocked User Reply"),
+                                       callback_data=json.dumps({"action": "blocked_reply_settings"})),
             types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
                                        callback_data=json.dumps({"action": "captcha_settings"})),
             types.InlineKeyboardButton("🌍" + _("Time Zone Settings"),
@@ -361,9 +363,11 @@ class AdminHandler:
             markup = types.InlineKeyboardMarkup()
             back_button = types.InlineKeyboardButton("⬅️" + _("Back"),
                                                      callback_data=json.dumps({"action": "menu"}))
-            db_cursor.execute("SELECT user_id FROM topics WHERE ban = 1")
+            # Query from blocked_users table instead of topics
+            db_cursor.execute("SELECT user_id FROM blocked_users ORDER BY blocked_at DESC")
             banned_users = db_cursor.fetchall()
             text = _("Banned User List:") + "\n"
+            text += _("Total: {}").format(len(banned_users)) + "\n\n"
             for user in banned_users:
                 text += "-" * 20 + "\n"
                 text += f"User ID: {user[0]}\n"
@@ -801,9 +805,9 @@ class AdminHandler:
                                        message.chat.id, message.message_id,
                                        reply_markup=markup)
             return
-
+        
         keyword = keywords[idx]
-
+        
         if self.spam_keyword_manager.remove_keyword(keyword):
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
@@ -820,3 +824,124 @@ class AdminHandler:
                                        chat_id=message.chat.id,
                                        message_id=message.message_id,
                                        reply_markup=markup)
+
+    # Blocked User Reply Settings
+    def blocked_reply_settings_menu(self, message: Message):
+        """Display blocked user auto-reply settings menu."""
+        if not self.check_valid_chat(message):
+            return
+        
+        current_enabled = self.database.get_setting('blocked_user_reply_enabled')
+        current_message = self.database.get_setting('blocked_user_reply_message')
+        
+        markup = types.InlineKeyboardMarkup()
+        
+        # Enable/Disable toggle
+        if current_enabled == 'enable':
+            markup.add(types.InlineKeyboardButton(
+                "🔕 " + _("Disable Auto Reply"),
+                callback_data=json.dumps({"action": "set_blocked_reply_enabled", "value": "disable"})
+            ))
+        else:
+            markup.add(types.InlineKeyboardButton(
+                "🔔 " + _("Enable Auto Reply"),
+                callback_data=json.dumps({"action": "set_blocked_reply_enabled", "value": "enable"})
+            ))
+        
+        # Edit message button
+        markup.add(types.InlineKeyboardButton(
+            "✏️ " + _("Edit Reply Message"),
+            callback_data=json.dumps({"action": "edit_blocked_reply_message"})
+        ))
+        
+        # Clear message button
+        markup.add(types.InlineKeyboardButton(
+            "🗑️ " + _("Clear Reply Message"),
+            callback_data=json.dumps({"action": "clear_blocked_reply_message"})
+        ))
+        
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "menu"})))
+        
+        text = _("Blocked User Auto Reply Settings") + "\n\n"
+        text += _("Status: {}").format(_("Enabled") if current_enabled == 'enable' else _("Disabled")) + "\n"
+        text += _("Current message: {}").format(
+            current_message if current_message else _("Not set (no reply will be sent)")
+        ) + "\n\n"
+        text += _("When enabled, blocked users will receive this message when they try to send messages.")
+        
+        self.bot.send_message(text=text,
+                              chat_id=message.chat.id,
+                              message_thread_id=None,
+                              reply_markup=markup)
+
+    def set_blocked_reply_enabled(self, message: Message, value: str):
+        """Toggle blocked user auto-reply."""
+        self.database.set_setting('blocked_user_reply_enabled', value)
+        self.cache.set("setting_blocked_user_reply_enabled", value)
+        
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "blocked_reply_settings"})))
+        
+        status_text = _("Enabled") if value == "enable" else _("Disabled")
+        self.bot.edit_message_text(_("Blocked user auto-reply has been {}.").format(status_text),
+                                   message.chat.id, message.message_id,
+                                   reply_markup=markup)
+
+    def edit_blocked_reply_message(self, message: Message):
+        """Start editing blocked user reply message."""
+        msg = self.bot.edit_message_text(
+            text=_("Please send the message to reply to blocked users.\n"
+                   "Send /cancel to cancel this operation.\n\n"
+                   "Note: You can send an empty message to disable auto-reply."),
+            chat_id=self.group_id, 
+            message_id=message.message_id)
+        self.bot.register_next_step_handler(msg, self.process_edit_blocked_reply_message)
+
+    def process_edit_blocked_reply_message(self, message: Message):
+        """Process blocked user reply message editing."""
+        if not self.check_valid_chat(message):
+            logger.warning(f"Blocked reply edit from wrong context: chat_id={message.chat.id}, thread_id={message.message_thread_id}")
+            return
+        
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+        
+        if message.content_type != "text":
+            self.bot.send_message(self.group_id, _("Invalid input"))
+            return
+        
+        reply_message = message.text.strip()
+        # Allow empty message to disable reply
+        if not reply_message:
+            reply_message = None
+        
+        self.database.set_setting('blocked_user_reply_message', reply_message)
+        self.cache.set("setting_blocked_user_reply_message", reply_message)
+        
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "blocked_reply_settings"})))
+        
+        if reply_message:
+            self.bot.send_message(self.group_id, 
+                                  _("Blocked user reply message updated: {}").format(reply_message),
+                                  reply_markup=markup)
+        else:
+            self.bot.send_message(self.group_id, 
+                                  _("Blocked user reply message cleared. No auto-reply will be sent."),
+                                  reply_markup=markup)
+
+    def clear_blocked_reply_message(self, message: Message):
+        """Clear blocked user reply message."""
+        self.database.set_setting('blocked_user_reply_message', None)
+        self.cache.set("setting_blocked_user_reply_message", None)
+        
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "blocked_reply_settings"})))
+        self.bot.edit_message_text(_("Blocked user reply message cleared."),
+                                   message.chat.id, message.message_id,
+                                   reply_markup=markup)

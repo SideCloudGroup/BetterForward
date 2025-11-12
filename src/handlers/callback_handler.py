@@ -137,6 +137,18 @@ class CallbackHandler:
             case "cancel_terminate":
                 self.bot.edit_message_text(_("Operation cancelled"),
                                            call.message.chat.id, call.message.message_id)
+            case "delete_banned_thread":
+                if "thread_id" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                self.bot.delete_message(self.group_id, call.message.message_id)
+                try:
+                    self.command_handler.terminate_thread(thread_id=data["thread_id"])
+                    self.bot.send_message(self.group_id, _("Thread deleted"))
+                except Exception as e:
+                    logger.error(_("Failed to delete thread: {}").format(str(e)))
+                    self.bot.send_message(self.group_id, _("Failed to delete thread"))
             case "spam_keywords":
                 self.admin_handler.spam_keywords_menu(call.message)
             case "add_spam_keyword":
@@ -155,5 +167,17 @@ class CallbackHandler:
                     self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
                     return
                 self.admin_handler.delete_spam_keyword(call.message, data["idx"])
+            case "blocked_reply_settings":
+                self.admin_handler.blocked_reply_settings_menu(call.message)
+            case "set_blocked_reply_enabled":
+                if "value" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                self.admin_handler.set_blocked_reply_enabled(call.message, data["value"])
+            case "edit_blocked_reply_message":
+                self.admin_handler.edit_blocked_reply_message(call.message)
+            case "clear_blocked_reply_message":
+                self.admin_handler.clear_blocked_reply_message(call.message)
             case _:
                 logger.error(_("Invalid action received") + action)
