@@ -18,6 +18,7 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
   Allows setting active time for auto-reply.
 - Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending
   of spam messages.
+- Spam Protection: Intelligent spam filtering system with keyword-based detection. Supports extensible detector interface for integrating AI models, external APIs, and custom detection methods.
 - Broadcast Message: Allows admins to send a message to all users at once.
 
 ## Usage
@@ -105,6 +106,27 @@ docker run --rm \
 containrrr/watchtower -cR \
 <Container Name>
 ```
+
+## Spam Protection
+
+BetterForward includes an intelligent spam filtering system to help you effectively manage and isolate spam content.
+
+### Keyword Filtering
+
+- **Smart Matching**: Supports fuzzy matching to automatically identify messages containing spam keywords
+- **High Performance**: Uses optimized regex with O(n) time complexity for extremely fast processing
+- **Easy Management**: Add, view, and delete keywords through the admin menu
+- **Auto Isolation**: Matched spam messages are automatically forwarded to a dedicated spam topic without creating user threads
+- **Silent Mode**: Forwarding uses silent mode to avoid notification spam
+
+### Usage
+
+1. Send `/help` command in the main group topic
+2. Select "🚫 Spam Keywords" menu
+3. Click "➕ Add Keyword" to add keywords to filter
+4. Click "📋 View Keywords" to manage existing keywords
+
+Keyword configuration is saved in `data/spam_keywords.json` and supports manual editing.
 
 ## Admin Commands
 
