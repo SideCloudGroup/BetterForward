@@ -118,34 +118,44 @@ class CommandHandler:
 
     def terminate_thread(self, thread_id=None, user_id=None):
         """Terminate and delete a thread."""
+        original_thread_id = thread_id
+        db_user_id = None
+        db_thread_id = None
+
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
             if thread_id is not None:
                 result = db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
                                            (thread_id,))
-                if (user_id := result.fetchone()) is not None:
-                    user_id = user_id[0]
+                if (fetched_user_id := result.fetchone()) is not None:
+                    db_user_id = fetched_user_id[0]
+                    db_thread_id = thread_id
                     db_cursor.execute("DELETE FROM topics WHERE thread_id = ?", (thread_id,))
                     db.commit()
             elif user_id is not None:
                 result = db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1",
                                            (user_id,))
-                if (thread_id := result.fetchone()) is not None:
-                    thread_id = thread_id[0]
+                if (fetched_thread_id := result.fetchone()) is not None:
+                    db_thread_id = fetched_thread_id[0]
+                    db_user_id = user_id
                     db_cursor.execute("DELETE FROM topics WHERE user_id = ?", (user_id,))
                     db.commit()
 
-            if user_id and thread_id:
-                self.cache.delete(f"chat_{user_id}_threadid")
-                self.cache.delete(f"threadid_{thread_id}_userid")
-                try:
-                    delete_forum_topic(chat_id=self.group_id, message_thread_id=thread_id,
-                                       token=self.bot.token)
-                except ApiTelegramException:
-                    pass
-                db_cursor.execute("DELETE FROM messages WHERE topic_id = ?", (thread_id,))
+            if db_user_id and db_thread_id:
+                self.cache.delete(f"chat_{db_user_id}_threadid")
+                self.cache.delete(f"threadid_{db_thread_id}_userid")
+                db_cursor.execute("DELETE FROM messages WHERE topic_id = ?", (db_thread_id,))
                 db.commit()
-        logger.info(_("Terminating thread") + str(thread_id))
+
+        final_thread_id = original_thread_id if original_thread_id is not None else db_thread_id
+        if final_thread_id is not None:
+            try:
+                delete_forum_topic(chat_id=self.group_id, message_thread_id=final_thread_id,
+                                   token=self.bot.token)
+            except ApiTelegramException:
+                pass
+
+        logger.info(_("Terminating thread") + str(final_thread_id))
 
     def handle_terminate(self, message: Message):
         """Handle /terminate command."""
