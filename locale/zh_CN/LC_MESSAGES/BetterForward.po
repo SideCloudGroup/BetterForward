@@ -395,22 +395,18 @@ msgid "No banned users"
 msgstr "没有被封禁的用户"
 
 #: src/handlers/admin_handler.py:451
-#, fuzzy
 msgid "Disable Forward Success Message"
 msgstr "禁用转发成功消息"
 
 #: src/handlers/admin_handler.py:456
-#, fuzzy
 msgid "Enable Forward Success Message"
 msgstr "启用转发成功消息"
 
 #: src/handlers/admin_handler.py:462
-#, fuzzy
 msgid "Edit Forward Success Message"
 msgstr "编辑转发成功消息"
 
 #: src/handlers/admin_handler.py:468
-#, fuzzy
 msgid "Clear Forward Success Message"
 msgstr "清空转发成功消息"
 
@@ -432,19 +428,16 @@ msgid "Not set (no reply will be sent)"
 msgstr "未设置（不会发送回复）"
 
 #: src/handlers/admin_handler.py:480
-#, fuzzy
 msgid ""
 "When enabled, users will receive this message when their message forwards "
-"correctly."
-msgstr "启用后，被拉黑的用户发送消息时将收到此回复。"
+"correctly. The message will be deleted after 3s."
+msgstr "启用后，当用户发送的消息被成功转发时将收到此回复提示。消息将会在3秒后自动删除"
 
 #: src/handlers/admin_handler.py:497
-#, fuzzy
 msgid "Forward Success Message has been {}."
 msgstr "转发成功消息成功设置成 "
 
 #: src/handlers/admin_handler.py:504
-#, fuzzy
 msgid ""
 "Please send the message to reply to users.\n"
 "Send /cancel to cancel this operation.\n"
@@ -457,17 +450,14 @@ msgstr ""
 "注意：发送空消息可以禁用自动回复。"
 
 #: src/handlers/admin_handler.py:540
-#, fuzzy
 msgid "Forward Success Message updated: {}"
 msgstr "转发成功消息成功更新成："
 
 #: src/handlers/admin_handler.py:544
-#, fuzzy
 msgid "Forward Success Message cleared. No auto-reply will be sent."
 msgstr "拉黑用户回复消息已清空。不会发送自动回复。"
 
 #: src/handlers/admin_handler.py:555
-#, fuzzy
 msgid "Forward Success Message cleared."
 msgstr "转发成功消息已清空"
 
@@ -942,17 +932,17 @@ msgid "[Auto Response]"
 msgstr "[自动回复]"
 
 #: src/handlers/message_handler.py:222
-#, fuzzy
+
 msgid "Sent auto-reply to user {}"
 msgstr "已向被拉黑用户{}发送自动回复"
 
 #: src/handlers/message_handler.py:228
-#, fuzzy
+
 msgid "Failed to delete auto-reply image for user {}: {}"
 msgstr "向被拉黑用户{}发送自动回复失败：{}"
 
 #: src/handlers/message_handler.py:234
-#, fuzzy
+
 msgid "Failed to send auto-reply to user {}: {}"
 msgstr "向被拉黑用户{}发送自动回复失败：{}"
 
@@ -1053,17 +1043,17 @@ msgstr "退出中……"
 #~ "无效的指令格式\n"
 #~ "/terminate <user ID>"
 
-#, fuzzy
+
 #~| msgid "Operation cancelled"
 #~ msgid "Termination cancelled"
 #~ msgstr "操作已取消"
 
-#, fuzzy
+
 #~| msgid "Confirm"
 #~ msgid "✅ Confirm"
 #~ msgstr "确认"
 
-#, fuzzy
+
 #~| msgid "Cancel"
 #~ msgid "❌ Cancel"
 #~ msgstr "取消"
