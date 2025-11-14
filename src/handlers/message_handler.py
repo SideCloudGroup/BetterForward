@@ -214,8 +214,8 @@ class MessageHandler:
                                   message_thread_id=thread_id)
 
         # Send Forward Success Message
-        if self.database.get_setting('forward_success_msg_enabled') == "enable":
-            reply_message = self.database.get_setting('forward_success_msg_content')
+        if self.cache.get("setting_forward_success_msg_enabled") == "enable":
+            reply_message = self.cache.get("setting_forward_success_msg")
             if reply_message:
                 try:
                     self.bot.send_message(message.chat.id, reply_message)
