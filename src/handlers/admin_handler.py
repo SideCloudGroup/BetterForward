@@ -460,7 +460,7 @@ class AdminHandler:
         # Edit message button
         markup.add(types.InlineKeyboardButton(
             "✏️ " + _("Edit Forward Success Message"),
-            callback_data=json.dumps({"action": "edit_forward_success_msg"})
+            callback_data=json.dumps({"action": "edit_forward_success_msg_content"})
         ))
 
         # Clear message button
