@@ -435,7 +435,7 @@ msgstr "启用后，当用户发送的消息被成功转发时将收到此回复
 
 #: src/handlers/admin_handler.py:497
 msgid "Forward Success Message has been {}."
-msgstr "转发成功消息成功设置成 "
+msgstr "转发成功消息已{} "
 
 #: src/handlers/admin_handler.py:504
 msgid ""
@@ -451,7 +451,7 @@ msgstr ""
 
 #: src/handlers/admin_handler.py:540
 msgid "Forward Success Message updated: {}"
-msgstr "转发成功消息成功更新成："
+msgstr "转发成功消息成功更新成：{}"
 
 #: src/handlers/admin_handler.py:544
 msgid "Forward Success Message cleared. No auto-reply will be sent."
