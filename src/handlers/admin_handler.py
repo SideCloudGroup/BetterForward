@@ -55,7 +55,7 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "auto_reply"})),
             types.InlineKeyboardButton("📙" + _("Default Message"),
                                        callback_data=json.dumps({"action": "default_msg"})),
-            types.InlineKeyboardButton("📨" + _("forward_success_msg"),
+            types.InlineKeyboardButton("📨" + _("Forward Success Message"),
                                        callback_data=json.dumps({"action": "forward_success_msg"})),
             types.InlineKeyboardButton("⛔" + _("Banned Users"),
                                        callback_data=json.dumps({"action": "ban_user"})),
