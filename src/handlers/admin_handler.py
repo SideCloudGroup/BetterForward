@@ -449,12 +449,12 @@ class AdminHandler:
         if current_enabled == 'enable':
             markup.add(types.InlineKeyboardButton(
                 "🔕 " + _("Disable Forward Success Message"),
-                callback_data=json.dumps({"action": "set_forward_success_msg_enabled", "value": "disable"})
+                callback_data=json.dumps({"action": "forward_success_msg_enabled", "value": "disable"})
             ))
         else:
             markup.add(types.InlineKeyboardButton(
                 "🔔 " + _("Enable Forward Success Message"),
-                callback_data=json.dumps({"action": "set_forward_success_msg_enabled", "value": "enable"})
+                callback_data=json.dumps({"action": "forward_success_msg_enabled", "value": "enable"})
             ))
 
         # Edit message button

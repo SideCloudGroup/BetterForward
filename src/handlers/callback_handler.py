@@ -181,7 +181,7 @@ class CallbackHandler:
                 self.admin_handler.clear_blocked_reply_message(call.message)
             case "forward_success_msg":
                 self.admin_handler.forward_success_msg_menu(call.message)
-            case "set_forward_success_msg_enabled":
+            case "forward_success_msg_enabled":
                 if "value" not in data:
                     self.bot.delete_message(self.group_id, call.message.message_id)
                     self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
@@ -189,7 +189,7 @@ class CallbackHandler:
                 self.admin_handler.set_forward_success_msg_enabled(call.message, data["value"])
             case "edit_forward_success_msg_content":
                 self.admin_handler.edit_forward_success_msg_content(call.message)
-            case "clear_blocked_reply_message":
+            case "clear_forward_success_msg":
                 self.admin_handler.clear_forward_success_msg(call.message)
             case "reset_spam_topic":
                 self.admin_handler.reset_spam_topic(call.message)
