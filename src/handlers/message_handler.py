@@ -218,7 +218,7 @@ class MessageHandler:
             reply_message = self.cache.get("setting_forward_success_msg")
             if reply_message:
                 try:
-                    self.bot.send_message(message.chat.id, reply_message)
+                    sent_msg = self.bot.send_message(message.chat.id, reply_message)
                     logger.info(_("Sent auto-reply to user {}").format(message.from_user.id))
                     import threading
                     def delete_later(chat_id, message_id):
