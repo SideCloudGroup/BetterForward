@@ -477,7 +477,7 @@ class AdminHandler:
         text += _("Current message: {}").format(
             current_message if current_message else _("Not set (no reply will be sent)")
         ) + "\n\n"
-        text += _("When enabled, users will receive this message when their message forwards correctly.")
+        text += _("When enabled, users will receive this message when their message forwards correctly. The message will be deleted after 3s.")
 
         self.bot.send_message(text=text,
                               chat_id=message.chat.id,
