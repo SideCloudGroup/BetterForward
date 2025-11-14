@@ -55,6 +55,8 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "auto_reply"})),
             types.InlineKeyboardButton("📙" + _("Default Message"),
                                        callback_data=json.dumps({"action": "default_msg"})),
+            types.InlineKeyboardButton("📨" + _("forward_success_msg"),
+                                       callback_data=json.dumps({"action": "forward_success_msg"})),
             types.InlineKeyboardButton("⛔" + _("Banned Users"),
                                        callback_data=json.dumps({"action": "ban_user"})),
             types.InlineKeyboardButton("🚫" + _("Spam Keywords"),
@@ -431,6 +433,128 @@ class AdminHandler:
                                   chat_id=message.chat.id,
                                   message_thread_id=None,
                                   reply_markup=markup)
+
+    # Forward Success Message Settings
+    def forward_success_msg_menu(self, message: Message):
+        """Display Forward Success Message Settings menu."""
+        if not self.check_valid_chat(message):
+            return
+
+        current_enabled = self.database.get_setting('forward_success_msg_enabled')
+        current_message = self.database.get_setting('forward_success_msg_content')
+
+        markup = types.InlineKeyboardMarkup()
+
+        # Enable/Disable toggle
+        if current_enabled == 'enable':
+            markup.add(types.InlineKeyboardButton(
+                "🔕 " + _("Disable Forward Success Message"),
+                callback_data=json.dumps({"action": "set_forward_success_msg_enabled", "value": "disable"})
+            ))
+        else:
+            markup.add(types.InlineKeyboardButton(
+                "🔔 " + _("Enable Forward Success Message"),
+                callback_data=json.dumps({"action": "set_forward_success_msg_enabled", "value": "enable"})
+            ))
+
+        # Edit message button
+        markup.add(types.InlineKeyboardButton(
+            "✏️ " + _("Edit Forward Success Message"),
+            callback_data=json.dumps({"action": "edit_forward_success_msg"})
+        ))
+
+        # Clear message button
+        markup.add(types.InlineKeyboardButton(
+            "🗑️ " + _("Clear Forward Success Message"),
+            callback_data=json.dumps({"action": "clear_forward_success_msg"})
+        ))
+
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "menu"})))
+
+        text = _("Forward Success Message") + "\n\n"
+        text += _("Status: {}").format(_("Enabled") if current_enabled == 'enable' else _("Disabled")) + "\n"
+        text += _("Current message: {}").format(
+            current_message if current_message else _("Not set (no reply will be sent)")
+        ) + "\n\n"
+        text += _("When enabled, users will receive this message when their message forwards correctly.")
+
+        self.bot.send_message(text=text,
+                              chat_id=message.chat.id,
+                              message_thread_id=None,
+                              reply_markup=markup)
+
+    def set_forward_success_msg_enabled(self, message: Message, value: str):
+        """Toggle Forward Success Message."""
+        self.database.set_setting('forward_success_msg_enabled', value)
+        self.cache.set("setting_forward_success_msg_enabled", value)
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "forward_success_msg"})))
+
+        status_text = _("Enabled") if value == "enable" else _("Disabled")
+        self.bot.edit_message_text(_("Forward Success Message has been {}.").format(status_text),
+                                   message.chat.id, message.message_id,
+                                   reply_markup=markup)
+
+    def edit_forward_success_msg_content(self, message: Message):
+        """Start editing Forward Success Message."""
+        msg = self.bot.edit_message_text(
+            text=_("Please send the message to reply to users.\n"
+                   "Send /cancel to cancel this operation.\n\n"
+                   "Note: You can send an empty message to disable auto-reply."),
+            chat_id=self.group_id,
+            message_id=message.message_id)
+        self.bot.register_next_step_handler(msg, self.process_forward_success_msg)
+
+    def process_forward_success_msg(self, message: Message):
+        """Process Forward Success Message editing."""
+        if not self.check_valid_chat(message):
+            logger.warning(
+                f"Forward success message edit from wrong context: chat_id={message.chat.id}, thread_id={message.message_thread_id}")
+            return
+
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        if message.content_type != "text":
+            self.bot.send_message(self.group_id, _("Invalid input"))
+            return
+
+        reply_message = message.text.strip()
+        # Allow empty message to disable reply
+        if not reply_message:
+            reply_message = None
+
+        self.database.set_setting('forward_success_msg_content', reply_message)
+        self.cache.set("setting_forward_success_msg", reply_message)
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "forward_success_msg"})))
+
+        if reply_message:
+            self.bot.send_message(self.group_id,
+                                  _("Forward Success Message updated: {}").format(reply_message),
+                                  reply_markup=markup)
+        else:
+            self.bot.send_message(self.group_id,
+                                  _("Forward Success Message cleared. No auto-reply will be sent."),
+                                  reply_markup=markup)
+
+    def clear_forward_success_msg(self, message: Message):
+        """Clear blocked user reply message."""
+        self.database.set_setting('forward_success_msg_content', None)
+        self.cache.set("setting_forward_success_msg", None)
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "forward_success_msg"})))
+        self.bot.edit_message_text(_("Forward Success Message cleared."),
+                                   message.chat.id, message.message_id,
+                                   reply_markup=markup)
 
     def select_ban_user(self, message: Message, user_id: int):
         """Display options for a banned user."""

@@ -213,6 +213,17 @@ class MessageHandler:
             self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
                                   message_thread_id=thread_id)
 
+        # Send Forward Success Message
+        if self.cache.get("setting_forward_success_msg_enabled") == "enable":
+            reply_message = self.cache.get("setting_forward_success_msg")
+            if reply_message:
+                try:
+                    self.bot.send_message(message.chat.id, reply_message)
+                    logger.info(_("Sent auto-reply to user {}").format(message.from_user.id))
+                except Exception as e:
+                    logger.error(_("Failed to send auto-reply to user {}: {}").format(
+                        message.from_user.id, str(e)))
+
         # Log processing time
         processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
         logger.info(_("Message from user {} processed in {:.2f}ms").format(
