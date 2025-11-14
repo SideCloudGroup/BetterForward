@@ -3,10 +3,10 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - main  # 触发的分支，可以根据你的需求修改
+      - dev  # 触发的分支，可以根据你的需求修改
   pull_request:
     branches:
-      - main  # 同样适用于 pull request，针对 main 分支
+      - dev  # 同样适用于 pull request，针对 main 分支
 
 jobs:
   build:
@@ -27,7 +27,7 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build . --file Dockerfile -t shentx/betterforward:latest  # 构建 Docker 镜像，替换为你的 Docker Hub 用户名和镜像名称
+        docker build . --file Dockerfile -t shentx/betterforward:dev  # 构建 Docker 镜像，替换为你的 Docker Hub 用户名和镜像名称
     - name: Push Docker image
       run: |
-        docker push shentx/betterforward:latest  # 推送镜像到 Docker Hub，替换为你的 Docker Hub 用户名和镜像名称
+        docker push shentx/betterforward:dev  # 推送镜像到 Docker Hub，替换为你的 Docker Hub 用户名和镜像名称
