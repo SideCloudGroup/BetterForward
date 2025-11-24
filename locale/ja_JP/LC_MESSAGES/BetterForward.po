@@ -922,6 +922,10 @@ msgid ""
 "directly\n"
 msgstr ""
 
+#: src/handlers/message_handler.py
+msgid "⚠️ Your message was not sent. Please complete verification first."
+msgstr "⚠️ メッセージは送信されませんでした。まず認証を完了してください。"
+
 #: src/handlers/message_handler.py:253 src/handlers/message_handler.py:255
 #: src/utils/captcha.py:38
 msgid "Invalid captcha setting"

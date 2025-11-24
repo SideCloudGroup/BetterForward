@@ -227,7 +227,8 @@ class MessageHandler:
         if (captcha := self.cache.get(f"captcha_{message.from_user.id}")) is not None:
             if not self.captcha_manager.verify_captcha(message.from_user.id, message.text):
                 logger.info(_("User {} entered an incorrect answer").format(message.from_user.id))
-                self.bot.send_message(message.chat.id, _("The answer is incorrect, please try again"))
+                self.bot.send_message(message.chat.id, _("The answer is incorrect, please try again"),
+                                      reply_to_message_id=message.message_id)
                 return False
             logger.info(_("User {} passed the captcha").format(message.from_user.id))
             self.bot.send_message(message.chat.id, _("Verification successful, you can now send messages"))
@@ -238,6 +239,12 @@ class MessageHandler:
         # Check if the user is verified
         if not self.captcha_manager.is_user_verified(message.from_user.id, db):
             logger.info(_("User {} is not verified").format(message.from_user.id))
+            
+            # First, reply to user's message to make it clear the message was not sent
+            self.bot.send_message(message.chat.id,
+                                  _("⚠️ Your message was not sent. Please complete verification first."),
+                                  reply_to_message_id=message.message_id)
+            
             match self.cache.get("setting_captcha"):
                 case "button":
                     self.captcha_manager.generate_captcha(message.from_user.id,
