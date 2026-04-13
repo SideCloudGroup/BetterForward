@@ -1,4 +1,4 @@
-pyTelegramBotAPI==4.32.0
+pyTelegramBotAPI==4.33.0
 diskcache==5.6.3
 pytz==2026.1.post1
 httpx[http2]
