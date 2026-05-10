@@ -308,6 +308,97 @@ class CommandHandler:
                 self.bot.send_message(message.chat.id, _("User verification removed."),
                                       message_thread_id=message.message_thread_id)
 
+    _GETNOTE_MAX_LEN = 3500
+
+    def _parse_setnote_body(self, text: str | None) -> str | None:
+        """Return text to store, or None to clear note (NULL)."""
+        if not text:
+            return None
+        bot_username = (self.bot.get_me().username or "").lower()
+        parts = text.split("\n", 1)
+        line0 = parts[0]
+        cont = parts[1] if len(parts) > 1 else None
+        l0 = line0.lower()
+        prefixes = ["/setnote"]
+        if bot_username:
+            prefixes.append(f"/setnote@{bot_username}")
+        prefixes.sort(key=len, reverse=True)
+        n = 0
+        for p in prefixes:
+            if l0.startswith(p.lower()):
+                n = len(p)
+                break
+        if n == 0:
+            return None
+        first_rest = line0[n:].lstrip()
+        if cont is not None:
+            body = (first_rest + "\n" + cont) if first_rest else cont
+        else:
+            body = first_rest
+        if not body.strip():
+            return None
+        return body
+
+    def _topic_note_reply(self, message: Message, text: str):
+        self.bot.reply_to(message, text)
+
+    def _topic_note_access_ok(self, message: Message) -> tuple[bool, str | None]:
+        if message.chat.id != self.group_id:
+            return False, _("This command is only available to admin users.")
+        if self.bot.get_chat_member(message.chat.id, message.from_user.id).status not in (
+                "administrator", "creator"):
+            return False, _("This command is only available to admin users.")
+        tid = message.message_thread_id
+        if tid is None:
+            return False, _("This command is only available to admin users.")
+        if tid == 1:
+            return False, _("Cannot use this command in the main thread")
+        return True, None
+
+    def handle_setnote(self, message: Message):
+        """Set or clear topic note (multiline body); empty body clears."""
+        ok, err = self._topic_note_access_ok(message)
+        if not ok:
+            self._topic_note_reply(message, err)
+            return
+        tid = message.message_thread_id
+        body = self._parse_setnote_body(message.text)
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("SELECT 1 FROM topics WHERE thread_id = ? LIMIT 1", (tid,))
+            if db_cursor.fetchone() is None:
+                self.bot.reply_to(message, _("User not found"))
+                return
+            db_cursor.execute("UPDATE topics SET note = ? WHERE thread_id = ?", (body, tid))
+            db.commit()
+        if body is None:
+            self.bot.reply_to(message, _("Note cleared."))
+        else:
+            self.bot.reply_to(message, _("Note saved."))
+
+    def handle_getnote(self, message: Message):
+        """Show topic note."""
+        ok, err = self._topic_note_access_ok(message)
+        if not ok:
+            self._topic_note_reply(message, err)
+            return
+        tid = message.message_thread_id
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("SELECT note FROM topics WHERE thread_id = ? LIMIT 1", (tid,))
+            row = db_cursor.fetchone()
+        if row is None:
+            self.bot.reply_to(message, _("User not found"))
+            return
+        note = row[0]
+        if note is None or not str(note).strip():
+            self.bot.reply_to(message, _("No note set for this topic."))
+            return
+        note = str(note)
+        if len(note) > self._GETNOTE_MAX_LEN:
+            note = note[: self._GETNOTE_MAX_LEN] + "\n" + _("(truncated)")
+        self.bot.reply_to(message, note)
+
     def handle_edit(self, message: Message):
         """Handle edited messages."""
         if self.check_valid_chat(message):

@@ -1006,5 +1006,33 @@ msgstr ""
 msgid "All spam detectors cleared"
 msgstr ""
 
+#: src/bot.py:157
+msgid "Set or clear topic note"
+msgstr "トピックのメモを設定または削除"
+
+#: src/bot.py:158
+msgid "Show topic note"
+msgstr "トピックのメモを表示"
+
+#: src/handlers/command_handler.py:355
+msgid "Cannot use this command in the main thread"
+msgstr "メインのスレッドではこのコマンドは使えません"
+
+#: src/handlers/command_handler.py:375
+msgid "Note cleared."
+msgstr "メモを削除しました。"
+
+#: src/handlers/command_handler.py:377
+msgid "Note saved."
+msgstr "メモを保存しました。"
+
+#: src/handlers/command_handler.py:395
+msgid "No note set for this topic."
+msgstr "このトピックにはメモがありません。"
+
+#: src/handlers/command_handler.py:399
+msgid "(truncated)"
+msgstr "（省略）"
+
 #~ msgid "Do not forward message"
 #~ msgstr "メッセージを転送しない"

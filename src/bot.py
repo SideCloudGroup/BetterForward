@@ -122,6 +122,8 @@ class TGBot:
         self.bot.message_handler(commands=["terminate"])(self.command_handler.handle_terminate)
         self.bot.message_handler(commands=["delete"])(self.command_handler.delete_message)
         self.bot.message_handler(commands=["verify"])(self.command_handler.handle_verify)
+        self.bot.message_handler(commands=["setnote"])(self.command_handler.handle_setnote)
+        self.bot.message_handler(commands=["getnote"])(self.command_handler.handle_getnote)
 
         # Message handler (for all message types)
         self.bot.message_handler(
@@ -152,6 +154,8 @@ class TGBot:
             types.BotCommand("delete", _("Delete a message")),
             types.BotCommand("terminate", _("Terminate a thread")),
             types.BotCommand("verify", _("Set verified status")),
+            types.BotCommand("setnote", _("Set or clear topic note")),
+            types.BotCommand("getnote", _("Show topic note")),
         ], scope=types.BotCommandScopeChat(self.group_id))
 
     def load_settings(self):

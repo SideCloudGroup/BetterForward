@@ -1,15 +1,15 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2025-12-27 21:28+0800\n"
-"PO-Revision-Date: 2025-12-27 21:28+0800\n"
+"POT-Creation-Date: 2026-05-10 18:26+0800\n"
+"PO-Revision-Date: 2026-05-10 18:26+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.8\n"
+"X-Generator: Poedit 3.9\n"
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-KeywordsList: _\n"
 "X-Poedit-SearchPath-0: main.py\n"
@@ -32,71 +32,79 @@ msgstr "正在启动BetterForward……"
 msgid "Message queue initialized with {} workers"
 msgstr "消息队列已初始化，包含 {} 个工作线程"
 
-#: src/bot.py:144 src/bot.py:152
+#: src/bot.py:146 src/bot.py:154
 msgid "Delete a message"
 msgstr "删除消息"
 
-#: src/bot.py:145 src/bot.py:149
+#: src/bot.py:147 src/bot.py:151
 msgid "Show help"
 msgstr "显示帮助菜单"
 
-#: src/bot.py:150
+#: src/bot.py:152
 msgid "Ban a user"
 msgstr "封禁用户"
 
-#: src/bot.py:151
+#: src/bot.py:153
 msgid "Unban a user"
 msgstr "解封用户"
 
-#: src/bot.py:153
+#: src/bot.py:155
 msgid "Terminate a thread"
 msgstr "删除一个会话"
 
-#: src/bot.py:154
+#: src/bot.py:156
 msgid "Set verified status"
 msgstr "设置人机验证状态"
 
-#: src/bot.py:178 src/bot.py:179
+#: src/bot.py:157
+msgid "Set or clear topic note"
+msgstr "设置或清空该话题备注"
+
+#: src/bot.py:158
+msgid "Show topic note"
+msgstr "查看该话题备注"
+
+#: src/bot.py:182 src/bot.py:183
 msgid "Topic function is not enabled in this group"
 msgstr "话题功能在群组中未启用"
 
-#: src/bot.py:183
+#: src/bot.py:187
 msgid "Manage Topics"
 msgstr "管理话题"
 
-#: src/bot.py:184
+#: src/bot.py:188
 msgid "Delete Messages"
 msgstr "删除消息"
 
-#: src/bot.py:189 src/bot.py:190
+#: src/bot.py:193 src/bot.py:194
 #, python-brace-format
 msgid "Bot doesn't have {} permission"
 msgstr "Bot缺少{}权限"
 
-#: src/bot.py:195
+#: src/bot.py:199
 msgid "Bot started successfully"
 msgstr "Bot启动成功"
 
-#: src/bot.py:213
+#: src/bot.py:217
 #, python-brace-format
 msgid "Spam topic loaded: {}"
 msgstr "垃圾消息话题已加载：{}"
 
-#: src/bot.py:215
+#: src/bot.py:219
 #, python-brace-format
 msgid "Invalid spam topic ID in database: {}"
 msgstr "数据库中的垃圾消息话题ID无效：{}"
 
-#: src/bot.py:222
+#: src/bot.py:226
 msgid "Creating spam topic..."
 msgstr "正在创建垃圾消息话题……"
 
-#: src/bot.py:231
+#: src/bot.py:235
 #, python-brace-format
 msgid "Spam topic created with ID: {}"
 msgstr "垃圾消息话题已创建，ID：{}"
 
-#: src/bot.py:236
+#: src/bot.py:240
 msgid ""
 "This topic is used to collect spam messages detected by keywords.\n"
 "Messages here are automatically forwarded from users who sent spam content."
@@ -104,21 +112,21 @@ msgstr ""
 "此话题用于收集通过关键词检测到的垃圾消息。\n"
 "这里的消息都是从发送垃圾内容的用户自动转发而来。"
 
-#: src/bot.py:243
+#: src/bot.py:247
 #, python-brace-format
 msgid "Failed to create spam topic: {}"
 msgstr "创建垃圾消息话题失败：{}"
 
-#: src/bot.py:257 src/handlers/admin_handler.py:1246
+#: src/bot.py:261 src/handlers/admin_handler.py:1246
 #, python-brace-format
 msgid "Failed to reset spam topic: {}"
 msgstr "重置垃圾话题失败：{}"
 
-#: src/bot.py:270
+#: src/bot.py:274
 msgid "Stopping bot..."
 msgstr "正在关闭机器人……"
 
-#: src/bot.py:273
+#: src/bot.py:277
 msgid "Bot stopped"
 msgstr "机器人已停止"
 
@@ -375,6 +383,7 @@ msgstr "封禁时间"
 
 #: src/handlers/admin_handler.py:452 src/handlers/command_handler.py:85
 #: src/handlers/command_handler.py:141 src/handlers/command_handler.py:298
+#: src/handlers/command_handler.py:370 src/handlers/command_handler.py:391
 msgid "User not found"
 msgstr "未找到该用户"
 
@@ -836,7 +845,8 @@ msgid "This command is not available in the main chat."
 msgstr "无法在主会话里使用该指令"
 
 #: src/handlers/command_handler.py:63 src/handlers/command_handler.py:105
-#: src/handlers/command_handler.py:242
+#: src/handlers/command_handler.py:242 src/handlers/command_handler.py:347
+#: src/handlers/command_handler.py:350 src/handlers/command_handler.py:353
 msgid "This command is only available to admin users."
 msgstr "只有管理员可以使用该指令"
 
@@ -893,7 +903,27 @@ msgstr "设置用户验证成功"
 msgid "User verification removed."
 msgstr "已移除用户的验证"
 
-#: src/handlers/command_handler.py:325
+#: src/handlers/command_handler.py:355
+msgid "Cannot use this command in the main thread"
+msgstr "无法在主话题（General）中使用此命令"
+
+#: src/handlers/command_handler.py:375
+msgid "Note cleared."
+msgstr "备注已清空。"
+
+#: src/handlers/command_handler.py:377
+msgid "Note saved."
+msgstr "备注已保存。"
+
+#: src/handlers/command_handler.py:395
+msgid "No note set for this topic."
+msgstr "该话题尚未设置备注。"
+
+#: src/handlers/command_handler.py:399
+msgid "(truncated)"
+msgstr "（已截断）"
+
+#: src/handlers/command_handler.py:416
 msgid "Edited at"
 msgstr "编辑于"
 
