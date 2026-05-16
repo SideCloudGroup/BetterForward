@@ -342,22 +342,30 @@ class CommandHandler:
     def _topic_note_reply(self, message: Message, text: str):
         self.bot.reply_to(message, text)
 
-    def _topic_note_access_ok(self, message: Message) -> tuple[bool, str | None]:
+    def _topic_note_place_ok(self, message: Message) -> tuple[bool, str | None]:
+        """Valid group + user topic (not General); any member may pass this for /getnote."""
         if message.chat.id != self.group_id:
-            return False, _("This command is only available to admin users.")
-        if self.bot.get_chat_member(message.chat.id, message.from_user.id).status not in (
-                "administrator", "creator"):
-            return False, _("This command is only available to admin users.")
+            return False, _("This command can only be used in the forwarding group.")
         tid = message.message_thread_id
         if tid is None:
-            return False, _("This command is only available to admin users.")
+            return False, _("Use this command inside a user topic.")
         if tid == 1:
             return False, _("Cannot use this command in the main thread")
         return True, None
 
+    def _topic_note_set_access_ok(self, message: Message) -> tuple[bool, str | None]:
+        """Place + administrator for /setnote."""
+        ok, err = self._topic_note_place_ok(message)
+        if not ok:
+            return False, err
+        if self.bot.get_chat_member(message.chat.id, message.from_user.id).status not in (
+                "administrator", "creator"):
+            return False, _("Only administrators can set or clear topic notes.")
+        return True, None
+
     def handle_setnote(self, message: Message):
         """Set or clear topic note (multiline body); empty body clears."""
-        ok, err = self._topic_note_access_ok(message)
+        ok, err = self._topic_note_set_access_ok(message)
         if not ok:
             self._topic_note_reply(message, err)
             return
@@ -378,7 +386,7 @@ class CommandHandler:
 
     def handle_getnote(self, message: Message):
         """Show topic note."""
-        ok, err = self._topic_note_access_ok(message)
+        ok, err = self._topic_note_place_ok(message)
         if not ok:
             self._topic_note_reply(message, err)
             return

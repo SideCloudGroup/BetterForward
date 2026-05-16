@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
-"POT-Creation-Date: 2026-05-10 18:26+0800\n"
-"PO-Revision-Date: 2026-05-10 18:26+0800\n"
+"POT-Creation-Date: 2026-05-16 10:45+0800\n"
+"PO-Revision-Date: 2026-05-16 10:45+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -256,8 +256,8 @@ msgid "The operation has timed out. Please initiate the process again."
 msgstr "操作已超时，请重新开始。"
 
 #: src/handlers/admin_handler.py:190 src/handlers/admin_handler.py:790
-#: src/handlers/message_handler.py:312 src/handlers/message_handler.py:489
-#: src/handlers/message_handler.py:490
+#: src/handlers/message_handler.py:313 src/handlers/message_handler.py:490
+#: src/handlers/message_handler.py:491
 msgid "Unsupported message type"
 msgstr "不支持的消息种类"
 
@@ -383,7 +383,7 @@ msgstr "封禁时间"
 
 #: src/handlers/admin_handler.py:452 src/handlers/command_handler.py:85
 #: src/handlers/command_handler.py:141 src/handlers/command_handler.py:298
-#: src/handlers/command_handler.py:370 src/handlers/command_handler.py:391
+#: src/handlers/command_handler.py:378 src/handlers/command_handler.py:399
 msgid "User not found"
 msgstr "未找到该用户"
 
@@ -461,7 +461,7 @@ msgstr "验证码设置已更新"
 
 #: src/handlers/admin_handler.py:585 src/handlers/admin_handler.py:586
 #: src/handlers/admin_handler.py:589 src/handlers/admin_handler.py:878
-#: src/handlers/message_handler.py:339
+#: src/handlers/message_handler.py:340
 msgid "Not set"
 msgstr "未设置"
 
@@ -845,8 +845,7 @@ msgid "This command is not available in the main chat."
 msgstr "无法在主会话里使用该指令"
 
 #: src/handlers/command_handler.py:63 src/handlers/command_handler.py:105
-#: src/handlers/command_handler.py:242 src/handlers/command_handler.py:347
-#: src/handlers/command_handler.py:350 src/handlers/command_handler.py:353
+#: src/handlers/command_handler.py:242
 msgid "This command is only available to admin users."
 msgstr "只有管理员可以使用该指令"
 
@@ -879,7 +878,7 @@ msgstr "请确认是否要删除该会话？"
 msgid "Please reply to the message you want to delete"
 msgstr "请回复你需要删除的消息"
 
-#: src/handlers/command_handler.py:268 src/handlers/message_handler.py:404
+#: src/handlers/command_handler.py:268 src/handlers/message_handler.py:405
 msgid "[Alert]"
 msgstr "[提示]"
 
@@ -903,27 +902,39 @@ msgstr "设置用户验证成功"
 msgid "User verification removed."
 msgstr "已移除用户的验证"
 
-#: src/handlers/command_handler.py:355
+#: src/handlers/command_handler.py:348
+msgid "This command can only be used in the forwarding group."
+msgstr "此命令仅可在转发目标群内使用。"
+
+#: src/handlers/command_handler.py:351
+msgid "Use this command inside a user topic."
+msgstr "请在用户话题内使用此命令。"
+
+#: src/handlers/command_handler.py:353
 msgid "Cannot use this command in the main thread"
 msgstr "无法在主话题（General）中使用此命令"
 
-#: src/handlers/command_handler.py:375
+#: src/handlers/command_handler.py:363
+msgid "Only administrators can set or clear topic notes."
+msgstr "仅管理员可以设置或清空话题备注。"
+
+#: src/handlers/command_handler.py:383
 msgid "Note cleared."
 msgstr "备注已清空。"
 
-#: src/handlers/command_handler.py:377
+#: src/handlers/command_handler.py:385
 msgid "Note saved."
 msgstr "备注已保存。"
 
-#: src/handlers/command_handler.py:395
+#: src/handlers/command_handler.py:403
 msgid "No note set for this topic."
 msgstr "该话题尚未设置备注。"
 
-#: src/handlers/command_handler.py:399
+#: src/handlers/command_handler.py:407
 msgid "(truncated)"
 msgstr "（已截断）"
 
-#: src/handlers/command_handler.py:416
+#: src/handlers/command_handler.py:424
 msgid "Edited at"
 msgstr "编辑于"
 
@@ -1035,61 +1046,61 @@ msgstr "回答不正确，请重新输入"
 msgid "User {} passed the captcha"
 msgstr "用户{}通过了人机验证"
 
-#: src/handlers/message_handler.py:246
+#: src/handlers/message_handler.py:247
 #, python-brace-format
 msgid "User {} completed TGuard verification (checked on message)"
 msgstr "用户{}已完成TGuard验证"
 
-#: src/handlers/message_handler.py:250
+#: src/handlers/message_handler.py:251
 #, python-brace-format
 msgid "User {} verification still pending"
 msgstr "用户{}仍在待验证状态"
 
-#: src/handlers/message_handler.py:252 src/handlers/message_handler.py:262
+#: src/handlers/message_handler.py:253 src/handlers/message_handler.py:263
 msgid "⚠️ Your message was not sent. Please complete verification first."
 msgstr "⚠️ 您的消息未发送。请先完成验证。"
 
-#: src/handlers/message_handler.py:258
+#: src/handlers/message_handler.py:259
 #, python-brace-format
 msgid "User {} is not verified"
 msgstr "用户{}未通过验证"
 
-#: src/handlers/message_handler.py:274
+#: src/handlers/message_handler.py:275
 msgid ""
 "Captcha is enabled. Please solve the following question and send the result "
 "directly\n"
 msgstr "验证码已启用。请回答以下问题并直接发送结果\n"
 
-#: src/handlers/message_handler.py:281 src/utils/captcha.py:128
+#: src/handlers/message_handler.py:282 src/utils/captcha.py:128
 #, python-brace-format
 msgid "TGuard verification error: {}"
 msgstr "TGuard验证错误：{}"
 
-#: src/handlers/message_handler.py:285
+#: src/handlers/message_handler.py:286
 msgid "Verification system error. Please try again later."
 msgstr "验证系统错误。请稍后重试。"
 
-#: src/handlers/message_handler.py:291 src/handlers/message_handler.py:293
+#: src/handlers/message_handler.py:292 src/handlers/message_handler.py:294
 #: src/utils/captcha.py:42
 msgid "Invalid captcha setting"
 msgstr "无效的验证码设置"
 
-#: src/handlers/message_handler.py:324
+#: src/handlers/message_handler.py:325
 #, python-brace-format
 msgid "Creating a new thread for user {}"
 msgstr "与用户{}新建话题"
 
-#: src/handlers/message_handler.py:374 src/handlers/message_handler.py:377
+#: src/handlers/message_handler.py:375 src/handlers/message_handler.py:378
 #, python-brace-format
 msgid "Failed to forward message from user {}"
 msgstr "转发用户{}的消息失败"
 
-#: src/handlers/message_handler.py:401 src/handlers/message_handler.py:404
+#: src/handlers/message_handler.py:402 src/handlers/message_handler.py:405
 #, python-brace-format
 msgid "Failed to forward message to user {}"
 msgstr "无法向用户{}发送消息"
 
-#: src/handlers/message_handler.py:408
+#: src/handlers/message_handler.py:409
 msgid "Chat not found, please remove this topic manually"
 msgstr "未找到对应会话，请手动删除当前话题"
 
