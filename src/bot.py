@@ -124,6 +124,7 @@ class TGBot:
         self.bot.message_handler(commands=["verify"])(self.command_handler.handle_verify)
         self.bot.message_handler(commands=["setnote"])(self.command_handler.handle_setnote)
         self.bot.message_handler(commands=["getnote"])(self.command_handler.handle_getnote)
+        self.bot.message_handler(commands=["refresh"])(self.command_handler.handle_refresh)
 
         # Message handler (for all message types)
         self.bot.message_handler(

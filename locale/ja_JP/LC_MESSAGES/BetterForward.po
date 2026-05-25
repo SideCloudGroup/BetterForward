@@ -373,7 +373,7 @@ msgstr ""
 
 #: src/handlers/admin_handler.py:407 src/handlers/admin_handler.py:472
 msgid "Username"
-msgstr ""
+msgstr "ユーザー名"
 
 #: src/handlers/admin_handler.py:409 src/handlers/admin_handler.py:473
 msgid "Blocked at"

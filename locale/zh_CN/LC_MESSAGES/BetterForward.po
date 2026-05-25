@@ -1212,3 +1212,24 @@ msgstr "垃圾检测器{}出错：{}"
 #: src/utils/spam_detector_manager.py:118
 msgid "All spam detectors cleared"
 msgstr "已清除所有垃圾检测器"
+
+#: src/bot.py
+msgid "Refresh user info"
+msgstr "刷新用户信息"
+
+#: src/handlers/command_handler.py
+msgid "User info refreshed."
+msgstr "用户信息已刷新。"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Failed to fetch user info: {}"
+msgstr "获取用户信息失败：{}"
+
+#: src/handlers/command_handler.py
+msgid "Only administrators can refresh user info."
+msgstr "仅管理员可以刷新用户信息。"
+
+#: src/utils/helpers.py
+msgid "Full Name"
+msgstr "全名"
