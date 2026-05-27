@@ -335,19 +335,10 @@ class MessageHandler:
                 db.commit()
                 thread_id = topic["message_thread_id"]
 
-                # Send and pin user info message asynchronously to avoid blocking
-                try:
-                    username = _("Not set") if message.from_user.username is None else f"@{message.from_user.username}"
-                    last_name = "" if message.from_user.last_name is None else f" {message.from_user.last_name}"
-                    pin_message = self.bot.send_message(self.group_id,
-                                                        f"User ID: [{userid}](tg://openmessage?user_id={userid})\n"
-                                                        f"Full Name: {escape_markdown(f'{message.from_user.first_name}{last_name}')}\n"
-                                                        f"Username: {escape_markdown(username)}\n",
-                                                        message_thread_id=thread_id, parse_mode='markdown')
-                    self.bot.pin_chat_message(self.group_id, pin_message.message_id)
-                except Exception as e:
-                    # Don't fail message forwarding if pinning fails
-                    logger.warning(f"Failed to pin info message for user {userid}: {e}")
+                pin_text = build_user_info_pin_text(
+                    userid, message.from_user.first_name, message.from_user.last_name,
+                    message.from_user.username)
+                send_and_pin_user_info(self.bot, self.group_id, thread_id, pin_text)
             else:
                 thread_id = thread_id[0]
             self.cache.set(f"chat_{userid}_threadid", thread_id)

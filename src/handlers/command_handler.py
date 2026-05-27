@@ -363,6 +363,49 @@ class CommandHandler:
             return False, _("Only administrators can set or clear topic notes.")
         return True, None
 
+    def _topic_admin_access_ok(self, message: Message) -> tuple[bool, str | None]:
+        """Place + administrator for topic admin commands."""
+        ok, err = self._topic_note_place_ok(message)
+        if not ok:
+            return False, err
+        if self.bot.get_chat_member(message.chat.id, message.from_user.id).status not in (
+                "administrator", "creator"):
+            return False, _("Only administrators can refresh user info.")
+        return True, None
+
+    def handle_refresh(self, message: Message):
+        """Refresh pinned user info in the current topic."""
+        ok, err = self._topic_admin_access_ok(message)
+        if not ok:
+            self._topic_note_reply(message, err)
+            return
+
+        thread_id = message.message_thread_id
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (thread_id,))
+            row = db_cursor.fetchone()
+        if row is None:
+            self.bot.reply_to(message, _("User not found"))
+            return
+        user_id = row[0]
+
+        try:
+            chat = self.bot.get_chat(user_id)
+        except ApiTelegramException as e:
+            self.bot.reply_to(message, _("Failed to fetch user info: {}").format(str(e)))
+            return
+
+        try:
+            edit_forum_topic(chat_id=self.group_id, message_thread_id=thread_id,
+                             name=f"{chat.first_name} | {user_id}", token=self.bot.token)
+        except ApiTelegramException as e:
+            logger.warning(f"Failed to update topic name for user {user_id}: {e}")
+
+        pin_text = build_user_info_pin_text(user_id, chat.first_name, chat.last_name, chat.username)
+        send_and_pin_user_info(self.bot, self.group_id, thread_id, pin_text)
+        self.bot.reply_to(message, _("User info refreshed."))
+
     def handle_setnote(self, message: Message):
         """Set or clear topic note (multiline body); empty body clears."""
         ok, err = self._topic_note_set_access_ok(message)
