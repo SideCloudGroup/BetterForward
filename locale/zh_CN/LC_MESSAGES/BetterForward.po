@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: BetterForward\n"
 "POT-Creation-Date: 2026-05-16 10:45+0800\n"
-"PO-Revision-Date: 2026-05-16 10:45+0800\n"
+"PO-Revision-Date: 2026-06-09 20:49+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -219,8 +219,7 @@ msgid ""
 "Let's set up an automatic response.\n"
 "Send /cancel to cancel this operation.\n"
 "\n"
-"Please send the keywords or regular expression that should trigger this "
-"response."
+"Please send the keywords or regular expression that should trigger this response."
 msgstr ""
 "开始设置自动回复\n"
 "发送 /cancel 来取消此操作\n"
@@ -247,8 +246,7 @@ msgid "Invalid regular expression"
 msgstr "正则表达式不合法"
 
 #: src/handlers/admin_handler.py:154
-msgid ""
-"Please send the response content. It can be text, stickers, photos and so on."
+msgid "Please send the response content. It can be text, stickers, photos and so on."
 msgstr "请发送自动回复的内容。可以是文本，贴纸，图片等类型。"
 
 #: src/handlers/admin_handler.py:168 src/handlers/admin_handler.py:822
@@ -374,6 +372,7 @@ msgid "Name"
 msgstr "姓名"
 
 #: src/handlers/admin_handler.py:407 src/handlers/admin_handler.py:472
+#: src/utils/permissions.py
 msgid "Username"
 msgstr "用户名"
 
@@ -492,9 +491,7 @@ msgstr ""
 "发送 /cancel 取消此操作。"
 
 #: src/handlers/admin_handler.py:635
-msgid ""
-"Invalid URL format. Please enter a valid URL starting with http:// or "
-"https://"
+msgid "Invalid URL format. Please enter a valid URL starting with http:// or https://"
 msgstr "无效的URL格式。请输入以 http:// 或 https:// 开头的有效URL。"
 
 #: src/handlers/admin_handler.py:644
@@ -549,7 +546,7 @@ msgstr ""
 "发送 /cancel 取消操作"
 
 #: src/handlers/admin_handler.py:749 src/handlers/admin_handler.py:750
-#: src/handlers/admin_handler.py:751
+#: src/handlers/admin_handler.py:751 src/utils/permissions.py
 msgid "Unknown"
 msgstr "未知"
 
@@ -625,9 +622,7 @@ msgid "Spam Topic ID: {}"
 msgstr "垃圾消息会话已加载：{}"
 
 #: src/handlers/admin_handler.py:879
-msgid ""
-"Messages containing these keywords will be forwarded to the spam topic "
-"silently."
+msgid "Messages containing these keywords will be forwarded to the spam topic silently."
 msgstr "包含这些关键词的消息将被静默转发到垃圾消息会话。"
 
 #: src/handlers/admin_handler.py:892
@@ -725,9 +720,7 @@ msgid "Not set (no reply will be sent)"
 msgstr "未设置（不会发送回复）"
 
 #: src/handlers/admin_handler.py:1111
-msgid ""
-"When enabled, blocked users will receive this message when they try to send "
-"messages."
+msgid "When enabled, blocked users will receive this message when they try to send messages."
 msgstr "启用后，被拉黑的用户发送消息时将收到此回复。"
 
 #: src/handlers/admin_handler.py:1128
@@ -835,9 +828,7 @@ msgid "Invalid action received"
 msgstr "接收到无效的操作"
 
 #: src/handlers/command_handler.py:50
-msgid ""
-"I'm a bot that forwards messages, so please just tell me what you want to "
-"say."
+msgid "I'm a bot that forwards messages, so please just tell me what you want to say."
 msgstr "我是消息转发Bot，请告诉我你想说的话"
 
 #: src/handlers/command_handler.py:60
@@ -1066,9 +1057,7 @@ msgid "User {} is not verified"
 msgstr "用户{}未通过验证"
 
 #: src/handlers/message_handler.py:275
-msgid ""
-"Captcha is enabled. Please solve the following question and send the result "
-"directly\n"
+msgid "Captcha is enabled. Please solve the following question and send the result directly\n"
 msgstr "验证码已启用。请回答以下问题并直接发送结果\n"
 
 #: src/handlers/message_handler.py:282 src/utils/captcha.py:128
@@ -1132,8 +1121,7 @@ msgstr "🔐 完成验证"
 #: src/utils/captcha.py:105
 msgid ""
 "Please complete the verification by clicking the button below.\n"
-"After completing verification, send a message to check your verification "
-"status."
+"After completing verification, send a message to check your verification status."
 msgstr ""
 "请点击下方按钮以完成人机验证。\n"
 "完成认证后，请再次发送消息。"
@@ -1263,20 +1251,21 @@ msgid "Reset Reply Message"
 msgstr "重置回复消息"
 
 #: src/handlers/admin_handler.py
-msgid "{permission} is used to render the permission variable, for example \"Photo\"."
-msgstr "{permission} 用作渲染权限变量，例如“图片”。"
+#, python-brace-format
+msgid "{permission} is used to render the permission variable, for example \"{}\"."
+msgstr "{permission} 用作渲染权限变量，例如「{}」。"
 
 #: src/handlers/admin_handler.py
 msgid ""
 "Please send the message to reply when a permission blocks a user message.\n"
 "Send /cancel to cancel this operation.\n"
 "\n"
-"{permission} is used to render the permission variable, for example \"Photo\"."
+"{permission} is used to render the permission variable, for example \"{}\"."
 msgstr ""
 "请发送权限拦截用户消息时要回复的消息。\n"
 "发送 /cancel 可取消本次操作。\n"
 "\n"
-"{permission} 用作渲染权限变量，例如“图片”。"
+"{permission} 用作渲染权限变量，例如「{}」。"
 
 #: src/handlers/admin_handler.py
 #, python-brace-format
@@ -1301,12 +1290,8 @@ msgid "Unknown permission keys: {}"
 msgstr "未知权限键：{}"
 
 #: src/handlers/command_handler.py
-msgid ""
-"Usage: /allow photo video link or /disallow photo video link (multiple keys "
-"allowed). Use all to grant/deny all permissions."
-msgstr ""
-"用法：/allow photo video link 或 /disallow photo video link （可多选）。"
-"使用 all 键时授予/拒绝全部权限。"
+msgid "Usage: /allow photo video link or /disallow photo video link (multiple keys allowed). Use all to grant/deny all permissions."
+msgstr "用法：/allow photo video link 或 /disallow photo video link （可多选）。使用 all 键时授予/拒绝全部权限。"
 
 #: src/handlers/command_handler.py
 #, python-brace-format
@@ -1325,3 +1310,117 @@ msgstr "已禁止"
 #, python-brace-format
 msgid "{} permissions for user {}: {}"
 msgstr "{}用户 {} 的权限：{}"
+
+#: src/handlers/admin_handler.py
+msgid "Permission Settings"
+msgstr "权限设置"
+
+#: src/handlers/admin_handler.py
+msgid "Configure global permission policy and restriction replies."
+msgstr "配置全局权限策略与拦截回复。"
+
+#: src/utils/permissions.py
+msgid "Photo"
+msgstr "图片"
+
+#: src/utils/permissions.py
+msgid "Sticker & Animation"
+msgstr "贴图&动图"
+
+#: src/utils/permissions.py
+msgid "Video"
+msgstr "视频"
+
+#: src/utils/permissions.py
+msgid "Voice"
+msgstr "语音"
+
+#: src/utils/permissions.py
+msgid "File"
+msgstr "文件"
+
+#: src/utils/permissions.py
+msgid "Link"
+msgstr "链接"
+
+#: src/utils/permissions.py
+msgid "Photo Permission"
+msgstr "图片权限"
+
+#: src/utils/permissions.py
+msgid "Sticker & Animation Permission"
+msgstr "贴图&动图权限"
+
+#: src/utils/permissions.py
+msgid "Video Permission"
+msgstr "视频权限"
+
+#: src/utils/permissions.py
+msgid "Voice Permission"
+msgstr "语音权限"
+
+#: src/utils/permissions.py
+msgid "File Permission"
+msgstr "文件权限"
+
+#: src/utils/permissions.py
+msgid "Link Permission"
+msgstr "链接权限"
+
+#: src/utils/permissions.py
+msgid "Username Permission"
+msgstr "用户名权限"
+
+#: src/utils/permissions.py
+msgid "You are not allowed to send \"{permission}\" type messages. Please contact the other party to lift the restriction."
+msgstr "您不被允许发送「{permission}」类型消息，请先联系对方解限。"
+
+#: src/handlers/message_handler.py
+#, python-brace-format
+msgid "Message from user {} blocked by permissions {} ({:.2f}ms)"
+msgstr "用户 {} 的消息因权限 {} 被拦截（{:.2f}ms）"
+
+#: src/handlers/message_handler.py
+#, python-brace-format
+msgid "Permission manager not configured; allowing message from user {}"
+msgstr "权限管理器未配置；放行用户 {} 的消息"
+
+#: src/handlers/message_handler.py
+#, python-brace-format
+msgid "Failed to send permission restriction reply to user {}: {}"
+msgstr "向用户 {} 发送权限限制回复失败：{}"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Permissions for user {}:"
+msgstr "用户 {} 的权限："
+
+#: src/handlers/command_handler.py
+msgid "Inherit"
+msgstr "继承"
+
+#: src/handlers/command_handler.py
+msgid "Denied"
+msgstr "拒绝"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "{}: global {}, override {}, effective {}"
+msgstr "{}：全局 {}，覆盖 {}，生效 {}"
+
+#: src/handlers/command_handler.py
+msgid "Usage: /resetpermissions photo video link (multiple keys allowed). Use all to reset all permission overrides."
+msgstr "用法：/resetpermissions photo video link（可多选）。使用 all 键时重置全部权限覆盖。"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Reset permissions for user {}: {}"
+msgstr "已重置用户 {} 的权限：{}"
+
+#: src/bot.py
+msgid "Show user permissions"
+msgstr "查看用户权限"
+
+#: src/bot.py
+msgid "Reset user permission overrides"
+msgstr "重置用户权限覆盖"

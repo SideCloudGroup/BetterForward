@@ -372,6 +372,7 @@ msgid "Name"
 msgstr ""
 
 #: src/handlers/admin_handler.py:407 src/handlers/admin_handler.py:472
+#: src/utils/permissions.py
 msgid "Username"
 msgstr "ユーザー名"
 
@@ -550,9 +551,9 @@ msgid ""
 msgstr ""
 
 #: src/handlers/admin_handler.py:749 src/handlers/admin_handler.py:750
-#: src/handlers/admin_handler.py:751
+#: src/handlers/admin_handler.py:751 src/utils/permissions.py
 msgid "Unknown"
-msgstr ""
+msgstr "不明"
 
 #: src/handlers/admin_handler.py:754 src/handlers/admin_handler.py:758
 msgid "Failed to retrieve IP information"
@@ -1201,20 +1202,33 @@ msgstr ""
 msgid "All spam detectors cleared"
 msgstr ""
 
+#: src/bot.py
+msgid "Refresh user info"
+msgstr "ユーザー情報を更新"
+
+#: src/handlers/command_handler.py
+msgid "User info refreshed."
+msgstr "ユーザー情報を更新しました。"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Failed to fetch user info: {}"
+msgstr "ユーザー情報の取得に失敗しました：{}"
+
 #~ msgid "Do not forward message"
 #~ msgstr "メッセージを転送しない"
 
 #: src/handlers/admin_handler.py
 msgid "Default Permission Settings"
-msgstr ""
+msgstr "デフォルト権限設定"
 
 #: src/handlers/admin_handler.py
 msgid "Current global default permissions:"
-msgstr ""
+msgstr "現在のグローバルデフォルト権限："
 
 #: src/handlers/admin_handler.py src/handlers/command_handler.py
 msgid "Permission settings are not available"
-msgstr ""
+msgstr "権限設定は現在利用できません"
 
 #: src/handlers/admin_handler.py
 msgid "Permission Restriction Reply Message"
@@ -1222,31 +1236,32 @@ msgstr "権限制限時の返信メッセージ"
 
 #: src/handlers/admin_handler.py
 msgid "Disable Reply"
-msgstr ""
+msgstr "返信を無効化"
 
 #: src/handlers/admin_handler.py
 msgid "Enable Reply"
-msgstr ""
+msgstr "返信を有効化"
 
 #: src/handlers/admin_handler.py
 msgid "Reset Reply Message"
-msgstr ""
+msgstr "返信メッセージをリセット"
 
 #: src/handlers/admin_handler.py
-msgid "{permission} is used to render the permission variable, for example \"Photo\"."
-msgstr "{permission} は権限変数の描画に使用されます。例：「画像」。"
+#, python-brace-format
+msgid "{permission} is used to render the permission variable, for example \"{}\"."
+msgstr "{permission} は権限変数の描画に使用されます。例：「{}」。"
 
 #: src/handlers/admin_handler.py
 msgid ""
 "Please send the message to reply when a permission blocks a user message.\n"
 "Send /cancel to cancel this operation.\n"
 "\n"
-"{permission} is used to render the permission variable, for example \"Photo\"."
+"{permission} is used to render the permission variable, for example \"{}\"."
 msgstr ""
 "権限によってユーザーのメッセージをブロックしたときに返信するメッセージを送信してください。\n"
 "キャンセルするには /cancel を送信してください。\n"
 "\n"
-"{permission} は権限変数の描画に使用されます。例：「画像」。"
+"{permission} は権限変数の描画に使用されます。例：「{}」。"
 
 #: src/handlers/admin_handler.py
 #, python-brace-format
@@ -1255,20 +1270,20 @@ msgstr "権限制限時の返信メッセージを更新しました: {}"
 
 #: src/handlers/callback_handler.py src/handlers/command_handler.py
 msgid "This action is only available to admin users."
-msgstr ""
+msgstr "この操作は管理者のみ利用できます。"
 
 #: src/bot.py
 msgid "Allow user permissions"
-msgstr ""
+msgstr "ユーザー権限を許可"
 
 #: src/bot.py
 msgid "Disallow user permissions"
-msgstr ""
+msgstr "ユーザー権限を拒否"
 
 #: src/handlers/command_handler.py
 #, python-brace-format
 msgid "Unknown permission keys: {}"
-msgstr ""
+msgstr "不明な権限キー：{}"
 
 #: src/handlers/command_handler.py
 msgid ""
@@ -1285,13 +1300,133 @@ msgstr "使用可能な権限キー：{}"
 
 #: src/handlers/command_handler.py
 msgid "Allowed"
-msgstr ""
+msgstr "許可"
 
 #: src/handlers/command_handler.py
 msgid "Disallowed"
-msgstr ""
+msgstr "拒否済み"
 
 #: src/handlers/command_handler.py
 #, python-brace-format
 msgid "{} permissions for user {}: {}"
+msgstr "ユーザー {} の権限を{}しました：{}"
+
+#: src/handlers/admin_handler.py
+msgid "Permission Settings"
+msgstr "権限設定"
+
+#: src/handlers/admin_handler.py
+msgid "Configure global permission policy and restriction replies."
+msgstr "グローバル権限ポリシーと制限時の返信を設定します。"
+
+#: src/utils/permissions.py
+msgid "Photo"
+msgstr "画像"
+
+#: src/utils/permissions.py
+msgid "Sticker & Animation"
+msgstr "スタンプ&アニメ"
+
+#: src/utils/permissions.py
+msgid "Video"
+msgstr "動画"
+
+#: src/utils/permissions.py
+msgid "Voice"
+msgstr "音声"
+
+#: src/utils/permissions.py
+msgid "File"
+msgstr "ファイル"
+
+#: src/utils/permissions.py
+msgid "Link"
+msgstr "リンク"
+
+#: src/utils/permissions.py
+msgid "Photo Permission"
+msgstr "画像権限"
+
+#: src/utils/permissions.py
+msgid "Sticker & Animation Permission"
+msgstr "スタンプ&アニメ権限"
+
+#: src/utils/permissions.py
+msgid "Video Permission"
+msgstr "動画権限"
+
+#: src/utils/permissions.py
+msgid "Voice Permission"
+msgstr "音声権限"
+
+#: src/utils/permissions.py
+msgid "File Permission"
+msgstr "ファイル権限"
+
+#: src/utils/permissions.py
+msgid "Link Permission"
+msgstr "リンク権限"
+
+#: src/utils/permissions.py
+msgid "Username Permission"
+msgstr "ユーザー名権限"
+
+#: src/utils/permissions.py
+msgid ""
+"You are not allowed to send \"{permission}\" type messages. Please contact "
+"the other party to lift the restriction."
+msgstr "「{permission}」タイプのメッセージは送信できません。制限解除について相手に連絡してください。"
+
+#: src/handlers/message_handler.py
+#, python-brace-format
+msgid "Message from user {} blocked by permissions {} ({:.2f}ms)"
+msgstr "ユーザー {} のメッセージは権限 {} によりブロックされました（{:.2f}ms）"
+
+#: src/handlers/message_handler.py
+#, python-brace-format
+msgid "Permission manager not configured; allowing message from user {}"
+msgstr "権限マネージャーが未設定です。ユーザー {} のメッセージを許可します"
+
+#: src/handlers/message_handler.py
+#, python-brace-format
+msgid "Failed to send permission restriction reply to user {}: {}"
+msgstr "ユーザー {} への権限制限返信の送信に失敗しました：{}"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Permissions for user {}:"
+msgstr "ユーザー {} の権限："
+
+#: src/handlers/command_handler.py
+msgid "Inherit"
+msgstr "継承"
+
+#: src/handlers/command_handler.py
+msgid "Denied"
+msgstr "拒否"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "{}: global {}, override {}, effective {}"
+msgstr "{}：グローバル {}、上書き {}、有効 {}"
+
+#: src/handlers/command_handler.py
+msgid ""
+"Usage: /resetpermissions photo video link (multiple keys allowed). Use all to "
+"reset all permission overrides."
 msgstr ""
+"使い方：/resetpermissions photo video link（複数選択可）。"
+"all キーを使用するとすべての権限上書きをリセットします。"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Reset permissions for user {}: {}"
+msgstr "ユーザー {} の権限をリセットしました：{}"
+
+#: src/bot.py
+msgid "Show user permissions"
+msgstr "ユーザー権限を表示"
+
+#: src/bot.py
+msgid "Reset user permission overrides"
+msgstr "ユーザー権限の上書きをリセット"

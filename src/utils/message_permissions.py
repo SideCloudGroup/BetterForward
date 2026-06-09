@@ -9,6 +9,7 @@ CONTENT_TYPE_PERMISSION_MAP = {
     "animation": "sticker",
     "video": "video",
     "voice": "voice",
+    "audio": "file",
     "document": "file",
 }
 

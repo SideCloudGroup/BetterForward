@@ -5,16 +5,27 @@ import sqlite3
 from datetime import datetime
 
 from telebot import types
-from telebot.apihelper import ApiTelegramException, delete_forum_topic, close_forum_topic, reopen_forum_topic
+from telebot.apihelper import (
+    ApiTelegramException,
+    close_forum_topic,
+    delete_forum_topic,
+    edit_forum_topic,
+    reopen_forum_topic,
+)
 from telebot.types import Message
 
 from src.config import logger, _
+from src.utils.helpers import build_user_info_pin_text, send_and_pin_user_info
 from src.utils.permissions import (
     ALLOW,
     DENY,
+    ENABLE,
+    join_permission_labels,
     list_permission_command_keys,
+    list_permission_keys,
     parse_permission_keys,
     permission_label,
+    permission_menu_label,
 )
 
 
@@ -48,6 +59,19 @@ class CommandHandler:
         """Check if message is in valid chat context."""
         return message.chat.id == self.group_id and message.message_thread_id is None
 
+    def _is_group_admin(self, user_id: int, chat_id: int | None = None) -> bool:
+        """Return True when the user is an administrator of the forwarding group."""
+        chat_id = chat_id or self.group_id
+        try:
+            return self.bot.get_chat_member(chat_id, user_id).status in ("administrator", "creator")
+        except ApiTelegramException:
+            return False
+
+    def _reply_command_error(self, message: Message, err: str | None):
+        """Reply with an error message when err is set; stay silent otherwise."""
+        if err:
+            self.bot.reply_to(message, err)
+
     def help_command(self, message: Message, menu_callback):
         """Handle /help and /start commands."""
         if self.check_valid_chat(message):
@@ -65,11 +89,10 @@ class CommandHandler:
 
     def ban_user(self, message: Message):
         """Ban a user from sending messages."""
-        if message.chat.id == self.group_id and message.message_thread_id is None:
-            self.bot.send_message(self.group_id, _("This command is not available in the main chat."))
+        if message.chat.id != self.group_id or not self._is_group_admin(message.from_user.id):
             return
-        if message.chat.id != self.group_id:
-            self.bot.send_message(message.chat.id, _("This command is only available to admin users."))
+        if message.message_thread_id is None:
+            self.bot.send_message(self.group_id, _("This command is not available in the main chat."))
             return
 
         with sqlite3.connect(self.db_path) as db:
@@ -110,8 +133,7 @@ class CommandHandler:
 
     def unban_user(self, message: Message, user_id: int = None):
         """Unban a user."""
-        if message.chat.id != self.group_id:
-            self.bot.send_message(message.chat.id, _("This command is only available to admin users."))
+        if message.chat.id != self.group_id or not self._is_group_admin(message.from_user.id):
             return
 
         if user_id is None:
@@ -216,8 +238,7 @@ class CommandHandler:
 
     def handle_terminate(self, message: Message):
         """Handle /terminate command."""
-        if (message.chat.id == self.group_id) and (
-                self.bot.get_chat_member(message.chat.id, message.from_user.id).status in ["administrator", "creator"]):
+        if message.chat.id == self.group_id and self._is_group_admin(message.from_user.id):
             user_id = None
             thread_id = None
             if message.message_thread_id is None:
@@ -247,8 +268,6 @@ class CommandHandler:
             markup.add(confirm_button, cancel_button)
             self.bot.reply_to(message, _("Are you sure you want to terminate this thread?"),
                               reply_markup=markup)
-        else:
-            self.bot.send_message(message.chat.id, _("This command is only available to admin users."))
 
     def delete_message(self, message: Message):
         """Delete a forwarded message."""
@@ -287,7 +306,9 @@ class CommandHandler:
 
     def handle_verify(self, message: Message):
         """Handle /verify command to manually set verification status."""
-        if message.chat.id != self.group_id or message.message_thread_id is None:
+        ok, err = self._admin_topic_command_access_ok(message)
+        if not ok:
+            self._reply_command_error(message, err)
             return
 
         command_parts = message.text.split()
@@ -362,31 +383,32 @@ class CommandHandler:
             return False, _("Cannot use this command in the main thread")
         return True, None
 
+    def _admin_topic_command_access_ok(self, message: Message) -> tuple[bool, str | None]:
+        """Admin-only topic commands: silent for non-admins and private/wrong chat."""
+        if message.chat.id != self.group_id:
+            return False, None
+        if not self._is_group_admin(message.from_user.id):
+            return False, None
+        tid = message.message_thread_id
+        if tid is None:
+            return False, _("Use this command inside a user topic.")
+        if tid == 1:
+            return False, _("Cannot use this command in the main thread")
+        return True, None
+
     def _topic_note_set_access_ok(self, message: Message) -> tuple[bool, str | None]:
         """Place + administrator for /setnote."""
-        ok, err = self._topic_note_place_ok(message)
-        if not ok:
-            return False, err
-        if self.bot.get_chat_member(message.chat.id, message.from_user.id).status not in (
-                "administrator", "creator"):
-            return False, _("Only administrators can set or clear topic notes.")
-        return True, None
+        return self._admin_topic_command_access_ok(message)
 
     def _topic_admin_access_ok(self, message: Message) -> tuple[bool, str | None]:
         """Place + administrator for topic admin commands."""
-        ok, err = self._topic_note_place_ok(message)
-        if not ok:
-            return False, err
-        if self.bot.get_chat_member(message.chat.id, message.from_user.id).status not in (
-                "administrator", "creator"):
-            return False, _("Only administrators can refresh user info.")
-        return True, None
+        return self._admin_topic_command_access_ok(message)
 
     def handle_refresh(self, message: Message):
         """Refresh pinned user info in the current topic."""
         ok, err = self._topic_admin_access_ok(message)
         if not ok:
-            self._topic_note_reply(message, err)
+            self._reply_command_error(message, err)
             return
 
         thread_id = message.message_thread_id
@@ -419,7 +441,7 @@ class CommandHandler:
         """Set or clear topic note (multiline body); empty body clears."""
         ok, err = self._topic_note_set_access_ok(message)
         if not ok:
-            self._topic_note_reply(message, err)
+            self._reply_command_error(message, err)
             return
         tid = message.message_thread_id
         body = self._parse_setnote_body(message.text)
@@ -467,6 +489,90 @@ class CommandHandler:
         """Deny explicit permission overrides for the current topic's user."""
         self._handle_permission_override_command(message, DENY)
 
+    def show_user_permissions(self, message: Message):
+        """Show effective permission status for the current topic's user."""
+        if self.permission_manager is None:
+            self.bot.reply_to(message, _("Permission settings are not available"))
+            return
+
+        ok, err = self._permission_command_access_ok(message)
+        if not ok:
+            self._reply_command_error(message, err)
+            return
+
+        user_id = self._user_id_for_topic(message.message_thread_id)
+        if user_id is None:
+            self.bot.reply_to(message, _("User not found"))
+            return
+
+        lines = [_("Permissions for user {}:").format(user_id), ""]
+        overrides = self.permission_manager.get_user_overrides(user_id)
+
+        for permission_key in list_permission_keys():
+            global_default = self.permission_manager.get_global_default_value(permission_key)
+            global_text = _("Enabled") if global_default == ENABLE else _("Disabled")
+            override = overrides.get(permission_key)
+            if override == ALLOW:
+                override_text = _("Allowed")
+            elif override == DENY:
+                override_text = _("Disallowed")
+            else:
+                override_text = _("Inherit")
+
+            effective = _("Allowed") if self.permission_manager.resolve_permission(
+                user_id, permission_key) else _("Denied")
+
+            lines.append(
+                _("{}: global {}, override {}, effective {}").format(
+                    permission_menu_label(permission_key),
+                    global_text,
+                    override_text,
+                    effective,
+                )
+            )
+
+        self.bot.reply_to(message, "\n".join(lines))
+
+    def reset_user_permissions(self, message: Message):
+        """Clear per-user permission overrides for the current topic's user."""
+        if self.permission_manager is None:
+            self.bot.reply_to(message, _("Permission settings are not available"))
+            return
+
+        ok, err = self._permission_command_access_ok(message)
+        if not ok:
+            self._reply_command_error(message, err)
+            return
+
+        user_id = self._user_id_for_topic(message.message_thread_id)
+        if user_id is None:
+            self.bot.reply_to(message, _("User not found"))
+            return
+
+        valid_keys, unknown_values = parse_permission_keys(self._permission_command_args(message.text))
+        if not valid_keys and not unknown_values:
+            self.bot.reply_to(message, self._reset_permission_command_usage())
+            return
+
+        if unknown_values:
+            self.bot.reply_to(
+                message,
+                _("Unknown permission keys: {}").format(", ".join(unknown_values)) + "\n" +
+                self._reset_permission_command_usage()
+            )
+            return
+
+        for permission_key in valid_keys:
+            self.permission_manager.clear_user_override(user_id, permission_key)
+
+        labels = join_permission_labels(
+            [permission_label(permission_key) for permission_key in valid_keys]
+        )
+        self.bot.reply_to(
+            message,
+            _("Reset permissions for user {}: {}").format(user_id, labels)
+        )
+
     def _handle_permission_override_command(self, message: Message, override: str):
         if self.permission_manager is None:
             self.bot.reply_to(message, _("Permission settings are not available"))
@@ -474,7 +580,7 @@ class CommandHandler:
 
         ok, err = self._permission_command_access_ok(message)
         if not ok:
-            self.bot.reply_to(message, err)
+            self._reply_command_error(message, err)
             return
 
         user_id = self._user_id_for_topic(message.message_thread_id)
@@ -498,7 +604,9 @@ class CommandHandler:
         for permission_key in valid_keys:
             self.permission_manager.set_user_override(user_id, permission_key, override)
 
-        labels = "、".join(permission_label(permission_key) for permission_key in valid_keys)
+        labels = join_permission_labels(
+            [permission_label(permission_key) for permission_key in valid_keys]
+        )
         action_text = _("Allowed") if override == ALLOW else _("Disallowed")
         self.bot.reply_to(
             message,
@@ -506,16 +614,7 @@ class CommandHandler:
         )
 
     def _permission_command_access_ok(self, message: Message) -> tuple[bool, str | None]:
-        if message.chat.id != self.group_id:
-            return False, _("This command is only available to admin users.")
-        if message.message_thread_id is None:
-            return False, _("Use this command inside a user topic.")
-        if message.message_thread_id == 1:
-            return False, _("Cannot use this command in the main thread")
-        if self.bot.get_chat_member(message.chat.id, message.from_user.id).status not in (
-                "administrator", "creator"):
-            return False, _("This command is only available to admin users.")
-        return True, None
+        return self._admin_topic_command_access_ok(message)
 
     def _user_id_for_topic(self, thread_id: int):
         with sqlite3.connect(self.db_path) as db:
@@ -533,6 +632,11 @@ class CommandHandler:
     def _permission_command_usage(self) -> str:
         return _("Usage: /allow photo video link or /disallow photo video link "
                  "(multiple keys allowed). Use all to grant/deny all permissions.") + "\n" + \
+            _("Valid permission keys: {}").format(", ".join(list_permission_command_keys()))
+
+    def _reset_permission_command_usage(self) -> str:
+        return _("Usage: /resetpermissions photo video link (multiple keys allowed). "
+                 "Use all to reset all permission overrides.") + "\n" + \
             _("Valid permission keys: {}").format(", ".join(list_permission_command_keys()))
 
     def handle_edit(self, message: Message):

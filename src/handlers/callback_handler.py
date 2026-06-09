@@ -8,6 +8,7 @@ from src.config import logger, _
 
 
 PERMISSION_ADMIN_ACTIONS = {
+    "permission_settings",
     "default_permissions",
     "toggle_permission_default",
     "permission_reply_settings",
@@ -88,6 +89,8 @@ class CallbackHandler:
         match action:
             case "menu":
                 self.admin_handler.menu(call.message, edit=True)
+            case "permission_settings":
+                self.admin_handler.permission_settings_menu(call.message, edit=True)
             case "default_permissions":
                 self.admin_handler.default_permissions_menu(call.message, edit=True)
             case "toggle_permission_default":

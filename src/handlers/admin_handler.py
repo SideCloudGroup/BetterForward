@@ -16,7 +16,9 @@ from src.utils.permissions import (
     DEFAULT_RESTRICTED_REPLY_MESSAGE,
     DISABLE,
     ENABLE,
+    get_default_restricted_reply_message,
     list_permission_keys,
+    permission_label,
     permission_menu_label,
 )
 
@@ -69,8 +71,8 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "spam_keywords"})),
             types.InlineKeyboardButton("🚷" + _("Blocked User Reply"),
                                        callback_data=json.dumps({"action": "blocked_reply_settings"})),
-            types.InlineKeyboardButton("🔐" + _("Default Permission Settings"),
-                                       callback_data=json.dumps({"action": "default_permissions"})),
+            types.InlineKeyboardButton("🔐" + _("Permission Settings"),
+                                       callback_data=json.dumps({"action": "permission_settings"})),
             types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
                                        callback_data=json.dumps({"action": "captcha_settings"})),
             types.InlineKeyboardButton("🛡️" + _("TGuard API Settings"),
@@ -94,6 +96,31 @@ class AdminHandler:
                                   message_thread_id=None)
 
     # Permission Management
+    def permission_settings_menu(self, message: Message, edit: bool = False):
+        """Display permission settings submenu."""
+        if not self.check_valid_chat(message):
+            return
+
+        if self.permission_manager is None:
+            self._send_or_edit_permission_menu_message(
+                message, _("Permission settings are not available"), None, edit)
+            return
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(
+            "⚙️ " + _("Default Permission Settings"),
+            callback_data=json.dumps({"action": "default_permissions"})
+        ))
+        markup.add(types.InlineKeyboardButton(
+            "✏️ " + _("Permission Restriction Reply Message"),
+            callback_data=json.dumps({"action": "permission_reply_settings"})
+        ))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "menu"})))
+
+        text = _("Permission Settings") + "\n\n" + _("Configure global permission policy and restriction replies.")
+        self._send_or_edit_permission_menu_message(message, text, markup, edit)
+
     def default_permissions_menu(self, message: Message, edit: bool = False):
         """Display global default permission settings."""
         if not self.check_valid_chat(message):
@@ -122,12 +149,8 @@ class AdminHandler:
                 })
             ))
 
-        markup.add(types.InlineKeyboardButton(
-            "✏️ " + _("Permission Restriction Reply Message"),
-            callback_data=json.dumps({"action": "permission_reply_settings"})
-        ))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
-                                              callback_data=json.dumps({"action": "menu"})))
+                                              callback_data=json.dumps({"action": "permission_settings"})))
 
         self._send_or_edit_permission_menu_message(message, text, markup, edit)
 
@@ -180,13 +203,15 @@ class AdminHandler:
             callback_data=json.dumps({"action": "reset_permission_reply_message"})
         ))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
-                                              callback_data=json.dumps({"action": "default_permissions"})))
+                                              callback_data=json.dumps({"action": "permission_settings"})))
 
         status_text = _("Enabled") if current_enabled == ENABLE else _("Disabled")
+        example_label = permission_label("photo")
         text = _("Permission Restriction Reply Message") + "\n\n"
         text += _("Status: {}").format(status_text) + "\n"
         text += _("Current message: {}").format(current_message) + "\n\n"
-        text += _("{permission} is used to render the permission variable, for example \"Photo\".")
+        text += _("{permission} is used to render the permission variable, for example \"{}\".").replace(
+            "{}", example_label)
 
         self._send_or_edit_permission_menu_message(message, text, markup, edit)
 
@@ -205,10 +230,12 @@ class AdminHandler:
 
     def edit_permission_reply_message(self, message: Message):
         """Start editing permission restriction reply message."""
+        example_label = permission_label("photo")
         msg = self.bot.edit_message_text(
             text=_("Please send the message to reply when a permission blocks a user message.\n"
                    "Send /cancel to cancel this operation.\n\n"
-                   "{permission} is used to render the permission variable, for example \"Photo\"."),
+                   "{permission} is used to render the permission variable, for example \"{}\".").replace(
+                "{}", example_label),
             chat_id=self.group_id,
             message_id=message.message_id)
         self.bot.register_next_step_handler(msg, self.process_permission_reply_message)

@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+from src.config import _, args
+
 
 ENABLE = "enable"
 DISABLE = "disable"
@@ -16,24 +18,45 @@ ALL_PERMISSION_KEY = "all"
 SETTING_PREFIX = "permission_default_"
 RESTRICTED_REPLY_ENABLED_KEY = "permission_restricted_reply_enabled"
 RESTRICTED_REPLY_MESSAGE_KEY = "permission_restricted_reply_message"
-DEFAULT_RESTRICTED_REPLY_MESSAGE = "您不被允许发送“{permission}”类型消息，请先联系对方解限。"
+DEFAULT_RESTRICTED_REPLY_MESSAGE = (
+    'You are not allowed to send "{permission}" type messages. '
+    "Please contact the other party to lift the restriction."
+)
+
+_PERMISSION_LABEL_MSGIDS = {
+    "photo": "Photo",
+    "sticker": "Sticker & Animation",
+    "video": "Video",
+    "voice": "Voice",
+    "file": "File",
+    "link": "Link",
+    "username": "Username",
+}
+
+_PERMISSION_LABEL_SEPARATORS = {
+    "zh_CN": "、",
+    "ja_JP": "、",
+}
+
+_PERMISSION_MENU_LABEL_MSGIDS = {
+    "photo": "Photo Permission",
+    "sticker": "Sticker & Animation Permission",
+    "video": "Video Permission",
+    "voice": "Voice Permission",
+    "file": "File Permission",
+    "link": "Link Permission",
+    "username": "Username Permission",
+}
 
 
 @dataclass(frozen=True)
 class PermissionDefinition:
     key: str
-    label: str
-    menu_label: str
 
 
 PERMISSION_DEFINITIONS = {
-    "photo": PermissionDefinition("photo", "图片", "图片权限"),
-    "sticker": PermissionDefinition("sticker", "贴图&动图", "贴图&动图权限"),
-    "video": PermissionDefinition("video", "视频", "视频权限"),
-    "voice": PermissionDefinition("voice", "语音", "语音权限"),
-    "file": PermissionDefinition("file", "文件", "文件权限"),
-    "link": PermissionDefinition("link", "链接", "链接权限"),
-    "username": PermissionDefinition("username", "用户名", "用户名权限"),
+    key: PermissionDefinition(key)
+    for key in _PERMISSION_LABEL_MSGIDS
 }
 
 PERMISSION_KEYS = tuple(PERMISSION_DEFINITIONS.keys())
@@ -42,6 +65,26 @@ PERMISSION_COMMAND_KEYS = PERMISSION_KEYS + (ALL_PERMISSION_KEY,)
 
 class UnknownPermissionKey(ValueError):
     """Raised when a permission key is not in the canonical registry."""
+
+
+def get_default_restricted_reply_message() -> str:
+    """Return the default restricted-message reply template in the current locale."""
+    return _(DEFAULT_RESTRICTED_REPLY_MESSAGE)
+
+
+def is_builtin_restricted_reply_message(message: str | None) -> bool:
+    """Return True when the stored template is the built-in default (English canonical)."""
+    if not message:
+        return True
+    return message.strip() == DEFAULT_RESTRICTED_REPLY_MESSAGE.strip()
+
+
+def join_permission_labels(labels: List[str]) -> str:
+    """Join permission labels with a locale-appropriate separator."""
+    if not labels:
+        return _("Unknown")
+    separator = _PERMISSION_LABEL_SEPARATORS.get(args.language, ", ")
+    return separator.join(labels)
 
 
 def list_permission_keys() -> Tuple[str, ...]:
@@ -74,12 +117,14 @@ def require_permission_key(value) -> str:
 
 def permission_label(value) -> str:
     """Return the user-facing noun label for a permission key."""
-    return PERMISSION_DEFINITIONS[require_permission_key(value)].label
+    key = require_permission_key(value)
+    return _(_PERMISSION_LABEL_MSGIDS[key])
 
 
 def permission_menu_label(value) -> str:
     """Return the admin menu label for a permission key."""
-    return PERMISSION_DEFINITIONS[require_permission_key(value)].menu_label
+    key = require_permission_key(value)
+    return _(_PERMISSION_MENU_LABEL_MSGIDS[key])
 
 
 def parse_permission_keys(values) -> Tuple[List[str], List[str]]:
@@ -302,7 +347,10 @@ class PermissionManager:
 
     def get_restricted_reply_message(self) -> str:
         """Return the configured restricted-message reply template."""
-        return self._get_setting(RESTRICTED_REPLY_MESSAGE_KEY, DEFAULT_RESTRICTED_REPLY_MESSAGE)
+        stored = self._get_setting(RESTRICTED_REPLY_MESSAGE_KEY, None)
+        if is_builtin_restricted_reply_message(stored):
+            return get_default_restricted_reply_message()
+        return stored
 
     def set_restricted_reply_message(self, message: str) -> str:
         """Set the restricted-message reply template."""
@@ -322,8 +370,8 @@ class PermissionManager:
             return None
 
         labels = self._permission_labels_for_reply(permissions)
-        label_text = "、".join(labels) if labels else "未知"
-        template = self.get_restricted_reply_message() or DEFAULT_RESTRICTED_REPLY_MESSAGE
+        label_text = join_permission_labels(labels)
+        template = self.get_restricted_reply_message()
         return template.replace("{permission}", label_text)
 
     def _permission_labels_for_reply(self, permissions) -> List[str]:
@@ -337,7 +385,7 @@ class PermissionManager:
 
             key = normalize_permission_key(text)
             if key in PERMISSION_DEFINITIONS:
-                label = PERMISSION_DEFINITIONS[key].label
+                label = permission_label(key)
             else:
                 label = self._label_to_registered_label(text)
 
@@ -348,9 +396,9 @@ class PermissionManager:
         return labels
 
     def _label_to_registered_label(self, label: str) -> Optional[str]:
-        for definition in PERMISSION_DEFINITIONS.values():
-            if label in (definition.label, definition.menu_label):
-                return definition.label
+        for key in PERMISSION_KEYS:
+            if label in (permission_label(key), permission_menu_label(key)):
+                return permission_label(key)
         return None
 
     @contextmanager

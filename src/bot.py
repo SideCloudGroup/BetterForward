@@ -134,6 +134,8 @@ class TGBot:
         self.bot.message_handler(commands=["refresh"])(self.command_handler.handle_refresh)
         self.bot.message_handler(commands=["allow"])(self.command_handler.allow_permissions)
         self.bot.message_handler(commands=["disallow"])(self.command_handler.disallow_permissions)
+        self.bot.message_handler(commands=["permissions"])(self.command_handler.show_user_permissions)
+        self.bot.message_handler(commands=["resetpermissions"])(self.command_handler.reset_user_permissions)
 
         # Message handler (for all message types)
         self.bot.message_handler(
@@ -166,8 +168,11 @@ class TGBot:
             types.BotCommand("verify", _("Set verified status")),
             types.BotCommand("setnote", _("Set or clear topic note")),
             types.BotCommand("getnote", _("Show topic note")),
+            types.BotCommand("refresh", _("Refresh user info")),
             types.BotCommand("allow", _("Allow user permissions")),
             types.BotCommand("disallow", _("Disallow user permissions")),
+            types.BotCommand("permissions", _("Show user permissions")),
+            types.BotCommand("resetpermissions", _("Reset user permission overrides")),
         ], scope=types.BotCommandScopeChat(self.group_id))
 
     def load_settings(self):

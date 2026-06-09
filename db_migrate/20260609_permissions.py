@@ -1,6 +1,11 @@
 import sqlite3
 
 
+DEFAULT_RESTRICTED_REPLY_MESSAGE = (
+    'You are not allowed to send "{permission}" type messages. '
+    "Please contact the other party to lift the restriction."
+)
+
 DEFAULT_PERMISSION_SETTINGS = {
     "permission_default_photo": "enable",
     "permission_default_sticker": "enable",
@@ -10,7 +15,7 @@ DEFAULT_PERMISSION_SETTINGS = {
     "permission_default_link": "enable",
     "permission_default_username": "enable",
     "permission_restricted_reply_enabled": "enable",
-    "permission_restricted_reply_message": "您不被允许发送“{permission}”类型消息，请先联系对方解限。",
+    "permission_restricted_reply_message": DEFAULT_RESTRICTED_REPLY_MESSAGE,
 }
 
 

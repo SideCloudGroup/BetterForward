@@ -1,109 +1,81 @@
 # BetterForward
 
-[中文README](README.md)
+[中文 README](README.md)
 
-Designed for better message forwarding in Telegram.
+Designed for better Telegram message forwarding.
 
-Use the "topic" feature to achieve a better PM bot.
-
-Forward users' messages to topics in the group. Each user corresponds to a topic.
+Forward private messages to topics in a group—one user per topic—so multiple admins can collaborate without exposing personal accounts.
 
 ## Features
 
-- Privacy: Admins' accounts are not exposed.
-- Flexibility: Each user corresponds to an independent topic, and the experience is almost the same as private chat.
-- Teamwork: Multiple admins can handle users' messages.
-- Multi-language: Supports multiple languages, including English, Chinese and Japanese.
-- Auto Response: Automatically replies to users' messages with predefined messages, and supports detection with regex.
-  Allows setting active time for auto-reply.
-- Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending
-  of spam messages. Supports multiple verification methods:
-  - **Button Verification**: Simple button click verification
-  - **Math Verification**: Users solve simple math problems to prove they are human
-  - **TGuard Verification**: Advanced human verification service integrated with [TGuard](https://github.com/SideCloudGroup/TGuard), supporting multiple captcha drivers (hCaptcha, Cap.js, Turnstile) with a beautiful Telegram Mini Web App interface
-- Spam Protection: Intelligent spam filtering system with keyword-based detection. Supports extensible detector interface for integrating AI models, external APIs, and custom detection methods.
-- Permission Controls: Admins can globally restrict photos, stickers/animations, videos, voice messages, files, links,
-  and usernames, and independently configure permissions from each user's topic.
-- Broadcast Message: Allows admins to send a message to all users at once.
+- **Privacy & teamwork**: User messages appear in group topics; admins reply from the group.
+- **Multi-language**: English, Chinese, and Japanese (`en_US` / `zh_CN` / `ja_JP`).
+- **Auto reply**: Keyword-based replies with regex support and scheduled active hours.
+- **Human verification**: Button, math, or [TGuard](https://github.com/SideCloudGroup/TGuard) advanced verification.
+- **Spam filtering**: Keyword-based detection with automatic routing to a dedicated spam topic.
+- **Permission controls**: Restrict message types globally and per user; view and reset overrides.
+- **User management**: Ban/unban, blocked-user auto-reply, terminate threads, topic notes, broadcast, and more.
 
-## Usage
+Send `/help` in the group main topic to open the admin menu.
 
-1. Create a bot from [@BotFather](https://t.me/BotFather) and get the token.
-2. Create a group with topics, and add the bot as an admin.
-3. Get the group ID.
-   This step can be done by inviting [@sc_ui_bot](https://t.me/sc_ui_bot) to the group and use the command `/id`.
-4. Deploy BetterForward to a server.
+## Quick Start
 
-Any messages sent to the bot will be forwarded to the corresponding topic in the group.
+1. Create a bot via [@BotFather](https://t.me/BotFather) and get the token.
+2. Create a group with topics enabled and add the bot as admin (manage topics, delete messages).
+3. Get the group ID (invite [@sc_ui_bot](https://t.me/sc_ui_bot) and send `/id`).
+4. Deploy BetterForward (see Docker below).
 
-More options and settings can be found by sending the `/help` command to the bot in the group.
+Messages users send to the bot are forwarded to their topic in the group.
 
 ## Deployment
 
-The following are the available language options:
-
-- English - `en_US`
-- Chinese - `zh_CN`
-- Japanese - `ja_JP`
-
-We welcome contributions to add more languages.
+Available languages: `en_US`, `zh_CN`, `ja_JP`. Contributions for more languages are welcome.
 
 ### Docker (Recommended)
 
-#### Using Docker Compose (Recommended)
+#### Docker Compose
 
-1. Download the `docker-compose.yml` file:
+1. Download `docker-compose.yml`:
 
 ```bash
 wget https://github.com/SideCloudGroup/BetterForward/raw/refs/heads/main/docker-compose.yml
 ```
 
-2. Edit the `docker-compose.yml` file and replace the placeholder values:
-    - `your_bot_token_here` with your actual bot token
-    - `your_group_id_here` with your actual group ID
-    - `zh_CN` with your preferred language (`en_US`, `zh_CN`, or `ja_JP`)
-    - Leave `TG_API` empty or set your custom API endpoint
-    - `WORKER=2` sets the number of worker threads (default: 2)
+2. Edit and replace placeholders:
+   - `your_bot_token_here` → bot token
+   - `your_group_id_here` → group ID
+   - `zh_CN` → language (`en_US`, `zh_CN`, or `ja_JP`)
+   - `TG_API` → custom API URL (leave empty for default)
+   - `WORKER` → worker thread count (increase for higher traffic)
 
-3. Run with Docker Compose:
+3. Start:
 
 ```bash
 docker compose up -d
 ```
 
-#### Using Docker Run
+#### Docker Run
 
-Replace `/path/to/data` with your actual data directory path:
+Replace `/path/to/data` with your data directory:
 
 ```bash
 docker run -d --name betterforward \
     -e TOKEN=<your_bot_token> \
     -e GROUP_ID=<your_group_id> \
-    -e LANGUAGE=<language> \
+    -e LANGUAGE=en_US \
     -e WORKER=2 \
     -v /path/to/data:/app/data \
     --restart unless-stopped \
     ghcr.io/sidecloudgroup/betterforward:latest
 ```
 
-If you need to use a custom API, you can set the environment variable `TG_API`. Leave it empty or unset to use the
-default API.
+### Custom API
 
-## Multithreading Support
-
-BetterForward supports multithreading through the `WORKER` parameter to improve performance and handle concurrent
-requests:
-
-- **Default**: `WORKER=2` - Balanced performance for most deployments
-- **High Traffic**: `WORKER=3-5` - Recommended for high-traffic scenarios
-- **Thread Safety**: The application uses thread-safe database operations and message queues to prevent conflicts
-- **Conflict Resolution**: Database transactions and locking mechanisms ensure data consistency across multiple worker
-  threads
+Set the `TG_API` environment variable for a custom Telegram API endpoint. Leave empty to use the default API.
 
 ## Upgrade
 
-If you deploy this project using Docker, you can use [WatchTower](https://github.com/containrrr/watchtower) to quickly
-update. **Please adjust the container name yourself**. Use the following command to update:
+If you deploy with Docker, you can use [WatchTower](https://github.com/containrrr/watchtower) to update automatically (replace the container name below):
 
 ```bash
 docker run --rm \
@@ -112,104 +84,102 @@ containrrr/watchtower -cR \
 <Container Name>
 ```
 
-## Human Verification
+## Feature Guide
 
-BetterForward supports multiple human verification methods to ensure only real users can send messages.
+Configure most features via `/help` in the group main topic unless noted otherwise.
 
-### Supported Verification Methods
+### Auto Reply
 
-1. **Button Verification** - The simplest verification method, users only need to click a button
-2. **Math Verification** - Users need to solve simple math problems to prove they are human
-3. **TGuard Verification** - Advanced human verification service integrated with [TGuard](https://github.com/SideCloudGroup/TGuard)
-   - Supports multiple captcha drivers: hCaptcha, Cap.js, Turnstile
-   - Beautiful verification interface via Telegram Mini Web App
-   - Requires TGuard API URL and API key configuration
-   - Automatically marks users as verified after completion
+- Add and manage multiple auto-reply rules
+- Regex keyword matching
+- Optional active time windows
 
-### Configuring TGuard Verification
+Menu: **Auto Reply**
 
-1. Send `/help` command in the main group topic
-2. Select "🌐 TGuard API Settings" menu
-3. Set TGuard API URL (e.g., `https://your-tguard-domain.com`)
-4. Set TGuard API key
-5. Return to captcha settings and select "TGuard Captcha"
+### Default Message
 
-### TGuard Verification Flow
+Set the welcome or hint message users receive when they first contact the bot.
 
-1. When a user sends their first message, BetterForward creates a verification request via TGuard API
-2. TGuard returns a verification URL and token
-3. BetterForward sends a message with a verification button (Mini Web App) to the user
-4. User clicks the button and completes human verification in the Web App
-5. After verification, when the user sends another message, BetterForward checks the verification status
-6. Once verified, user messages are forwarded normally
+Menu: **Default Message**
 
-## Spam Protection
+### Ban & Blocked Reply
 
-BetterForward includes an intelligent spam filtering system to help you effectively manage and isolate spam content.
+- Ban users to stop them from sending messages
+- Optional auto-reply when a banned user tries to message
 
-### Keyword Filtering
+Menus: **Banned Users**, **Blocked User Reply**
 
-- **Smart Matching**: Supports fuzzy matching to automatically identify messages containing spam keywords
-- **High Performance**: Uses optimized regex with O(n) time complexity for extremely fast processing
-- **Easy Management**: Add, view, and delete keywords through the admin menu
-- **Auto Isolation**: Matched spam messages are automatically forwarded to a dedicated spam topic without creating user threads
-- **Silent Mode**: Forwarding uses silent mode to avoid notification spam
+### Human Verification
 
-### Usage
+Three methods (choose in **Captcha Settings**):
 
-1. Send `/help` command in the main group topic
-2. Select "🚫 Spam Keywords" menu
-3. Click "➕ Add Keyword" to add keywords to filter
-4. Click "📋 View Keywords" to manage existing keywords
+1. **Button** — tap to verify
+2. **Math** — solve a simple arithmetic problem
+3. **TGuard** — configure API URL and key under **TGuard API Settings**; verification opens in a Telegram Mini App
 
-Keyword configuration is saved in `data/spam_keywords.json` and supports manual editing.
+Admins can also mark a user as verified with `/verify` in a user topic.
 
-## Permission Controls
+### Spam Filtering
 
-Admins can send `/help` in the group main topic, open the admin menu, and choose `Default Permission Settings` to manage which message types users may send. All permission categories are enabled by default, and admins can disable one or more global defaults.
+- Add, view, and remove spam keywords from the admin menu
+- Matched messages go to a dedicated spam topic instead of creating user threads
 
-The default-permissions menu includes:
+Menu: **Spam Keywords**
 
-- `photo`: photo messages (Photo Permission)
-- `sticker`: stickers and animations (Sticker & Animation Permission)
-- `video`: video messages (Video Permission)
-- `voice`: voice messages (Voice Permission)
-- `file`: document/file messages (File Permission)
-- `link`: links in text and media captions (Link Permission)
-- `username`: `@username` mentions in text and media captions (Username Permission)
+### Permission Controls
 
-Effective permission precedence:
+Under **Permission Settings**:
 
-- A per-user `/disallow` denial wins over a global allow.
-- A per-user `/allow` grant wins over a global denial.
-- Users without a per-user override inherit the global default.
+- **Default Permission Settings** — globally allow or deny: photos, stickers/animations, videos, voice, files (documents and audio), links, and @usernames. All are allowed by default.
+- **Permission Restriction Reply Message** — optional reply when a user sends a blocked type (`{permission}` is replaced with the type name); can be disabled for silent blocking.
 
-Restricted messages are blocked before admin-topic forwarding, message mapping, and auto replies. In `Default Permission Settings`, admins can open `Permission Restriction Reply Message` to customize the user reply template, for example `You are not allowed to send {permission} messages. Please contact the other party to lift the restriction.` The `{permission}` placeholder is replaced with labels such as `Photo` or `Link`. Admins can also disable this reply for no-reply silent blocking.
+In a user topic, admins can adjust permissions for that user:
 
-Link and username permissions inspect only normal text and media captions. BetterForward does not perform OCR and does not inspect image or file contents.
+| Command | Description |
+|---------|-------------|
+| `/permissions` | Show permission status for the user |
+| `/allow <keys...>` | Grant exceptions, e.g. `/allow photo link` |
+| `/disallow <keys...>` | Deny types, e.g. `/disallow sticker` |
+| `/resetpermissions <keys...>` | Clear overrides and inherit global defaults |
+
+Valid keys: `photo`, `sticker`, `video`, `voice`, `file`, `link`, `username`; use `all` for every type (plain text is not affected).
+
+### Broadcast & Time Zone
+
+- **Broadcast Message** — notify all users at once
+- **Time Zone Settings** — affects time-based features such as auto reply
+
+### Topic Notes
+
+In a user topic:
+
+- `/setnote <text>` — set or clear a note for the topic
+- `/getnote` — show the note
 
 ## Admin Commands
 
-- `/terminate [User ID]`: Ends the conversation with a specified user. When this command is issued within a conversation
-  thread, there is no need to include the User ID; the current conversation will be terminated automatically. The user
-  will not receive any further prompts or notifications.
-- `/help`: Displays the help menu, which includes a list of available commands and their instructions.
-- `/ban`: Prevents the user from sending more messages. This command is only applicable within the specific
-  conversation thread where it is executed.
-- `/unban [User ID]`: Reinstates the ability for a user to send messages. If no User ID is specified, the command will
-  apply to the user in the current conversation thread.
-- `/allow <permission keys...>`: Grants one or more per-user permission exceptions in the current user topic, for
-  example `/allow photo video link`.
-- `/disallow <permission keys...>`: Denies one or more per-user permissions in the current user topic, for example
-  `/disallow photo link`.
+Available in the group (some apply only inside user topics):
 
-`/allow` and `/disallow` can be used only by admins in mapped user conversation topics. Valid keys are: `photo`,
-`sticker`, `video`, `voice`, `file`, `link`, `username`, and `all`.
+| Command | Description |
+|---------|-------------|
+| `/help` | Open admin menu |
+| `/ban` | Ban the user in the current topic |
+| `/unban [User ID]` | Unban; omit ID in a user topic |
+| `/terminate [User ID]` | End thread and delete topic; omit ID in a user topic |
+| `/delete` | Delete a message (reply to the target message) |
+| `/verify` | Mark user as verified |
+| `/setnote <text>` | Set topic note |
+| `/getnote` | Show topic note |
+| `/refresh` | Refresh user info in the topic |
+| `/permissions` | Show user permission status |
+| `/allow <keys...>` | Grant per-user permissions |
+| `/disallow <keys...>` | Deny per-user permissions |
+| `/resetpermissions <keys...>` | Reset to global defaults |
 
-Using the `all` permission key grants or denies all permissions, excluding text messages.
+In private chat with the bot: `/help`, `/delete`.
 
 ## Community
 
-- Telegram Channel [@betterforward](https://t.me/betterforward)
+- Telegram channel [@betterforward](https://t.me/betterforward)
 
 Please use `issues` for bug reports and feature requests.
