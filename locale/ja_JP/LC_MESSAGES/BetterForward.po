@@ -1203,3 +1203,95 @@ msgstr ""
 
 #~ msgid "Do not forward message"
 #~ msgstr "メッセージを転送しない"
+
+#: src/handlers/admin_handler.py
+msgid "Default Permission Settings"
+msgstr ""
+
+#: src/handlers/admin_handler.py
+msgid "Current global default permissions:"
+msgstr ""
+
+#: src/handlers/admin_handler.py src/handlers/command_handler.py
+msgid "Permission settings are not available"
+msgstr ""
+
+#: src/handlers/admin_handler.py
+msgid "Permission Restriction Reply Message"
+msgstr "権限制限時の返信メッセージ"
+
+#: src/handlers/admin_handler.py
+msgid "Disable Reply"
+msgstr ""
+
+#: src/handlers/admin_handler.py
+msgid "Enable Reply"
+msgstr ""
+
+#: src/handlers/admin_handler.py
+msgid "Reset Reply Message"
+msgstr ""
+
+#: src/handlers/admin_handler.py
+msgid "{permission} is used to render the permission variable, for example \"Photo\"."
+msgstr "{permission} は権限変数の描画に使用されます。例：「画像」。"
+
+#: src/handlers/admin_handler.py
+msgid ""
+"Please send the message to reply when a permission blocks a user message.\n"
+"Send /cancel to cancel this operation.\n"
+"\n"
+"{permission} is used to render the permission variable, for example \"Photo\"."
+msgstr ""
+"権限によってユーザーのメッセージをブロックしたときに返信するメッセージを送信してください。\n"
+"キャンセルするには /cancel を送信してください。\n"
+"\n"
+"{permission} は権限変数の描画に使用されます。例：「画像」。"
+
+#: src/handlers/admin_handler.py
+#, python-brace-format
+msgid "Permission restriction reply message updated: {}"
+msgstr "権限制限時の返信メッセージを更新しました: {}"
+
+#: src/handlers/callback_handler.py src/handlers/command_handler.py
+msgid "This action is only available to admin users."
+msgstr ""
+
+#: src/bot.py
+msgid "Allow user permissions"
+msgstr ""
+
+#: src/bot.py
+msgid "Disallow user permissions"
+msgstr ""
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Unknown permission keys: {}"
+msgstr ""
+
+#: src/handlers/command_handler.py
+msgid ""
+"Usage: /allow photo video link or /disallow photo video link (multiple keys "
+"allowed). Use all to grant/deny all permissions."
+msgstr ""
+"使い方：/allow photo video link または /disallow photo video link（複数選択可）。"
+"all キーを使用するとすべての権限を付与/拒否します。"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Valid permission keys: {}"
+msgstr "使用可能な権限キー：{}"
+
+#: src/handlers/command_handler.py
+msgid "Allowed"
+msgstr ""
+
+#: src/handlers/command_handler.py
+msgid "Disallowed"
+msgstr ""
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "{} permissions for user {}: {}"
+msgstr ""

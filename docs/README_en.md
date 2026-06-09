@@ -22,6 +22,8 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
   - **Math Verification**: Users solve simple math problems to prove they are human
   - **TGuard Verification**: Advanced human verification service integrated with [TGuard](https://github.com/SideCloudGroup/TGuard), supporting multiple captcha drivers (hCaptcha, Cap.js, Turnstile) with a beautiful Telegram Mini Web App interface
 - Spam Protection: Intelligent spam filtering system with keyword-based detection. Supports extensible detector interface for integrating AI models, external APIs, and custom detection methods.
+- Permission Controls: Admins can globally restrict photos, stickers/animations, videos, voice messages, files, links,
+  and usernames, and independently configure permissions from each user's topic.
 - Broadcast Message: Allows admins to send a message to all users at once.
 
 ## Usage
@@ -162,6 +164,30 @@ BetterForward includes an intelligent spam filtering system to help you effectiv
 
 Keyword configuration is saved in `data/spam_keywords.json` and supports manual editing.
 
+## Permission Controls
+
+Admins can send `/help` in the group main topic, open the admin menu, and choose `Default Permission Settings` to manage which message types users may send. All permission categories are enabled by default, and admins can disable one or more global defaults.
+
+The default-permissions menu includes:
+
+- `photo`: photo messages (Photo Permission)
+- `sticker`: stickers and animations (Sticker & Animation Permission)
+- `video`: video messages (Video Permission)
+- `voice`: voice messages (Voice Permission)
+- `file`: document/file messages (File Permission)
+- `link`: links in text and media captions (Link Permission)
+- `username`: `@username` mentions in text and media captions (Username Permission)
+
+Effective permission precedence:
+
+- A per-user `/disallow` denial wins over a global allow.
+- A per-user `/allow` grant wins over a global denial.
+- Users without a per-user override inherit the global default.
+
+Restricted messages are blocked before admin-topic forwarding, message mapping, and auto replies. In `Default Permission Settings`, admins can open `Permission Restriction Reply Message` to customize the user reply template, for example `You are not allowed to send {permission} messages. Please contact the other party to lift the restriction.` The `{permission}` placeholder is replaced with labels such as `Photo` or `Link`. Admins can also disable this reply for no-reply silent blocking.
+
+Link and username permissions inspect only normal text and media captions. BetterForward does not perform OCR and does not inspect image or file contents.
+
 ## Admin Commands
 
 - `/terminate [User ID]`: Ends the conversation with a specified user. When this command is issued within a conversation
@@ -172,6 +198,15 @@ Keyword configuration is saved in `data/spam_keywords.json` and supports manual 
   conversation thread where it is executed.
 - `/unban [User ID]`: Reinstates the ability for a user to send messages. If no User ID is specified, the command will
   apply to the user in the current conversation thread.
+- `/allow <permission keys...>`: Grants one or more per-user permission exceptions in the current user topic, for
+  example `/allow photo video link`.
+- `/disallow <permission keys...>`: Denies one or more per-user permissions in the current user topic, for example
+  `/disallow photo link`.
+
+`/allow` and `/disallow` can be used only by admins in mapped user conversation topics. Valid keys are: `photo`,
+`sticker`, `video`, `voice`, `file`, `link`, `username`, and `all`.
+
+Using the `all` permission key grants or denies all permissions, excluding text messages.
 
 ## Community
 

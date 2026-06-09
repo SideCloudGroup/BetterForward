@@ -9,14 +9,15 @@ from telebot.formatting import apply_html_entities
 from telebot.types import Message
 
 from src.config import logger, _
-from src.utils.helpers import escape_markdown
+from src.utils.helpers import build_user_info_pin_text, escape_markdown, send_and_pin_user_info
+from src.utils.message_permissions import classify_message_permissions
 
 
 class MessageHandler:
     """Handles message forwarding between users and group."""
 
     def __init__(self, bot, group_id: int, db_path: str, cache, captcha_manager, auto_response_manager,
-                 spam_detector_manager=None, bot_instance=None):
+                 spam_detector_manager=None, bot_instance=None, permission_manager=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
@@ -25,6 +26,7 @@ class MessageHandler:
         self.auto_response_manager = auto_response_manager
         self.spam_detector_manager = spam_detector_manager
         self.bot_instance = bot_instance
+        self.permission_manager = permission_manager or getattr(bot_instance, "permission_manager", None)
 
     def check_valid_chat(self, message: Message) -> bool:
         """Check if message is in valid chat context."""
@@ -43,8 +45,9 @@ class MessageHandler:
             msg_text = None
 
         if message.caption:
-            msg_caption = apply_html_entities(message.caption, message.entities,
-                                              None) if message.entities else html.escape(message.caption)
+            caption_entities = getattr(message, "caption_entities", None)
+            msg_caption = apply_html_entities(message.caption, caption_entities,
+                                              None) if caption_entities else html.escape(message.caption)
         else:
             msg_caption = None
 
@@ -98,6 +101,13 @@ class MessageHandler:
                         logger.error(_("Failed to send auto-reply to blocked user {}: {}").format(
                             message.from_user.id, str(e)))
 
+            return
+
+        denied_permissions = self._get_denied_permissions(message)
+        if denied_permissions and self._handle_permission_restriction(message, denied_permissions):
+            processing_time = (time.time() - start_time) * 1000
+            logger.info(_("Message from user {} blocked by permissions {} ({:.2f}ms)").format(
+                message.from_user.id, ", ".join(denied_permissions), processing_time))
             return
 
         # Check for spam using detector manager
@@ -217,6 +227,42 @@ class MessageHandler:
         processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
         logger.info(_("Message from user {} processed in {:.2f}ms").format(
             message.from_user.id, processing_time))
+
+    def _get_denied_permissions(self, message: Message) -> list[str]:
+        """Return required permission keys denied for this user."""
+        required_permissions = classify_message_permissions(message)
+        if not required_permissions:
+            return []
+
+        if self.permission_manager is None:
+            logger.warning(_("Permission manager not configured; allowing message from user {}").format(
+                message.from_user.id))
+            return []
+
+        return [
+            permission_key
+            for permission_key in required_permissions
+            if not self.permission_manager.resolve_permission(message.from_user.id, permission_key)
+        ]
+
+    def _handle_permission_restriction(self, message: Message, denied_permissions: list[str]) -> bool:
+        """Send optional user-only restriction reply for denied permissions."""
+        if self.permission_manager is None:
+            return False
+
+        reply_message = self.permission_manager.format_restricted_reply(denied_permissions)
+        if reply_message is not None:
+            try:
+                self.bot.send_message(
+                    message.chat.id,
+                    reply_message,
+                    reply_to_message_id=message.message_id
+                )
+            except Exception as e:
+                logger.error(_("Failed to send permission restriction reply to user {}: {}").format(
+                    message.from_user.id, str(e)))
+
+        return True
 
     def _check_captcha(self, message: Message, cursor, db) -> bool:
         """Check and handle captcha verification."""

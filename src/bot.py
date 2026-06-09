@@ -13,6 +13,7 @@ from src.handlers.message_handler import MessageHandler
 from src.utils.auto_response import AutoResponseManager
 from src.utils.captcha import CaptchaManager
 from src.utils.message_queue import MessageQueueManager
+from src.utils.permissions import PermissionManager
 from src.utils.spam_detector_manager import SpamDetectorManager
 from src.utils.spam_detectors import KeywordSpamDetector
 
@@ -46,6 +47,9 @@ class TGBot:
         # Load settings into cache
         self.load_settings()
 
+        # Initialize permission policy manager
+        self.permission_manager = PermissionManager(db_path, self.cache, self.database)
+
         # Initialize timezone
         tz_str = self.cache.get("setting_time_zone")
         self.time_zone = pytz.timezone(tz_str) if tz_str else pytz.UTC
@@ -64,17 +68,20 @@ class TGBot:
             self.bot, self.group_id, db_path, self.cache,
             self.captcha_manager, self.auto_response_manager,
             spam_detector_manager=self.spam_detector_manager,
-            bot_instance=self
+            bot_instance=self,
+            permission_manager=self.permission_manager
         )
         self.command_handler = CommandHandler(
             self.bot, self.group_id, db_path, self.cache,
-            self.time_zone, self.captcha_manager
+            self.time_zone, self.captcha_manager,
+            permission_manager=self.permission_manager
         )
         self.admin_handler = AdminHandler(
             self.bot, self.group_id, db_path, self.cache,
             self.database, self.auto_response_manager,
             spam_keyword_manager=self.keyword_detector,
-            bot_instance=self
+            bot_instance=self,
+            permission_manager=self.permission_manager
         )
         self.callback_handler = CallbackHandler(
             self.bot, self.group_id, self.admin_handler,
@@ -125,6 +132,8 @@ class TGBot:
         self.bot.message_handler(commands=["setnote"])(self.command_handler.handle_setnote)
         self.bot.message_handler(commands=["getnote"])(self.command_handler.handle_getnote)
         self.bot.message_handler(commands=["refresh"])(self.command_handler.handle_refresh)
+        self.bot.message_handler(commands=["allow"])(self.command_handler.allow_permissions)
+        self.bot.message_handler(commands=["disallow"])(self.command_handler.disallow_permissions)
 
         # Message handler (for all message types)
         self.bot.message_handler(
@@ -157,6 +166,8 @@ class TGBot:
             types.BotCommand("verify", _("Set verified status")),
             types.BotCommand("setnote", _("Set or clear topic note")),
             types.BotCommand("getnote", _("Show topic note")),
+            types.BotCommand("allow", _("Allow user permissions")),
+            types.BotCommand("disallow", _("Disallow user permissions")),
         ], scope=types.BotCommandScopeChat(self.group_id))
 
     def load_settings(self):

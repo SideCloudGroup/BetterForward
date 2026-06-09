@@ -9,12 +9,20 @@ from telebot.apihelper import ApiTelegramException, delete_forum_topic, close_fo
 from telebot.types import Message
 
 from src.config import logger, _
+from src.utils.permissions import (
+    ALLOW,
+    DENY,
+    list_permission_command_keys,
+    parse_permission_keys,
+    permission_label,
+)
 
 
 class CommandHandler:
     """Handles bot commands."""
 
-    def __init__(self, bot, group_id: int, db_path: str, cache, time_zone, captcha_manager, spam_detector=None):
+    def __init__(self, bot, group_id: int, db_path: str, cache, time_zone, captcha_manager, spam_detector=None,
+                 permission_manager=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
@@ -22,6 +30,7 @@ class CommandHandler:
         self._time_zone = time_zone  # Keep as fallback
         self.captcha_manager = captcha_manager
         self.spam_detector = spam_detector
+        self.permission_manager = permission_manager
 
     @property
     def time_zone(self):
@@ -449,6 +458,82 @@ class CommandHandler:
         if len(note) > self._GETNOTE_MAX_LEN:
             note = note[: self._GETNOTE_MAX_LEN] + "\n" + _("(truncated)")
         self.bot.reply_to(message, note)
+
+    def allow_permissions(self, message: Message):
+        """Grant explicit permission overrides for the current topic's user."""
+        self._handle_permission_override_command(message, ALLOW)
+
+    def disallow_permissions(self, message: Message):
+        """Deny explicit permission overrides for the current topic's user."""
+        self._handle_permission_override_command(message, DENY)
+
+    def _handle_permission_override_command(self, message: Message, override: str):
+        if self.permission_manager is None:
+            self.bot.reply_to(message, _("Permission settings are not available"))
+            return
+
+        ok, err = self._permission_command_access_ok(message)
+        if not ok:
+            self.bot.reply_to(message, err)
+            return
+
+        user_id = self._user_id_for_topic(message.message_thread_id)
+        if user_id is None:
+            self.bot.reply_to(message, _("User not found"))
+            return
+
+        valid_keys, unknown_values = parse_permission_keys(self._permission_command_args(message.text))
+        if not valid_keys and not unknown_values:
+            self.bot.reply_to(message, self._permission_command_usage())
+            return
+
+        if unknown_values:
+            self.bot.reply_to(
+                message,
+                _("Unknown permission keys: {}").format(", ".join(unknown_values)) + "\n" +
+                self._permission_command_usage()
+            )
+            return
+
+        for permission_key in valid_keys:
+            self.permission_manager.set_user_override(user_id, permission_key, override)
+
+        labels = "、".join(permission_label(permission_key) for permission_key in valid_keys)
+        action_text = _("Allowed") if override == ALLOW else _("Disallowed")
+        self.bot.reply_to(
+            message,
+            _("{} permissions for user {}: {}").format(action_text, user_id, labels)
+        )
+
+    def _permission_command_access_ok(self, message: Message) -> tuple[bool, str | None]:
+        if message.chat.id != self.group_id:
+            return False, _("This command is only available to admin users.")
+        if message.message_thread_id is None:
+            return False, _("Use this command inside a user topic.")
+        if message.message_thread_id == 1:
+            return False, _("Cannot use this command in the main thread")
+        if self.bot.get_chat_member(message.chat.id, message.from_user.id).status not in (
+                "administrator", "creator"):
+            return False, _("This command is only available to admin users.")
+        return True, None
+
+    def _user_id_for_topic(self, thread_id: int):
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (thread_id,))
+            row = db_cursor.fetchone()
+        return row[0] if row else None
+
+    def _permission_command_args(self, text: str | None) -> str:
+        if not text:
+            return ""
+        parts = text.split(maxsplit=1)
+        return parts[1] if len(parts) > 1 else ""
+
+    def _permission_command_usage(self) -> str:
+        return _("Usage: /allow photo video link or /disallow photo video link "
+                 "(multiple keys allowed). Use all to grant/deny all permissions.") + "\n" + \
+            _("Valid permission keys: {}").format(", ".join(list_permission_command_keys()))
 
     def handle_edit(self, message: Message):
         """Handle edited messages."""

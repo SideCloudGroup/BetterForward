@@ -7,6 +7,16 @@ from telebot import types
 from src.config import logger, _
 
 
+PERMISSION_ADMIN_ACTIONS = {
+    "default_permissions",
+    "toggle_permission_default",
+    "permission_reply_settings",
+    "set_permission_reply_enabled",
+    "edit_permission_reply_message",
+    "reset_permission_reply_message",
+}
+
+
 class CallbackHandler:
     """Handles callback queries from inline keyboards."""
 
@@ -67,9 +77,37 @@ class CallbackHandler:
         back_button = types.InlineKeyboardButton("⬅️" + _("Back"),
                                                  callback_data=json.dumps({"action": "menu"}))
 
+        if action in PERMISSION_ADMIN_ACTIONS and not self._is_group_admin(call.from_user.id):
+            self.bot.answer_callback_query(
+                call.id,
+                _("This action is only available to admin users."),
+                show_alert=True,
+            )
+            return
+
         match action:
             case "menu":
                 self.admin_handler.menu(call.message, edit=True)
+            case "default_permissions":
+                self.admin_handler.default_permissions_menu(call.message, edit=True)
+            case "toggle_permission_default":
+                if "key" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                self.admin_handler.toggle_permission_default(call.message, data["key"])
+            case "permission_reply_settings":
+                self.admin_handler.permission_reply_settings_menu(call.message, edit=True)
+            case "set_permission_reply_enabled":
+                if data.get("value") not in ("enable", "disable"):
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                self.admin_handler.set_permission_reply_enabled(call.message, data["value"])
+            case "edit_permission_reply_message":
+                self.admin_handler.edit_permission_reply_message(call.message)
+            case "reset_permission_reply_message":
+                self.admin_handler.reset_permission_reply_message(call.message)
             case "auto_reply":
                 self.admin_handler.auto_reply_menu(call.message)
             case "set_auto_response_time":
@@ -193,3 +231,11 @@ class CallbackHandler:
                 self.admin_handler.show_host_ip(call.message)
             case _:
                 logger.error(_("Invalid action received") + action)
+
+    def _is_group_admin(self, user_id: int) -> bool:
+        """Return True when the callback user is an admin of the forwarding group."""
+        try:
+            member = self.bot.get_chat_member(self.group_id, user_id)
+            return member.status in ("administrator", "creator")
+        except Exception:
+            return False
