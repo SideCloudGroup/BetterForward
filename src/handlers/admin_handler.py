@@ -12,13 +12,20 @@ from telebot.apihelper import ApiTelegramException
 from telebot.types import Message
 
 from src.config import logger, _
+from src.utils.permissions import (
+    DEFAULT_RESTRICTED_REPLY_MESSAGE,
+    DISABLE,
+    ENABLE,
+    list_permission_keys,
+    permission_menu_label,
+)
 
 
 class AdminHandler:
     """Handles administrative functions like settings, menus, and broadcasts."""
 
     def __init__(self, bot, group_id: int, db_path: str, cache, database, auto_response_manager,
-                 spam_keyword_manager=None, bot_instance=None):
+                 spam_keyword_manager=None, bot_instance=None, permission_manager=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
@@ -27,6 +34,7 @@ class AdminHandler:
         self.auto_response_manager = auto_response_manager
         self.spam_keyword_manager = spam_keyword_manager
         self.bot_instance = bot_instance
+        self.permission_manager = permission_manager or getattr(bot_instance, "permission_manager", None)
         # Get timezone from cache
         tz_str = self.cache.get("setting_time_zone")
         self.time_zone = pytz.timezone(tz_str) if tz_str else pytz.UTC
@@ -61,6 +69,8 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "spam_keywords"})),
             types.InlineKeyboardButton("🚷" + _("Blocked User Reply"),
                                        callback_data=json.dumps({"action": "blocked_reply_settings"})),
+            types.InlineKeyboardButton("🔐" + _("Default Permission Settings"),
+                                       callback_data=json.dumps({"action": "default_permissions"})),
             types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
                                        callback_data=json.dumps({"action": "captcha_settings"})),
             types.InlineKeyboardButton("🛡️" + _("TGuard API Settings"),
@@ -82,6 +92,171 @@ class AdminHandler:
         else:
             self.bot.send_message(self.group_id, _("Menu"), reply_markup=markup,
                                   message_thread_id=None)
+
+    # Permission Management
+    def default_permissions_menu(self, message: Message, edit: bool = False):
+        """Display global default permission settings."""
+        if not self.check_valid_chat(message):
+            return
+
+        if self.permission_manager is None:
+            self._send_or_edit_permission_menu_message(
+                message, _("Permission settings are not available"), None, edit)
+            return
+
+        markup = types.InlineKeyboardMarkup()
+        text = _("Default Permission Settings") + "\n\n"
+        text += _("Current global default permissions:") + "\n"
+
+        for permission_key in list_permission_keys():
+            current_value = self.permission_manager.get_global_default_value(permission_key)
+            is_enabled = current_value == ENABLE
+            status_text = _("Enabled") if is_enabled else _("Disabled")
+            text += f"{permission_menu_label(permission_key)}: {status_text}\n"
+            button_prefix = "✅ " if is_enabled else "❌ "
+            markup.add(types.InlineKeyboardButton(
+                f"{button_prefix}{permission_menu_label(permission_key)}: {status_text}",
+                callback_data=json.dumps({
+                    "action": "toggle_permission_default",
+                    "key": permission_key,
+                })
+            ))
+
+        markup.add(types.InlineKeyboardButton(
+            "✏️ " + _("Permission Restriction Reply Message"),
+            callback_data=json.dumps({"action": "permission_reply_settings"})
+        ))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "menu"})))
+
+        self._send_or_edit_permission_menu_message(message, text, markup, edit)
+
+    def toggle_permission_default(self, message: Message, permission_key: str):
+        """Toggle one global default permission setting."""
+        if not self.check_valid_chat(message):
+            return
+
+        if self.permission_manager is None:
+            self._send_or_edit_permission_menu_message(
+                message, _("Permission settings are not available"), None, True)
+            return
+
+        current_value = self.permission_manager.get_global_default_value(permission_key)
+        next_value = DISABLE if current_value == ENABLE else ENABLE
+        self.permission_manager.set_global_default(permission_key, next_value)
+        self.default_permissions_menu(message, edit=True)
+
+    def permission_reply_settings_menu(self, message: Message, edit: bool = False):
+        """Display permission restriction reply settings."""
+        if not self.check_valid_chat(message):
+            return
+
+        if self.permission_manager is None:
+            self._send_or_edit_permission_menu_message(
+                message, _("Permission settings are not available"), None, edit)
+            return
+
+        current_enabled = self.permission_manager.get_restricted_reply_enabled_value()
+        current_message = self.permission_manager.get_restricted_reply_message()
+
+        markup = types.InlineKeyboardMarkup()
+        if current_enabled == ENABLE:
+            markup.add(types.InlineKeyboardButton(
+                "🔕 " + _("Disable Reply"),
+                callback_data=json.dumps({"action": "set_permission_reply_enabled", "value": DISABLE})
+            ))
+        else:
+            markup.add(types.InlineKeyboardButton(
+                "🔔 " + _("Enable Reply"),
+                callback_data=json.dumps({"action": "set_permission_reply_enabled", "value": ENABLE})
+            ))
+
+        markup.add(types.InlineKeyboardButton(
+            "✏️ " + _("Edit Reply Message"),
+            callback_data=json.dumps({"action": "edit_permission_reply_message"})
+        ))
+        markup.add(types.InlineKeyboardButton(
+            "🔄 " + _("Reset Reply Message"),
+            callback_data=json.dumps({"action": "reset_permission_reply_message"})
+        ))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "default_permissions"})))
+
+        status_text = _("Enabled") if current_enabled == ENABLE else _("Disabled")
+        text = _("Permission Restriction Reply Message") + "\n\n"
+        text += _("Status: {}").format(status_text) + "\n"
+        text += _("Current message: {}").format(current_message) + "\n\n"
+        text += _("{permission} is used to render the permission variable, for example \"Photo\".")
+
+        self._send_or_edit_permission_menu_message(message, text, markup, edit)
+
+    def set_permission_reply_enabled(self, message: Message, value: str):
+        """Toggle permission restriction replies."""
+        if value not in (ENABLE, DISABLE):
+            self.bot.send_message(self.group_id, _("Invalid action"))
+            return
+        if self.permission_manager is None:
+            self._send_or_edit_permission_menu_message(
+                message, _("Permission settings are not available"), None, True)
+            return
+
+        self.permission_manager.set_restricted_reply_enabled(value)
+        self.permission_reply_settings_menu(message, edit=True)
+
+    def edit_permission_reply_message(self, message: Message):
+        """Start editing permission restriction reply message."""
+        msg = self.bot.edit_message_text(
+            text=_("Please send the message to reply when a permission blocks a user message.\n"
+                   "Send /cancel to cancel this operation.\n\n"
+                   "{permission} is used to render the permission variable, for example \"Photo\"."),
+            chat_id=self.group_id,
+            message_id=message.message_id)
+        self.bot.register_next_step_handler(msg, self.process_permission_reply_message)
+
+    def process_permission_reply_message(self, message: Message):
+        """Process permission restriction reply message editing."""
+        if not self.check_valid_chat(message):
+            logger.warning(
+                f"Permission reply edit from wrong context: chat_id={message.chat.id}, thread_id={message.message_thread_id}")
+            return
+
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        if message.content_type != "text":
+            self.bot.send_message(self.group_id, _("Invalid input"))
+            return
+
+        reply_message = message.text.strip()
+        self.permission_manager.set_restricted_reply_message(reply_message)
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "permission_reply_settings"})))
+        self.bot.send_message(self.group_id,
+                              _("Permission restriction reply message updated: {}").format(reply_message),
+                              reply_markup=markup)
+
+    def reset_permission_reply_message(self, message: Message):
+        """Reset permission restriction reply message to the default template."""
+        if self.permission_manager is None:
+            self._send_or_edit_permission_menu_message(
+                message, _("Permission settings are not available"), None, True)
+            return
+
+        self.permission_manager.set_restricted_reply_message(DEFAULT_RESTRICTED_REPLY_MESSAGE)
+        self.permission_reply_settings_menu(message, edit=True)
+
+    def _send_or_edit_permission_menu_message(self, message: Message, text: str, markup, edit: bool):
+        if edit:
+            self.bot.edit_message_text(text, message.chat.id, message.message_id,
+                                       reply_markup=markup)
+        else:
+            self.bot.send_message(text=text,
+                                  chat_id=message.chat.id,
+                                  message_thread_id=None,
+                                  reply_markup=markup)
 
     # Auto Reply Management
     def auto_reply_menu(self, message: Message):

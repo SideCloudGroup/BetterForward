@@ -1233,3 +1233,95 @@ msgstr "仅管理员可以刷新用户信息。"
 #: src/utils/helpers.py
 msgid "Full Name"
 msgstr "全名"
+
+#: src/handlers/admin_handler.py
+msgid "Default Permission Settings"
+msgstr "默认权限设置"
+
+#: src/handlers/admin_handler.py
+msgid "Current global default permissions:"
+msgstr "当前全局默认权限："
+
+#: src/handlers/admin_handler.py src/handlers/command_handler.py
+msgid "Permission settings are not available"
+msgstr "权限设置当前不可用"
+
+#: src/handlers/admin_handler.py
+msgid "Permission Restriction Reply Message"
+msgstr "权限限制时的回复消息"
+
+#: src/handlers/admin_handler.py
+msgid "Disable Reply"
+msgstr "关闭回复"
+
+#: src/handlers/admin_handler.py
+msgid "Enable Reply"
+msgstr "开启回复"
+
+#: src/handlers/admin_handler.py
+msgid "Reset Reply Message"
+msgstr "重置回复消息"
+
+#: src/handlers/admin_handler.py
+msgid "{permission} is used to render the permission variable, for example \"Photo\"."
+msgstr "{permission} 用作渲染权限变量，例如“图片”。"
+
+#: src/handlers/admin_handler.py
+msgid ""
+"Please send the message to reply when a permission blocks a user message.\n"
+"Send /cancel to cancel this operation.\n"
+"\n"
+"{permission} is used to render the permission variable, for example \"Photo\"."
+msgstr ""
+"请发送权限拦截用户消息时要回复的消息。\n"
+"发送 /cancel 可取消本次操作。\n"
+"\n"
+"{permission} 用作渲染权限变量，例如“图片”。"
+
+#: src/handlers/admin_handler.py
+#, python-brace-format
+msgid "Permission restriction reply message updated: {}"
+msgstr "权限限制时的回复消息已更新：{}"
+
+#: src/handlers/callback_handler.py src/handlers/command_handler.py
+msgid "This action is only available to admin users."
+msgstr "此操作仅管理员可用。"
+
+#: src/bot.py
+msgid "Allow user permissions"
+msgstr "允许用户权限"
+
+#: src/bot.py
+msgid "Disallow user permissions"
+msgstr "禁止用户权限"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Unknown permission keys: {}"
+msgstr "未知权限键：{}"
+
+#: src/handlers/command_handler.py
+msgid ""
+"Usage: /allow photo video link or /disallow photo video link (multiple keys "
+"allowed). Use all to grant/deny all permissions."
+msgstr ""
+"用法：/allow photo video link 或 /disallow photo video link （可多选）。"
+"使用 all 键时授予/拒绝全部权限。"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "Valid permission keys: {}"
+msgstr "可用权限键：{}"
+
+#: src/handlers/command_handler.py
+msgid "Allowed"
+msgstr "已允许"
+
+#: src/handlers/command_handler.py
+msgid "Disallowed"
+msgstr "已禁止"
+
+#: src/handlers/command_handler.py
+#, python-brace-format
+msgid "{} permissions for user {}: {}"
+msgstr "{}用户 {} 的权限：{}"
