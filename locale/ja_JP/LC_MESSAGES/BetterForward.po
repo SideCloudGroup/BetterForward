@@ -1253,6 +1253,10 @@ msgstr "ユーザー情報を更新しました。"
 msgid "Failed to fetch user info: {}"
 msgstr "ユーザー情報の取得に失敗しました：{}"
 
+#: src/utils/helpers.py
+msgid "Tag"
+msgstr "タグ"
+
 #: src/handlers/admin_handler.py
 msgid "Default Permission Settings"
 msgstr "デフォルト権限設定"

@@ -15,7 +15,7 @@ from telebot.apihelper import (
 from telebot.types import Message
 
 from src.config import logger, _
-from src.utils.helpers import build_user_info_pin_text, send_and_pin_user_info
+from src.utils.helpers import build_user_info_pin_text, parse_start_payload, send_and_pin_user_info
 from src.utils.permissions import (
     ALLOW,
     DENY,
@@ -79,6 +79,8 @@ class CommandHandler:
                 return
             menu_callback(message)
         else:
+            if getattr(message.chat, "type", None) == "private":
+                self._save_start_tag(message)
             default_message = self._get_setting('default_message')
             if default_message is None:
                 self.bot.send_message(message.chat.id,
@@ -452,7 +454,9 @@ class CommandHandler:
         except ApiTelegramException as e:
             logger.warning(f"Failed to update topic name for user {user_id}: {e}")
 
-        pin_text = build_user_info_pin_text(user_id, chat.first_name, chat.last_name, chat.username)
+        pin_text = build_user_info_pin_text(
+            user_id, chat.first_name, chat.last_name, chat.username,
+            tag=self._get_user_tag(user_id))
         send_and_pin_user_info(self.bot, self.group_id, thread_id, pin_text)
         self.bot.reply_to(message, _("User info refreshed."))
 
@@ -709,6 +713,30 @@ class CommandHandler:
                 chat_id = self.group_id
             self.bot.set_message_reaction(chat_id=chat_id, message_id=forwarded_id,
                                           reaction=[message.new_reaction[-1]] if message.new_reaction else [])
+
+    def _save_start_tag(self, message: Message):
+        """Persist a valid /start deep-link payload for the user."""
+        tag = parse_start_payload(message.text)
+        if tag is None:
+            return
+        with sqlite3.connect(self.db_path) as db:
+            db.execute(
+                """INSERT INTO user_tags (user_id, tag, updated_at)
+                   VALUES (?, ?, CURRENT_TIMESTAMP)
+                   ON CONFLICT(user_id) DO UPDATE SET
+                     tag = excluded.tag,
+                     updated_at = CURRENT_TIMESTAMP""",
+                (message.from_user.id, tag),
+            )
+            db.commit()
+
+    def _get_user_tag(self, user_id: int) -> str | None:
+        """Return the stored start tag for a user, if any."""
+        with sqlite3.connect(self.db_path) as db:
+            row = db.execute(
+                "SELECT tag FROM user_tags WHERE user_id = ? LIMIT 1", (user_id,)
+            ).fetchone()
+            return row[0] if row else None
 
     def _get_setting(self, key: str):
         """Get a setting from the database."""

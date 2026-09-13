@@ -418,9 +418,12 @@ class MessageHandler:
                 db.commit()
                 thread_id = topic["message_thread_id"]
 
+                tag_row = cursor.execute(
+                    "SELECT tag FROM user_tags WHERE user_id = ? LIMIT 1", (userid,)
+                ).fetchone()
                 pin_text = build_user_info_pin_text(
                     userid, message.from_user.first_name, message.from_user.last_name,
-                    message.from_user.username)
+                    message.from_user.username, tag=tag_row[0] if tag_row else None)
                 send_and_pin_user_info(self.bot, self.group_id, thread_id, pin_text)
             else:
                 thread_id = thread_id[0]

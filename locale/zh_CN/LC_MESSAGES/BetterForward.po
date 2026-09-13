@@ -1248,6 +1248,10 @@ msgstr "仅管理员可以刷新用户信息。"
 msgid "Full Name"
 msgstr "全名"
 
+#: src/utils/helpers.py
+msgid "Tag"
+msgstr "标签"
+
 #: src/handlers/admin_handler.py
 msgid "Default Permission Settings"
 msgstr "默认权限设置"

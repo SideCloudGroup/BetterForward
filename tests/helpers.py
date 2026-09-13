@@ -146,6 +146,15 @@ def init_core_db(db_path: str):
             )
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE user_tags (
+                user_id INTEGER PRIMARY KEY,
+                tag TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
         for key, value in (
             ("permission_default_photo", "enable"),
             ("permission_default_sticker", "enable"),
