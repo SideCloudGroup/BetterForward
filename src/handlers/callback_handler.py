@@ -38,6 +38,9 @@ class CallbackHandler:
         if action == "verify_button":
             self._handle_verify_button(call, data)
             return
+        if action == "verify_emoji":
+            self._handle_verify_emoji(call, data)
+            return
 
         # Admin end callbacks
         if call.message.chat.id != self.group_id:
@@ -68,6 +71,33 @@ class CallbackHandler:
                 _("This verification is not for you."),
                 show_alert=True,
             )
+            return
+
+        with sqlite3.connect(self.db_path) as db:
+            self.captcha_manager.set_user_verified(user_id, db)
+        self.bot.answer_callback_query(call.id)
+        self.bot.send_message(user_id, _("Verification successful, you can now send messages"))
+        self.bot.delete_message(call.message.chat.id, call.message.message_id)
+
+    def _handle_verify_emoji(self, call: types.CallbackQuery, data: dict):
+        """Handle emoji captcha verification."""
+        user_id = data.get("u") or data.get("user_id")
+        if not user_id:
+            self.bot.answer_callback_query(call.id, _("Invalid user ID"), show_alert=True)
+            return
+        if call.from_user.id != user_id:
+            self.bot.answer_callback_query(
+                call.id,
+                _("This verification is not for you."),
+                show_alert=True,
+            )
+            return
+        if not self.captcha_manager.verify_emoji_choice(user_id, data.get("i")):
+            self.bot.answer_callback_query(call.id, _("Wrong emoji. Please try again."), show_alert=True)
+            try:
+                self.captcha_manager.generate_captcha(user_id, "emoji")
+            except Exception:
+                logger.error(_("Invalid captcha setting"))
             return
 
         with sqlite3.connect(self.db_path) as db:
@@ -151,11 +181,29 @@ class CallbackHandler:
             case "empty_default_msg":
                 self.admin_handler.empty_default_msg(call.message)
             case "captcha_settings":
-                self.admin_handler.captcha_settings_menu(call.message)
+                self.admin_handler.captcha_settings_menu(call.message, edit=True)
+            case "toggle_captcha":
+                self.admin_handler.toggle_captcha(call.message, data.get("v") or data.get("value"))
             case "set_captcha":
-                self.admin_handler.set_captcha(call.message, data["value"])
+                self.admin_handler.toggle_captcha(call.message, data.get("v") or data.get("value"))
+            case "captcha_qa_settings":
+                self.admin_handler.captcha_qa_settings_menu(call.message, edit=True)
+            case "captcha_qa_add":
+                self.admin_handler.start_add_captcha_qa(call.message)
+            case "captcha_qa_del":
+                if "id" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                self.admin_handler.delete_captcha_qa(call.message, data["id"])
+            case "captcha_sticker_settings":
+                self.admin_handler.captcha_sticker_settings_menu(call.message, edit=True)
+            case "captcha_sticker_mode":
+                self.admin_handler.set_captcha_sticker_mode(call.message, data.get("v"))
+            case "captcha_sticker_set":
+                self.admin_handler.start_set_captcha_sticker(call.message)
             case "tguard_api_settings":
-                self.admin_handler.tguard_api_settings_menu(call.message)
+                self.admin_handler.tguard_api_settings_menu(call.message, edit=True)
             case "set_tguard_api_url":
                 self.admin_handler.set_tguard_api_url(call.message)
             case "set_tguard_api_key":

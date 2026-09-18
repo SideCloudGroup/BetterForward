@@ -1479,5 +1479,116 @@ msgstr "トピック {} がユーザー {} に見つからないため再作成�
 msgid "This verification is not for you."
 msgstr "この認証はあなた向けではありません。"
 
+msgid "Emoji Captcha"
+msgstr "絵文字認証"
+
+msgid "Custom Q&A Captcha"
+msgstr "カスタムQ&A認証"
+
+msgid "Sticker Captcha"
+msgstr "スタンプ認証"
+
+msgid "Enabled methods are chosen at random when verifying a new user."
+msgstr "新規ユーザーの認証時は、有効な方式からランダムに1つ選ばれます。"
+
+msgid "Current: {}"
+msgstr "現在：{}"
+
+msgid "Configure Custom Q&A"
+msgstr "カスタムQ&Aを設定"
+
+msgid "Configure Sticker Captcha"
+msgstr "スタンプ認証を設定"
+
+msgid "Custom Q&A requires at least one question. Please add a question first."
+msgstr "カスタムQ&Aには少なくとも1問必要です。先に質問を追加してください。"
+
+msgid "Sticker captcha requires a target sticker. Please set it first."
+msgstr "指定スタンプ認証では、先に対象スタンプを設定してください。"
+
+msgid "Custom Q&A"
+msgstr "カスタムQ&A"
+
+msgid "No custom questions yet."
+msgstr "カスタム質問はまだありません。"
+
+msgid "Answers: {}"
+msgstr "答え：{}"
+
+msgid "Delete: {}"
+msgstr "削除：{}"
+
+msgid "Add Question"
+msgstr "質問を追加"
+
+msgid "Maximum number of questions reached."
+msgstr "質問数が上限に達しました。"
+
+msgid "Please send the question.\nSend /cancel to cancel this operation."
+msgstr "質問を送信してください。\n/cancel でこの操作をキャンセルします。"
+
+msgid "Please send the accepted answers. One per line, or separate with |.\nSend /cancel to cancel this operation."
+msgstr "正解を送信してください。1行に1つ、または | で区切ってください。\n/cancel でこの操作をキャンセルします。"
+
+msgid "Answers cannot be empty."
+msgstr "答えを空にはできません。"
+
+msgid "Question added."
+msgstr "質問を追加しました。"
+
+msgid "Sticker Captcha Settings"
+msgstr "スタンプ認証設定"
+
+msgid "Switch to any sticker"
+msgstr "任意スタンプに切り替え"
+
+msgid "Switch to match specific sticker"
+msgstr "指定スタンプに切り替え"
+
+msgid "Set target sticker"
+msgstr "対象スタンプを設定"
+
+msgid "Mode: Match specific sticker"
+msgstr "モード：指定スタンプを送り返す"
+
+msgid "Mode: Any sticker"
+msgstr "モード：任意のスタンプ"
+
+msgid "Target sticker: set"
+msgstr "対象スタンプ：設定済み"
+
+msgid "Target sticker: not set"
+msgstr "対象スタンプ：未設定"
+
+msgid "Please send the sticker that users must send back.\nSend /cancel to cancel this operation."
+msgstr "ユーザーが送り返すスタンプを送信してください。\n/cancel でこの操作をキャンセルします。"
+
+msgid "Please send a sticker."
+msgstr "スタンプを送信してください。"
+
+msgid "Target sticker updated."
+msgstr "対象スタンプを更新しました。"
+
+msgid "Please click the matching emoji: {}"
+msgstr "一致する絵文字をクリックしてください：{}"
+
+msgid "Wrong emoji. Please try again."
+msgstr "絵文字が違います。もう一度お試しください。"
+
+msgid "Please solve this question and send the answer:\n{}"
+msgstr "次の質問に答えて、答えを送信してください：\n{}"
+
+msgid "Please send this sticker back to verify."
+msgstr "このスタンプを送り返して認証してください。"
+
+msgid "Please send any sticker to verify."
+msgstr "任意のスタンプを送信して認証してください。"
+
+msgid "The sticker is incorrect, please try again"
+msgstr "スタンプが正しくありません。もう一度お試しください"
+
+msgid "No captcha method is available. Please check captcha settings."
+msgstr "利用できる認証方式がありません。認証設定を確認してください。"
+
 #~ msgid "Do not forward message"
 #~ msgstr "メッセージを転送しない"

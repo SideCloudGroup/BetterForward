@@ -8,6 +8,7 @@ from telebot.formatting import apply_html_entities
 from telebot.types import Message
 
 from src.config import logger, _
+from src.utils.captcha import parse_captcha_config, pick_captcha_type
 from src.utils.db_helper import get_db_connection
 from src.utils.helpers import build_user_info_pin_text, escape_markdown, send_and_pin_user_info
 from src.utils.message_permissions import classify_message_permissions
@@ -281,79 +282,91 @@ class MessageHandler:
 
     def _check_captcha(self, message: Message, cursor, db) -> bool:
         """Check and handle captcha verification."""
-        if self.cache.get("setting_captcha") == "disable":
+        config = parse_captcha_config(self.cache.get("setting_captcha"))
+        if not config.get("methods"):
             return True
 
-        # Captcha Handler
-        if (captcha := self.cache.get(f"captcha_{message.from_user.id}")) is not None:
-            if not self.captcha_manager.verify_captcha(message.from_user.id, message.text):
-                logger.info(_("User {} entered an incorrect answer").format(message.from_user.id))
+        user_id = message.from_user.id
+        pending = self.captcha_manager.get_pending(user_id)
+        if pending:
+            pending_type = pending.get("type")
+            if pending_type in ("math", "qa"):
+                if self.captcha_manager.verify_text_answer(user_id, message.text):
+                    logger.info(_("User {} passed the captcha").format(user_id))
+                    self.bot.send_message(message.chat.id, _("Verification successful, you can now send messages"))
+                    self.captcha_manager.set_user_verified(user_id, db)
+                    return False
+                logger.info(_("User {} entered an incorrect answer").format(user_id))
                 self.bot.send_message(message.chat.id, _("The answer is incorrect, please try again"),
                                       reply_to_message_id=message.message_id)
                 return False
-            logger.info(_("User {} passed the captcha").format(message.from_user.id))
-            self.bot.send_message(message.chat.id, _("Verification successful, you can now send messages"))
-            self.captcha_manager.set_user_verified(message.from_user.id, db)
-            self.cache.delete(f"captcha_{message.from_user.id}")
-            return False
-
-        # Check if the user is verified
-        # For TGuard, check verification status when user sends a message (if there's a pending token)
-        if self.cache.get("setting_captcha") == "tguard":
-            if self.cache.get(f"tguard_token_{message.from_user.id}"):
-                # User has pending verification, check status now
-                if self.captcha_manager.check_tguard_verification_status(message.from_user.id):
-                    # Verification just completed, allow message to proceed
-                    logger.info(
-                        _("User {} completed TGuard verification (checked on message)").format(message.from_user.id))
-                    # Continue processing the message (is_user_verified will return True now)
-                else:
-                    # Still not verified
-                    logger.info(_("User {} verification still pending").format(message.from_user.id))
-                    self.bot.send_message(message.chat.id,
-                                          _("⚠️ Your message was not sent. Please complete verification first."),
-                                          reply_to_message_id=message.message_id)
+            if pending_type == "sticker":
+                if self.captcha_manager.verify_sticker_answer(user_id, getattr(message, "sticker", None)):
+                    logger.info(_("User {} passed the captcha").format(user_id))
+                    self.bot.send_message(message.chat.id, _("Verification successful, you can now send messages"))
+                    self.captcha_manager.set_user_verified(user_id, db)
                     return False
+                logger.info(_("User {} entered an incorrect answer").format(user_id))
+                self.bot.send_message(message.chat.id, _("The sticker is incorrect, please try again"),
+                                      reply_to_message_id=message.message_id)
+                return False
+            if pending_type == "tguard":
+                if self.captcha_manager.check_tguard_verification_status(user_id, db):
+                    logger.info(
+                        _("User {} completed TGuard verification (checked on message)").format(user_id))
+                    return True
+                logger.info(_("User {} verification still pending").format(user_id))
+                self.bot.send_message(message.chat.id,
+                                      _("⚠️ Your message was not sent. Please complete verification first."),
+                                      reply_to_message_id=message.message_id)
+                return False
+            elif pending_type in ("button", "emoji"):
+                self.bot.send_message(message.chat.id,
+                                      _("⚠️ Your message was not sent. Please complete verification first."),
+                                      reply_to_message_id=message.message_id)
+                try:
+                    self.captcha_manager.generate_captcha(user_id, pending_type, config)
+                except Exception as e:
+                    logger.error(_("Invalid captcha setting") + f": {e}")
+                return False
 
-        # Check if the user is verified (for all captcha types)
-        if not self.captcha_manager.is_user_verified(message.from_user.id, db):
-            logger.info(_("User {} is not verified").format(message.from_user.id))
+        if self.cache.get(f"tguard_token_{user_id}") and not pending:
+            if self.captcha_manager.check_tguard_verification_status(user_id, db):
+                logger.info(
+                    _("User {} completed TGuard verification (checked on message)").format(user_id))
+            else:
+                logger.info(_("User {} verification still pending").format(user_id))
+                self.bot.send_message(message.chat.id,
+                                      _("⚠️ Your message was not sent. Please complete verification first."),
+                                      reply_to_message_id=message.message_id)
+                return False
 
-            # First, reply to user's message to make it clear the message was not sent
+        if not self.captcha_manager.is_user_verified(user_id, db):
+            logger.info(_("User {} is not verified").format(user_id))
             self.bot.send_message(message.chat.id,
                                   _("⚠️ Your message was not sent. Please complete verification first."),
                                   reply_to_message_id=message.message_id)
-
-            match self.cache.get("setting_captcha"):
-                case "button":
-                    self.captcha_manager.generate_captcha(message.from_user.id,
-                                                          self.cache.get("setting_captcha"))
-                    return False
-                case "math":
-                    captcha = self.captcha_manager.generate_captcha(message.from_user.id,
-                                                                    self.cache.get("setting_captcha"))
+            captcha_type = pick_captcha_type(config, self.cache)
+            if not captcha_type:
+                logger.error(_("No captcha method is available. Please check captcha settings."))
+                try:
+                    self.bot.send_message(
+                        self.group_id,
+                        _("No captcha method is available. Please check captcha settings."),
+                    )
+                except Exception:
+                    pass
+                return False
+            try:
+                self.captcha_manager.generate_captcha(user_id, captcha_type, config)
+            except Exception as e:
+                logger.error(_("TGuard verification error: {}").format(e))
+                try:
                     self.bot.send_message(message.chat.id,
-                                          _("Captcha is enabled. Please solve the following question and send the result directly\n") + captcha)
-                    return False
-                case "tguard":
-                    try:
-                        self.captcha_manager.generate_captcha(message.from_user.id,
-                                                              self.cache.get("setting_captcha"))
-                    except Exception as e:
-                        logger.error(_("TGuard verification error: {}").format(e))
-                        # Send error message to user
-                        try:
-                            self.bot.send_message(message.chat.id,
-                                                  _("Verification system error. Please try again later."))
-                        except Exception:
-                            pass
-                        # Error notification to group is already handled in CaptchaManager
-                    return False
-                case _:
-                    logger.error(_("Invalid captcha setting"))
-                    self.bot.send_message(self.group_id,
-                                          _("Invalid captcha setting") + f": {self.cache.get('setting_captcha')}")
-                    return False
+                                          _("Verification system error. Please try again later."))
+                except Exception:
+                    pass
+            return False
         return True
 
     def _handle_auto_response(self, message: Message):
