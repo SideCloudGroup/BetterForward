@@ -1590,5 +1590,26 @@ msgstr "スタンプが正しくありません。もう一度お試しくださ
 msgid "No captcha method is available. Please check captcha settings."
 msgstr "利用できる認証方式がありません。認証設定を確認してください。"
 
+msgid "Verification Validity"
+msgstr "認証の有効期間"
+
+msgid "Permanent"
+msgstr "無期限"
+
+msgid "{} days"
+msgstr "{} 日"
+
+msgid "Verification validity: {}"
+msgstr "認証の有効期間：{}"
+
+msgid "Please send the verification validity in days (a non-negative integer).\n0 means permanent validity and is the default. Changes apply to existing users too.\nSend /cancel to cancel this operation."
+msgstr "認証の有効期間を日数（0以上の整数）で送信してください。\n初期値の0は無期限です。変更は既存のユーザーにも適用されます。\n/cancel でこの操作をキャンセルします。"
+
+msgid "Please enter a non-negative integer number of days (0 means permanent)."
+msgstr "0以上の整数で日数を入力してください（0は無期限）。"
+
+msgid "This verification has expired. Send a message to request a new challenge."
+msgstr "この認証は無効です。メッセージを送信して新しい認証を開始してください。"
+
 #~ msgid "Do not forward message"
 #~ msgstr "メッセージを転送しない"

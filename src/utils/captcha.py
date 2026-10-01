@@ -3,6 +3,7 @@
 import json
 import random
 import sqlite3
+import time
 
 import httpx
 from diskcache import Cache
@@ -15,6 +16,7 @@ STICKER_MODES = ("any", "match")
 QA_MAX_ITEMS = 10
 PENDING_TTL = 300
 PENDING_KEY_PREFIX = "captcha_pending_"
+VERIFICATION_DAYS_SETTING = "captcha_verification_days"
 EMOJI_POOL = (
     "🍎", "🍌", "🍇", "🍉", "🍊", "🍋", "🍓", "🍑",
     "🥝", "🍍", "🥥", "🍒", "🥕", "🌽", "🥑", "🍆",
@@ -166,6 +168,14 @@ def normalize_answer(value):
     return str(value).strip().casefold()
 
 
+def verification_days(raw):
+    """Read the validity setting; missing or invalid values keep permanent validity."""
+    try:
+        return max(0, int(raw or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 def tguard_configured(cache):
     return bool(cache.get("setting_tguard_api_url") and cache.get("setting_tguard_api_key"))
 
@@ -223,8 +233,17 @@ class CaptchaManager:
         pending = self.cache.get(self.pending_key(user_id))
         return pending if isinstance(pending, dict) and pending.get("type") else None
 
-    def set_pending(self, user_id: int, captcha_type: str, answer=None, ttl: int = PENDING_TTL):
-        self.cache.set(self.pending_key(user_id), {"type": captcha_type, "answer": answer}, ttl)
+    def set_pending(self, user_id: int, captcha_type: str, answer=None, ttl: int = PENDING_TTL,
+                    message_id=None):
+        self.cache.set(self.pending_key(user_id), {
+            "type": captcha_type, "answer": answer, "message_id": message_id,
+        }, ttl)
+
+    def is_current_callback(self, user_id: int, captcha_type: str, message_id: int) -> bool:
+        """Only accept callbacks from the message for the active challenge."""
+        pending = self.get_pending(user_id)
+        return bool(pending and pending.get("type") == captcha_type
+                    and message_id is not None and pending.get("message_id") == message_id)
 
     def clear_pending(self, user_id: int):
         self.cache.delete(self.pending_key(user_id))
@@ -268,8 +287,9 @@ class CaptchaManager:
             "Click to verify",
             callback_data=json.dumps({"action": "verify_button", "user_id": user_id})
         ))
-        self.bot.send_message(user_id, _("Please click the button to verify."),
-                              reply_markup=markup)
+        message = self.bot.send_message(user_id, _("Please click the button to verify."),
+                                        reply_markup=markup)
+        self.set_pending(user_id, "button", message_id=message.message_id)
         return None
 
     def _generate_emoji_captcha(self, user_id: int):
@@ -291,11 +311,12 @@ class CaptchaManager:
                 row = []
         if row:
             markup.row(*row)
-        self.bot.send_message(
+        message = self.bot.send_message(
             user_id,
             _("Please click the matching emoji: {}").format(target),
             reply_markup=markup,
         )
+        self.set_pending(user_id, "emoji", options.index(target), message_id=message.message_id)
         return None
 
     def _generate_qa_captcha(self, user_id: int, config):
@@ -492,25 +513,30 @@ class CaptchaManager:
             return False
 
     def is_user_verified(self, user_id: int, db) -> bool:
-        """Check if a user is verified."""
+        """Check the latest validity setting even when verification is cached."""
         verified = self.cache.get(f"verified_{user_id}")
-        if verified is None:
-            cursor = db.cursor()
-            result = cursor.execute("SELECT 1 FROM verified_users WHERE user_id = ? LIMIT 1",
-                                    (user_id,))
-            verified = result.fetchone() is not None
+        # Older releases cached a boolean, which contains no verification time.
+        if not isinstance(verified, dict):
+            row = db.execute("SELECT verified_at FROM verified_users WHERE user_id = ? LIMIT 1",
+                             (user_id,)).fetchone()
+            verified = {"verified_at": row[0]} if row else {}
             self.cache.set(f"verified_{user_id}", verified, 1800)
-        return verified
+        if "verified_at" not in verified:
+            return False
+        days = verification_days(self.cache.get(f"setting_{VERIFICATION_DAYS_SETTING}"))
+        return days == 0 or time.time() - verified["verified_at"] < days * 86400
 
     def set_user_verified(self, user_id: int, db):
         """Mark a user as verified."""
+        verified_at = time.time()
         cursor = db.cursor()
         cursor.execute(
-            "INSERT INTO verified_users (user_id) VALUES (?) ON CONFLICT(user_id) DO NOTHING",
-            (user_id,),
+            "INSERT INTO verified_users (user_id, verified_at) VALUES (?, ?) "
+            "ON CONFLICT(user_id) DO UPDATE SET verified_at = excluded.verified_at",
+            (user_id, verified_at),
         )
         db.commit()
-        self.cache.set(f"verified_{user_id}", True, 1800)
+        self.cache.set(f"verified_{user_id}", {"verified_at": verified_at}, 1800)
         self.clear_pending(user_id)
 
     def remove_user_verification(self, user_id: int, db):

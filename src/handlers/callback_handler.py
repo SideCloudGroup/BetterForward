@@ -73,6 +73,13 @@ class CallbackHandler:
             )
             return
 
+        if not self.captcha_manager.is_current_callback(user_id, "button", call.message.message_id):
+            self.bot.answer_callback_query(
+                call.id, _("This verification has expired. Send a message to request a new challenge."),
+                show_alert=True,
+            )
+            return
+
         with sqlite3.connect(self.db_path) as db:
             self.captcha_manager.set_user_verified(user_id, db)
         self.bot.answer_callback_query(call.id)
@@ -89,6 +96,12 @@ class CallbackHandler:
             self.bot.answer_callback_query(
                 call.id,
                 _("This verification is not for you."),
+                show_alert=True,
+            )
+            return
+        if not self.captcha_manager.is_current_callback(user_id, "emoji", call.message.message_id):
+            self.bot.answer_callback_query(
+                call.id, _("This verification has expired. Send a message to request a new challenge."),
                 show_alert=True,
             )
             return
@@ -182,6 +195,8 @@ class CallbackHandler:
                 self.admin_handler.empty_default_msg(call.message)
             case "captcha_settings":
                 self.admin_handler.captcha_settings_menu(call.message, edit=True)
+            case "captcha_verification_days":
+                self.admin_handler.set_captcha_verification_days(call.message)
             case "toggle_captcha":
                 self.admin_handler.toggle_captcha(call.message, data.get("v") or data.get("value"))
             case "set_captcha":

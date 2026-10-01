@@ -16,12 +16,14 @@ from src.utils.auto_response import looks_like_regex
 from src.utils.captcha import (
     CAPTCHA_METHODS,
     QA_MAX_ITEMS,
+    VERIFICATION_DAYS_SETTING,
     method_configured,
     method_unready_reason,
     next_qa_id,
     parse_captcha_config,
     parse_qa_answers,
     save_captcha_config,
+    verification_days,
 )
 from src.version import VERSION
 from src.utils.permissions import (
@@ -818,6 +820,9 @@ class AdminHandler:
         markup.add(types.InlineKeyboardButton(
             "🛡️" + _("TGuard API Settings"),
             callback_data=json.dumps({"action": "tguard_api_settings"})))
+        markup.add(types.InlineKeyboardButton(
+            "⏳" + _("Verification Validity"),
+            callback_data=json.dumps({"action": "captcha_verification_days"})))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "menu"})))
 
@@ -827,8 +832,47 @@ class AdminHandler:
             current = _("Disabled")
         text = _("Captcha Settings") + "\n\n"
         text += _("Enabled methods are chosen at random when verifying a new user.") + "\n"
-        text += _("Current: {}").format(current)
+        text += _("Current: {}").format(current) + "\n"
+        raw_days = self.cache.get(f"setting_{VERIFICATION_DAYS_SETTING}")
+        if raw_days is None:
+            raw_days = self.database.get_setting(VERIFICATION_DAYS_SETTING)
+        days = verification_days(raw_days)
+        validity = _("Permanent") if days == 0 else _("{} days").format(days)
+        text += _("Verification validity: {}").format(validity)
         self._send_or_edit_permission_menu_message(message, text, markup, edit)
+
+    def set_captcha_verification_days(self, message: Message):
+        """Ask for the verification validity period in whole days."""
+        if not self.check_valid_chat(message):
+            return
+        msg = self.bot.edit_message_text(
+            _("Please send the verification validity in days (a non-negative integer).\n"
+              "0 means permanent validity and is the default. Changes apply to existing users too.\n"
+              "Send /cancel to cancel this operation."),
+            message.chat.id, message.message_id,
+        )
+        self.bot.register_next_step_handler(msg, self.process_captcha_verification_days)
+
+    def process_captcha_verification_days(self, message: Message):
+        """Save validity after authenticating the admin who started this flow."""
+        if not self._accept_admin_step(message, self.process_captcha_verification_days):
+            return
+        text = (message.text or "").strip()
+        if text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+        try:
+            if message.content_type != "text" or not re.fullmatch(r"[0-9]+", text):
+                raise ValueError
+            days = int(text)
+        except ValueError:
+            msg = self.bot.send_message(
+                self.group_id, _("Please enter a non-negative integer number of days (0 means permanent)."))
+            self.bot.register_next_step_handler(msg, self.process_captcha_verification_days)
+            return
+        self.database.set_setting(VERIFICATION_DAYS_SETTING, str(days))
+        self.cache.set(f"setting_{VERIFICATION_DAYS_SETTING}", str(days))
+        self.captcha_settings_menu(message)
 
     def toggle_captcha(self, message: Message, value: str):
         """Toggle a captcha method or disable all methods."""

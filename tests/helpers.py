@@ -109,7 +109,8 @@ def init_core_db(db_path: str):
         cursor.execute(
             """
             CREATE TABLE verified_users (
-                user_id INTEGER PRIMARY KEY
+                user_id INTEGER PRIMARY KEY,
+                verified_at REAL NOT NULL DEFAULT 0
             )
             """
         )

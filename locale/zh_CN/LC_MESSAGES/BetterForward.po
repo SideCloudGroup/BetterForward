@@ -1584,3 +1584,24 @@ msgstr "贴纸不正确，请重试"
 msgid "No captcha method is available. Please check captcha settings."
 msgstr "没有可用的人机验证方式，请检查验证设置。"
 
+msgid "Verification Validity"
+msgstr "验证有效期"
+
+msgid "Permanent"
+msgstr "永久有效"
+
+msgid "{} days"
+msgstr "{} 天"
+
+msgid "Verification validity: {}"
+msgstr "验证有效期：{}"
+
+msgid "Please send the verification validity in days (a non-negative integer).\n0 means permanent validity and is the default. Changes apply to existing users too.\nSend /cancel to cancel this operation."
+msgstr "请发送验证有效期，单位为天（非负整数）。\n默认 0 表示永久有效，修改也会应用于已有用户。\n发送 /cancel 取消此操作。"
+
+msgid "Please enter a non-negative integer number of days (0 means permanent)."
+msgstr "请输入非负整数天数（0 表示永久有效）。"
+
+msgid "This verification has expired. Send a message to request a new challenge."
+msgstr "此验证已失效，请发送消息获取新的验证题目。"
+

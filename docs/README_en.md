@@ -11,7 +11,7 @@ Forward private messages to topics in a group—one user per topic—so multiple
 - **Privacy & teamwork**: User messages appear in group topics; admins reply from the group.
 - **Multi-language**: English, Chinese, and Japanese (`en_US` / `zh_CN` / `ja_JP`).
 - **Auto reply**: Keyword-based replies with regex support and scheduled active hours.
-- **Human verification**: Button, math, or [TGuard](https://github.com/SideCloudGroup/TGuard) advanced verification.
+- **Human verification**: Button, math, emoji, custom Q&A, sticker, or [TGuard](https://github.com/SideCloudGroup/TGuard) verification, with random selection and configurable validity in days.
 - **Spam filtering**: Keyword-based detection with automatic routing to a dedicated spam topic.
 - **Permission controls**: Restrict message types globally and per user; view and reset overrides.
 - **User management**: Ban/unban, blocked-user auto-reply, terminate threads, topic notes, broadcast, and more.
@@ -111,13 +111,20 @@ Menus: **Banned Users**, **Blocked User Reply**
 
 ### Human Verification
 
-Three methods (choose in **Captcha Settings**):
+Six methods (enable multiple in **Captcha Settings** to choose one at random whenever verification is needed):
 
 1. **Button** — tap to verify
 2. **Math** — solve a simple arithmetic problem
-3. **TGuard** — configure API URL and key under **TGuard API Settings**; verification opens in a Telegram Mini App
+3. **Emoji** — tap the emoji matching the prompt
+4. **Custom Q&A** — configure questions and accepted answers; supports multiple answers and ignores case and surrounding whitespace
+5. **Sticker** — send any sticker or send back an admin-configured sticker
+6. **TGuard** — configure API URL and key under **TGuard API Settings**; verification opens in a Telegram Mini App
 
-Admins can also mark a user as verified with `/verify` in a user topic.
+Under **Captcha Settings → Verification Validity**, enter a non-negative whole number of days, such as `7` or `30`. The default `0` keeps verification permanent. A positive value counts from the latest successful verification; the next message after expiry requires verification again. This applies to every method, and ordinary messages do not extend validity. Disabling captcha bypasses verification.
+
+Validity changes apply immediately to existing verification records. Previously verified users keep their status, with the database upgrade time used as their starting timestamp. The default permanent behavior remains unchanged.
+
+Admins can also use `/verify true` in a user topic to verify a user and renew validity, or `/verify false` to revoke verification. Expired buttons and buttons from older challenges cannot be reused to pass a new challenge.
 
 ### Spam Filtering
 
