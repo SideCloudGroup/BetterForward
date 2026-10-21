@@ -117,6 +117,8 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "blocked_reply_settings"})),
             types.InlineKeyboardButton("🔐" + _("Permission Settings"),
                                        callback_data=json.dumps({"action": "permission_settings"})),
+            types.InlineKeyboardButton("📝" + _("Reply Templates"),
+                                       callback_data=json.dumps({"action": "reply_templates"})),
             types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
                                        callback_data=json.dumps({"action": "captcha_settings"})),
             types.InlineKeyboardButton("🌍" + _("Time Zone Settings"),
@@ -1723,6 +1725,88 @@ class AdminHandler:
         self.bot.edit_message_text(_("Blocked user reply message cleared."),
                                    message.chat.id, message.message_id,
                                    reply_markup=markup)
+
+    # Reply Templates
+    def reply_templates_menu(self, message: Message):
+        """List reply templates with add/delete options."""
+        with sqlite3.connect(self.db_path) as db:
+            templates = db.execute("SELECT id, content FROM reply_templates ORDER BY id").fetchall()
+
+        markup = types.InlineKeyboardMarkup()
+        text = _("Reply Templates") + "\n\n"
+        if not templates:
+            text += _("No reply templates yet.") + "\n"
+        else:
+            buttons = []
+            for number, (template_id, content) in enumerate(templates, start=1):
+                preview = content if len(content) <= 80 else content[:80] + "…"
+                text += f"{number}. {preview}\n"
+                buttons.append(types.InlineKeyboardButton(
+                    f"#{number}", callback_data=json.dumps({"action": "select_reply_template", "id": template_id})))
+            for i in range(0, len(buttons), 5):
+                markup.row(*buttons[i:i + 5])
+        text += "\n" + _("Use /r <number> in a user topic to send a template.")
+
+        markup.add(types.InlineKeyboardButton("➕" + _("Add Template"),
+                                              callback_data=json.dumps({"action": "add_reply_template"})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "menu"})))
+        self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
+
+    def add_reply_template(self, message: Message):
+        """Start adding a reply template."""
+        msg = self.bot.edit_message_text(
+            text=_("Please send the template text.\nSend /cancel to cancel this operation."),
+            chat_id=self.group_id,
+            message_id=message.message_id)
+        self.bot.register_next_step_handler(msg, self.process_add_reply_template)
+
+    def process_add_reply_template(self, message: Message):
+        """Save a new reply template."""
+        if not self._accept_admin_step(message, self.process_add_reply_template):
+            return
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "reply_templates"})))
+        if message.content_type != "text" or not message.text.strip():
+            self.bot.send_message(self.group_id, _("Invalid input"), reply_markup=markup)
+            return
+
+        with sqlite3.connect(self.db_path) as db:
+            db.execute("INSERT INTO reply_templates (content) VALUES (?)", (message.text.strip(),))
+            db.commit()
+        self.bot.send_message(self.group_id, _("Template added."), reply_markup=markup)
+
+    def select_reply_template(self, message: Message, template_id: int):
+        """Show a template with a delete option."""
+        with sqlite3.connect(self.db_path) as db:
+            row = db.execute("SELECT content FROM reply_templates WHERE id = ?", (template_id,)).fetchone()
+
+        markup = types.InlineKeyboardMarkup()
+        if row is None:
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "reply_templates"})))
+            self.bot.edit_message_text(_("Template not found"), message.chat.id, message.message_id,
+                                       reply_markup=markup)
+            return
+        markup.add(types.InlineKeyboardButton("❌" + _("Delete"),
+                                              callback_data=json.dumps({"action": "delete_reply_template",
+                                                                        "id": template_id})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "reply_templates"})))
+        self.bot.edit_message_text(row[0] + "\n\n" + _("Select an action:"),
+                                   message.chat.id, message.message_id, reply_markup=markup)
+
+    def delete_reply_template(self, message: Message, template_id: int):
+        """Delete a reply template."""
+        with sqlite3.connect(self.db_path) as db:
+            db.execute("DELETE FROM reply_templates WHERE id = ?", (template_id,))
+            db.commit()
+        self.reply_templates_menu(message)
 
     # Spam Topic Management
     def reset_spam_topic(self, message: Message):

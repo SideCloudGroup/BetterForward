@@ -1,18 +1,18 @@
 """Message handling module."""
 
-import html
 import time
 
+import pytz
 from telebot.apihelper import ApiTelegramException, create_forum_topic
-from telebot.formatting import apply_html_entities
 from telebot.types import Message
 
 from src.config import logger, _
 from src.utils.captcha import parse_captcha_config, pick_captcha_type
 from src.utils.db_helper import get_db_connection
-from src.utils.helpers import build_user_info_pin_text, escape_markdown, send_and_pin_user_info
+from src.utils.helpers import build_user_info_pin_text, escape_markdown, send_and_pin_user_info, to_html
 from src.utils.message_permissions import classify_message_permissions
 from src.utils.message_split import split_caption, split_html_text
+from src.utils.stats import record_incoming, record_outgoing
 
 
 class PartialSendError(Exception):
@@ -31,7 +31,7 @@ class MessageHandler:
     """Handles message forwarding between users and group."""
 
     def __init__(self, bot, group_id: int, db_path: str, cache, captcha_manager, auto_response_manager,
-                 spam_detector_manager=None, bot_instance=None, permission_manager=None):
+                 spam_detector_manager=None, bot_instance=None, permission_manager=None, reaction_ack=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
@@ -41,6 +41,7 @@ class MessageHandler:
         self.spam_detector_manager = spam_detector_manager
         self.bot_instance = bot_instance
         self.permission_manager = permission_manager or getattr(bot_instance, "permission_manager", None)
+        self.reaction_ack = reaction_ack
 
     def check_valid_chat(self, message: Message) -> bool:
         """Check if message is in valid chat context."""
@@ -52,18 +53,9 @@ class MessageHandler:
         if self.check_valid_chat(message):
             return
 
-        if message.text:
-            msg_text = apply_html_entities(message.text, message.entities, None) if message.entities else html.escape(
-                message.text)
-        else:
-            msg_text = None
-
-        if message.caption:
-            caption_entities = getattr(message, "caption_entities", None)
-            msg_caption = apply_html_entities(message.caption, caption_entities,
-                                              None) if caption_entities else html.escape(message.caption)
-        else:
-            msg_caption = None
+        msg_text = to_html(message.text, message.entities) if message.text else None
+        msg_caption = to_html(message.caption, getattr(message, "caption_entities", None)) \
+            if message.caption else None
 
         # Autocommit + WAL connection: avoid holding a write transaction across Telegram I/O.
         with get_db_connection(self.db_path) as db:
@@ -217,7 +209,7 @@ class MessageHandler:
                 # Log processing time
                 processing_time = (time.time() - start_time) * 1000
                 logger.info(_("Spam message from user {} processed in {:.2f}ms (matched: {})").format(
-                    message.from_user.id, processing_time, spam_info.get('matched', 'unknown')))
+                    message.from_user.id, processing_time, (spam_info or {}).get('matched', 'unknown')))
 
                 # Done, return early
                 return
@@ -235,9 +227,14 @@ class MessageHandler:
         if fwd_msg is None:
             return
 
+        record_incoming(cursor, message.from_user.id, self._time_zone(),
+                        getattr(message.from_user, "language_code", None))
+        if self.reaction_ack is not None:
+            self.reaction_ack.ack(message.chat.id, message.message_id)
+
         if auto_response is not None:
-            self.bot.send_message(self.group_id, _("[Auto Response]") + auto_response,
-                                  message_thread_id=thread_id)
+            self._send_auto_response(self.group_id, auto_response, thread_id=thread_id,
+                                     label=_("[Auto Response]"))
 
         # Log processing time
         processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
@@ -370,23 +367,30 @@ class MessageHandler:
         return True
 
     def _handle_auto_response(self, message: Message):
-        """Handle automatic responses."""
+        """Send a matching auto response to the user and return it, or None."""
         if (auto_response_result := self.auto_response_manager.match_auto_response(message.text)) is not None:
-            match auto_response_result["type"]:
-                case "text":
-                    self.bot.send_message(message.chat.id, auto_response_result["response"])
-                case "photo":
-                    self.bot.send_photo(message.chat.id, photo=auto_response_result["response"])
-                case "sticker":
-                    self.bot.send_sticker(message.chat.id, sticker=auto_response_result["response"])
-                case "video":
-                    self.bot.send_video(message.chat.id, video=auto_response_result["response"])
-                case "document":
-                    self.bot.send_document(message.chat.id, document=auto_response_result["response"])
-                case _:
-                    logger.error(_("Unsupported message type") + auto_response_result["type"])
-            return auto_response_result["response"]
-        return None
+            self._send_auto_response(message.chat.id, auto_response_result)
+        return auto_response_result
+
+    def _send_auto_response(self, chat_id: int, auto_response: dict, thread_id: int = None,
+                            label: str = None):
+        """Send an auto response; `label` is shown as caption, or as a separate note for stickers."""
+        response = auto_response["response"]
+        match auto_response["type"]:
+            case "text":
+                self.bot.send_message(chat_id, (label or "") + response, message_thread_id=thread_id)
+            case "photo":
+                self.bot.send_photo(chat_id, photo=response, caption=label, message_thread_id=thread_id)
+            case "sticker":
+                if label:
+                    self.bot.send_message(chat_id, label, message_thread_id=thread_id)
+                self.bot.send_sticker(chat_id, sticker=response, message_thread_id=thread_id)
+            case "video":
+                self.bot.send_video(chat_id, video=response, caption=label, message_thread_id=thread_id)
+            case "document":
+                self.bot.send_document(chat_id, document=response, caption=label, message_thread_id=thread_id)
+            case _:
+                logger.error(_("Unsupported message type") + auto_response["type"])
 
     @staticmethod
     def _is_topic_missing_error(exc: Exception) -> bool:
@@ -436,7 +440,9 @@ class MessageHandler:
                 ).fetchone()
                 pin_text = build_user_info_pin_text(
                     userid, message.from_user.first_name, message.from_user.last_name,
-                    message.from_user.username, tag=tag_row[0] if tag_row else None)
+                    message.from_user.username,
+                    language_code=getattr(message.from_user, "language_code", None),
+                    tag=tag_row[0] if tag_row else None)
                 send_and_pin_user_info(self.bot, self.group_id, thread_id, pin_text)
             else:
                 thread_id = thread_id[0]
@@ -545,6 +551,9 @@ class MessageHandler:
                                                       user_id, None, reply_id)
                 self._store_forward_mappings(
                     cursor, message.message_id, fwd_msgs, message.message_thread_id, True)
+                self.after_reply_sent(cursor, user_id, message.message_thread_id)
+                if self.reaction_ack is not None:
+                    self.reaction_ack.ack(self.group_id, message.message_id)
             except PartialSendError as e:
                 logger.error(_("Failed to forward message to user {}").format(user_id))
                 logger.error(e.cause)
@@ -571,6 +580,17 @@ class MessageHandler:
                                   token=self.bot.token)
             except ApiTelegramException:
                 pass
+
+    def _time_zone(self):
+        tz_str = self.cache.get("setting_time_zone")
+        try:
+            return pytz.timezone(tz_str) if tz_str else pytz.UTC
+        except pytz.UnknownTimeZoneError:
+            return pytz.UTC
+
+    def after_reply_sent(self, cursor, user_id: int, thread_id: int) -> None:
+        """Count an admin reply sent to a user."""
+        record_outgoing(cursor, self._time_zone())
 
     def _get_reply_id(self, message: Message, topic_id: int, cursor, in_group: bool):
         """Get the reply message ID if replying to a message."""

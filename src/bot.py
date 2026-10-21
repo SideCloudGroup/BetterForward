@@ -14,6 +14,7 @@ from src.utils.auto_response import AutoResponseManager
 from src.utils.captcha import CaptchaManager
 from src.utils.message_queue import MessageQueueManager
 from src.utils.permissions import PermissionManager
+from src.utils.reaction_ack import ReactionAck
 from src.utils.spam_detector_manager import SpamDetectorManager
 from src.utils.spam_detectors import KeywordSpamDetector
 
@@ -55,7 +56,7 @@ class TGBot:
         self.time_zone = pytz.timezone(tz_str) if tz_str else pytz.UTC
 
         # Initialize managers
-        self.captcha_manager = CaptchaManager(self.bot, self.cache, self.group_id)
+        self.captcha_manager = CaptchaManager(self.bot, self.cache, self.group_id, db_path)
         self.auto_response_manager = AutoResponseManager(db_path, self.time_zone)
 
         # Initialize spam detection system
@@ -63,18 +64,23 @@ class TGBot:
         self.keyword_detector = KeywordSpamDetector()
         self.spam_detector_manager.register_detector(self.keyword_detector)
 
+        self.reaction_ack = ReactionAck(self.bot)
+
         # Initialize handlers
         self.message_handler = MessageHandler(
             self.bot, self.group_id, db_path, self.cache,
             self.captcha_manager, self.auto_response_manager,
             spam_detector_manager=self.spam_detector_manager,
             bot_instance=self,
-            permission_manager=self.permission_manager
+            permission_manager=self.permission_manager,
+            reaction_ack=self.reaction_ack,
         )
         self.command_handler = CommandHandler(
             self.bot, self.group_id, db_path, self.cache,
             self.time_zone, self.captcha_manager,
-            permission_manager=self.permission_manager
+            permission_manager=self.permission_manager,
+            message_handler=self.message_handler,
+            queue_stats=lambda: self.get_queue_stats(),
         )
         self.admin_handler = AdminHandler(
             self.bot, self.group_id, db_path, self.cache,
@@ -120,8 +126,11 @@ class TGBot:
 
     def _register_handlers(self):
         """Register all bot handlers."""
-        # Edited message handler
-        self.bot.edited_message_handler(func=lambda m: True)(self.command_handler.handle_edit)
+        # Edited message handler (telebot only delivers text edits unless content_types is given)
+        self.bot.edited_message_handler(
+            func=lambda m: True,
+            content_types=["text", "photo", "video", "document", "audio", "voice", "animation"]
+        )(self.command_handler.handle_edit)
 
         # Command handlers
         self.bot.message_handler(commands=["start", "help"])(
@@ -138,6 +147,9 @@ class TGBot:
         self.bot.message_handler(commands=["disallow"])(self.command_handler.disallow_permissions)
         self.bot.message_handler(commands=["permissions"])(self.command_handler.show_user_permissions)
         self.bot.message_handler(commands=["resetpermissions"])(self.command_handler.reset_user_permissions)
+        self.bot.message_handler(commands=["stats"])(self.command_handler.handle_stats)
+        self.bot.message_handler(commands=["info"])(self.command_handler.handle_info)
+        self.bot.message_handler(commands=["r"])(self.command_handler.handle_template_reply)
 
         # Message handler (for all message types)
         self.bot.message_handler(
@@ -175,13 +187,14 @@ class TGBot:
             types.BotCommand("disallow", _("Disallow user permissions")),
             types.BotCommand("permissions", _("Show user permissions")),
             types.BotCommand("resetpermissions", _("Reset user permission overrides")),
+            types.BotCommand("stats", _("Show statistics")),
+            types.BotCommand("info", _("Show user info")),
+            types.BotCommand("r", _("Send a reply template")),
         ], scope=types.BotCommandScopeChat(self.group_id))
 
     def load_settings(self):
         """Load settings from database into cache."""
         settings = self.database.get_all_settings()
-        for key, value in settings.items():
-            self.cache.set(f"setting_{key}", value)
         for key, value in settings.items():
             self.cache.set(f"setting_{key}", value)
 
@@ -269,11 +282,8 @@ class TGBot:
     def reset_spam_topic(self):
         """Reset spam topic by creating a new one."""
         try:
-            # Clear old setting
-            self.database.set_setting('spam_topic', None)
+            # settings.value is NOT NULL; _create_spam_topic overwrites the stored ID.
             self.cache.delete("spam_topic_id")
-
-            # Create new topic
             self._create_spam_topic()
             return True
         except Exception as e:

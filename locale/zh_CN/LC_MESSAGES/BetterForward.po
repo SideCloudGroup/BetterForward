@@ -1605,3 +1605,114 @@ msgstr "请输入非负整数天数（0 表示永久有效）。"
 msgid "This verification has expired. Send a message to request a new challenge."
 msgstr "此验证已失效，请发送消息获取新的验证题目。"
 
+msgid "Active users today: {}"
+msgstr "今日活跃用户：{}"
+
+msgid "Add Template"
+msgstr "添加模板"
+
+msgid "Banned users: {}"
+msgstr "封禁用户：{}"
+
+msgid "Banned: {}"
+msgstr "已封禁：{}"
+
+msgid "Failed to sync edited message {}: {}"
+msgstr "同步已编辑的消息 {} 失败：{}"
+
+msgid "First contact: {}"
+msgstr "首次联系：{}"
+
+msgid "Last message: {}"
+msgstr "最近消息：{}"
+
+msgid "Messages sent: {}"
+msgstr "发送消息数：{}"
+
+msgid "Messages today: {} received / {} replied"
+msgstr "今日消息：收到 {} 条 / 回复 {} 条"
+
+msgid "New users today: {}"
+msgstr "今日新用户：{}"
+
+msgid "No reply templates yet."
+msgstr "暂无回复模板。"
+
+msgid "No reply templates. Add them in /help → Reply Templates."
+msgstr "暂无回复模板，请在 /help → 回复模板 中添加。"
+
+msgid ""
+"Please send the template text.\n"
+"Send /cancel to cancel this operation."
+msgstr ""
+"请发送模板内容。\n"
+"发送 /cancel 取消操作。"
+
+msgid "Queue: {} waiting, {} users processing, {} workers"
+msgstr "队列：{} 条等待中，{} 位用户处理中，{} 个工作线程"
+
+msgid "Reply Templates"
+msgstr "回复模板"
+
+msgid "Reply templates:"
+msgstr "回复模板："
+
+msgid "Resuming {} remaining chunk(s) for user {} on new topic {}"
+msgstr "正在为用户 {1} 在新话题 {2} 中继续发送剩余的 {0} 段消息"
+
+msgid "Send a reply template"
+msgstr "发送回复模板"
+
+msgid "Show statistics"
+msgstr "查看统计"
+
+msgid "Show user info"
+msgstr "查看用户信息"
+
+msgid "Statistics"
+msgstr "统计"
+
+msgid "Template added."
+msgstr "模板已添加。"
+
+msgid "Template not found"
+msgstr "未找到模板"
+
+msgid "Template not found. Send /r to list templates."
+msgstr "未找到该模板，发送 /r 查看模板列表。"
+
+msgid "Usage: /r <number>"
+msgstr "用法：/r <编号>"
+
+msgid "Use /r <number> in a user topic to send a template."
+msgstr "在用户话题中发送 /r <编号> 即可发送模板。"
+
+msgid "User Info"
+msgstr "用户信息"
+
+msgid "Users: {}"
+msgstr "用户数：{}"
+
+msgid "Verified users: {}"
+msgstr "已验证用户：{}"
+
+msgid "Verified: {}"
+msgstr "已验证：{}"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Failed to back up database before upgrading, aborting"
+msgstr "升级前备份数据库失败，已中止升级"
+
+msgid "Restore the backup to roll back: {}"
+msgstr "可用此备份恢复到升级前的状态：{}"
+
+msgid "Database backed up to {}"
+msgstr "数据库已备份到 {}"
+
+msgid "Failed to add processed reaction to message {}: {}"
+msgstr "为消息 {} 添加处理确认表情失败：{}"
+
+msgid "Failed to remove processed reaction from message {}: {}"
+msgstr "移除消息 {} 的处理确认表情失败：{}"
