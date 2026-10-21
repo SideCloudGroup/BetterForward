@@ -124,42 +124,48 @@ class TGBot:
                              'my_chat_member', 'message_reaction', 'message_reaction_count']
         )
 
+    def _is_relevant_chat(self, update) -> bool:
+        """Only private chats and the forwarding group are served; other groups are ignored."""
+        chat = getattr(update, "chat", None)
+        return chat is not None and (chat.type == "private" or chat.id == self.group_id)
+
     def _register_handlers(self):
         """Register all bot handlers."""
+        relevant = self._is_relevant_chat
         # Edited message handler (telebot only delivers text edits unless content_types is given)
         self.bot.edited_message_handler(
-            func=lambda m: True,
+            func=relevant,
             content_types=["text", "photo", "video", "document", "audio", "voice", "animation"]
         )(self.command_handler.handle_edit)
 
         # Command handlers
-        self.bot.message_handler(commands=["start", "help"])(
+        self.bot.message_handler(commands=["start", "help"], func=relevant)(
             lambda m: self.command_handler.help_command(m, self.admin_handler.menu))
-        self.bot.message_handler(commands=["ban"])(self.command_handler.ban_user)
-        self.bot.message_handler(commands=["unban"])(self.command_handler.unban_user)
-        self.bot.message_handler(commands=["terminate"])(self.command_handler.handle_terminate)
-        self.bot.message_handler(commands=["delete"])(self.command_handler.delete_message)
-        self.bot.message_handler(commands=["verify"])(self.command_handler.handle_verify)
-        self.bot.message_handler(commands=["setnote"])(self.command_handler.handle_setnote)
-        self.bot.message_handler(commands=["getnote"])(self.command_handler.handle_getnote)
-        self.bot.message_handler(commands=["refresh"])(self.command_handler.handle_refresh)
-        self.bot.message_handler(commands=["allow"])(self.command_handler.allow_permissions)
-        self.bot.message_handler(commands=["disallow"])(self.command_handler.disallow_permissions)
-        self.bot.message_handler(commands=["permissions"])(self.command_handler.show_user_permissions)
-        self.bot.message_handler(commands=["resetpermissions"])(self.command_handler.reset_user_permissions)
-        self.bot.message_handler(commands=["stats"])(self.command_handler.handle_stats)
-        self.bot.message_handler(commands=["info"])(self.command_handler.handle_info)
-        self.bot.message_handler(commands=["r"])(self.command_handler.handle_template_reply)
+        self.bot.message_handler(commands=["ban"], func=relevant)(self.command_handler.ban_user)
+        self.bot.message_handler(commands=["unban"], func=relevant)(self.command_handler.unban_user)
+        self.bot.message_handler(commands=["terminate"], func=relevant)(self.command_handler.handle_terminate)
+        self.bot.message_handler(commands=["delete"], func=relevant)(self.command_handler.delete_message)
+        self.bot.message_handler(commands=["verify"], func=relevant)(self.command_handler.handle_verify)
+        self.bot.message_handler(commands=["setnote"], func=relevant)(self.command_handler.handle_setnote)
+        self.bot.message_handler(commands=["getnote"], func=relevant)(self.command_handler.handle_getnote)
+        self.bot.message_handler(commands=["refresh"], func=relevant)(self.command_handler.handle_refresh)
+        self.bot.message_handler(commands=["allow"], func=relevant)(self.command_handler.allow_permissions)
+        self.bot.message_handler(commands=["disallow"], func=relevant)(self.command_handler.disallow_permissions)
+        self.bot.message_handler(commands=["permissions"], func=relevant)(self.command_handler.show_user_permissions)
+        self.bot.message_handler(commands=["resetpermissions"], func=relevant)(self.command_handler.reset_user_permissions)
+        self.bot.message_handler(commands=["stats"], func=relevant)(self.command_handler.handle_stats)
+        self.bot.message_handler(commands=["info"], func=relevant)(self.command_handler.handle_info)
+        self.bot.message_handler(commands=["r"], func=relevant)(self.command_handler.handle_template_reply)
 
         # Message handler (for all message types)
         self.bot.message_handler(
-            func=lambda m: True,
+            func=relevant,
             content_types=["photo", "text", "sticker", "video", "document",
                            "voice", "audio", "animation", "contact"]
         )(self.push_messages)
 
         # Reaction handler
-        self.bot.message_reaction_handler(func=lambda message: True)(
+        self.bot.message_reaction_handler(func=relevant)(
             self.command_handler.handle_reaction)
 
         # Callback query handler

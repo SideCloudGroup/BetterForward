@@ -52,6 +52,9 @@ class MessageHandler:
         # Not responding in General topic
         if self.check_valid_chat(message):
             return
+        # Groups other than the forwarding group (the bot was added elsewhere) are ignored.
+        if message.chat.id != self.group_id and message.chat.type != "private":
+            return
 
         msg_text = to_html(message.text, message.entities) if message.text else None
         msg_caption = to_html(message.caption, getattr(message, "caption_entities", None)) \
