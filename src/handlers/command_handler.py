@@ -1,8 +1,12 @@
 """Command handling module."""
 
+import html
 import json
 import sqlite3
+import time
 from datetime import datetime
+
+import pytz
 
 from telebot import types
 from telebot.apihelper import (
@@ -15,7 +19,11 @@ from telebot.apihelper import (
 from telebot.types import Message
 
 from src.config import logger, _
-from src.utils.helpers import build_user_info_pin_text, parse_start_payload, send_and_pin_user_info
+from src.utils.captcha import VERIFICATION_DAYS_SETTING, verification_days
+from src.utils.helpers import build_user_info_pin_text, parse_start_payload, send_and_pin_user_info, to_html
+from src.utils.message_split import split_caption, split_html_text
+from src.utils.message_permissions import classify_message_permissions
+from src.utils.stats import get_summary, get_user_stats
 from src.utils.permissions import (
     ALLOW,
     DENY,
@@ -33,7 +41,7 @@ class CommandHandler:
     """Handles bot commands."""
 
     def __init__(self, bot, group_id: int, db_path: str, cache, time_zone, captcha_manager, spam_detector=None,
-                 permission_manager=None):
+                 permission_manager=None, message_handler=None, queue_stats=None):
         self.bot = bot
         self.group_id = group_id
         self.db_path = db_path
@@ -42,6 +50,9 @@ class CommandHandler:
         self.captcha_manager = captcha_manager
         self.spam_detector = spam_detector
         self.permission_manager = permission_manager
+        self.message_handler = message_handler
+        # Callable returning MessageQueueManager.get_stats(); optional.
+        self.queue_stats = queue_stats
 
     @property
     def time_zone(self):
@@ -71,6 +82,43 @@ class CommandHandler:
         """Reply with an error message when err is set; stay silent otherwise."""
         if err:
             self.bot.reply_to(message, err)
+
+    def _user_thread_id(self, db_cursor, user_id: int):
+        """Return the topic thread id mapped to a user, or None."""
+        db_cursor.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1", (user_id,))
+        row = db_cursor.fetchone()
+        return row[0] if row else None
+
+    def _find_forwarded(self, db_cursor, chat_id: int, received_id: int):
+        """Find the forwarded copies of a message received in chat_id.
+
+        Private-chat message ids are only unique per user, so lookups for user
+        messages are scoped to that user's topic.
+
+        Returns (topic_id, forwarded_ids, target_chat_id) or None.
+        """
+        if chat_id == self.group_id:
+            db_cursor.execute(
+                "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? AND in_group = 1 ORDER BY id",
+                (received_id,))
+            rows = db_cursor.fetchall()
+            if not rows:
+                return None
+            topic_id = rows[0][0]
+            db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
+            if (user_id := db_cursor.fetchone()) is None or user_id[0] is None:
+                return None
+            return topic_id, [row[1] for row in rows], user_id[0]
+
+        if (topic_id := self._user_thread_id(db_cursor, chat_id)) is None:
+            return None
+        db_cursor.execute(
+            "SELECT forwarded_id FROM messages WHERE received_id = ? AND in_group = 0 AND topic_id = ? ORDER BY id",
+            (received_id, topic_id))
+        rows = db_cursor.fetchall()
+        if not rows:
+            return None
+        return topic_id, [row[0] for row in rows], self.group_id
 
     def help_command(self, message: Message, menu_callback):
         """Handle /help and /start commands."""
@@ -296,29 +344,22 @@ class CommandHandler:
         in_group = message.chat.id == self.group_id
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
-            db_cursor.execute(
-                "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? AND in_group = ?",
-                (msg_id, in_group))
-            rows = db_cursor.fetchall()
-            if not rows:
+            if (found := self._find_forwarded(db_cursor, message.chat.id, msg_id)) is None:
                 return
-            topic_id = rows[0][0]
-            forwarded_ids = [row[1] for row in rows]
+            topic_id, forwarded_ids, target_chat_id = found
             if in_group:
-                db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
-                if (user_id := db_cursor.fetchone()) is None or user_id[0] is None:
-                    return
                 for forwarded_id in forwarded_ids:
                     try:
-                        self.bot.delete_message(chat_id=user_id[0], message_id=forwarded_id)
+                        self.bot.delete_message(chat_id=target_chat_id, message_id=forwarded_id)
                     except ApiTelegramException:
                         pass
             else:
                 self.bot.send_message(chat_id=self.group_id,
                                       text=_("[Alert]") + _("Message deleted by user"),
+                                      message_thread_id=topic_id,
                                       reply_to_message_id=forwarded_ids[0])
-            db_cursor.execute("DELETE FROM messages WHERE received_id = ? AND in_group = ?",
-                              (msg_id, in_group))
+            db_cursor.execute("DELETE FROM messages WHERE received_id = ? AND in_group = ? AND topic_id = ?",
+                              (msg_id, in_group, topic_id))
             db.commit()
 
         # Delete the current message
@@ -437,10 +478,12 @@ class CommandHandler:
             db_cursor = db.cursor()
             db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (thread_id,))
             row = db_cursor.fetchone()
-        if row is None:
-            self.bot.reply_to(message, _("User not found"))
-            return
-        user_id = row[0]
+            if row is None:
+                self.bot.reply_to(message, _("User not found"))
+                return
+            user_id = row[0]
+            # get_chat does not return the client language; use the last one seen on a message.
+            language_code = (get_user_stats(db_cursor, user_id) or {}).get("language")
 
         try:
             chat = self.bot.get_chat(user_id)
@@ -456,7 +499,7 @@ class CommandHandler:
 
         pin_text = build_user_info_pin_text(
             user_id, chat.first_name, chat.last_name, chat.username,
-            tag=self._get_user_tag(user_id))
+            language_code=language_code, tag=self._get_user_tag(user_id))
         send_and_pin_user_info(self.bot, self.group_id, thread_id, pin_text)
         self.bot.reply_to(message, _("User info refreshed."))
 
@@ -503,6 +546,142 @@ class CommandHandler:
         if len(note) > self._GETNOTE_MAX_LEN:
             note = note[: self._GETNOTE_MAX_LEN] + "\n" + _("(truncated)")
         self.bot.reply_to(message, note)
+
+    def _format_time(self, timestamp: int | None) -> str:
+        if timestamp is None:
+            return _("Unknown")
+        return datetime.fromtimestamp(timestamp, self.time_zone or pytz.UTC).strftime("%Y-%m-%d %H:%M:%S")
+
+    def handle_stats(self, message: Message):
+        """Show bot-wide statistics (admins, anywhere in the group)."""
+        if message.chat.id != self.group_id or not self._is_group_admin(message.from_user.id):
+            return
+        days = verification_days(self.cache.get(f"setting_{VERIFICATION_DAYS_SETTING}"))
+        verified_since = time.time() - days * 86400 if days else 0
+        with sqlite3.connect(self.db_path) as db:
+            summary = get_summary(db.cursor(), self.time_zone, verified_since)
+
+        lines = [
+            "📊 " + _("Statistics"),
+            "",
+            _("Users: {}").format(summary["users"]),
+            _("New users today: {}").format(summary["new_users_today"]),
+            _("Active users today: {}").format(summary["active_users_today"]),
+            _("Messages today: {} received / {} replied").format(
+                summary["incoming_today"], summary["outgoing_today"]),
+            _("Banned users: {}").format(summary["banned_users"]),
+            _("Verified users: {}").format(summary["verified_users"]),
+        ]
+        if self.queue_stats is not None:
+            queue = self.queue_stats()
+            lines += [
+                "",
+                _("Queue: {} waiting, {} users processing, {} workers").format(
+                    queue["main_queue_size"] + queue["total_queued_messages"],
+                    queue["processing_users_count"], queue["workers_count"]),
+            ]
+        self.bot.reply_to(message, "\n".join(lines))
+
+    def handle_info(self, message: Message):
+        """Show profile and activity of the user behind the current topic."""
+        ok, err = self._topic_admin_access_ok(message)
+        if not ok:
+            self._reply_command_error(message, err)
+            return
+
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
+                              (message.message_thread_id,))
+            if (row := db_cursor.fetchone()) is None or row[0] is None:
+                self.bot.reply_to(message, _("User not found"))
+                return
+            user_id = row[0]
+            stats = get_user_stats(db_cursor, user_id) or {}
+            banned = db_cursor.execute("SELECT 1 FROM blocked_users WHERE user_id = ?",
+                                       (user_id,)).fetchone() is not None
+            verified = self.captcha_manager.is_user_verified(user_id, db)
+
+        lines = ["👤 " + _("User Info"), "", _("User ID") + f": {user_id}"]
+        try:
+            chat = self.bot.get_chat(user_id)
+            full_name = chat.first_name + (f" {chat.last_name}" if chat.last_name else "")
+            lines.append(_("Full Name") + f": {full_name}")
+            lines.append(_("Username") + ": " + (f"@{chat.username}" if chat.username else _("Not set")))
+        except ApiTelegramException as e:
+            logger.warning(f"Failed to fetch user info for {user_id}: {e}")
+        lines += [
+            _("First contact: {}").format(self._format_time(stats.get("first_seen"))),
+            _("Last message: {}").format(self._format_time(stats.get("last_seen"))),
+            _("Messages sent: {}").format(stats.get("message_count", 0)),
+            _("Verified: {}").format(_("Yes") if verified else _("No")),
+            _("Banned: {}").format(_("Yes") if banned else _("No")),
+        ]
+        self.bot.reply_to(message, "\n".join(lines))
+
+    def _get_templates(self, db_cursor) -> list[str]:
+        return [row[0] for row in db_cursor.execute("SELECT content FROM reply_templates ORDER BY id")]
+
+    def handle_template_reply(self, message: Message):
+        """/r N sends reply template N to the topic's user; /r alone lists templates."""
+        ok, err = self._topic_admin_access_ok(message)
+        if not ok:
+            self._reply_command_error(message, err)
+            return
+
+        arg = self._permission_command_args(message.text).strip()
+        with sqlite3.connect(self.db_path) as db:
+            db_cursor = db.cursor()
+            templates = self._get_templates(db_cursor)
+            if not arg:
+                if not templates:
+                    self.bot.reply_to(message, _("No reply templates. Add them in /help → Reply Templates."))
+                else:
+                    listing = "\n".join(f"{i}. {t if len(t) <= 80 else t[:80] + '…'}"
+                                         for i, t in enumerate(templates, start=1))
+                    self.bot.reply_to(message, _("Reply templates:") + "\n" + listing + "\n\n" +
+                                      _("Usage: /r <number>"))
+                return
+            if not arg.isdigit() or not 1 <= int(arg) <= len(templates):
+                self.bot.reply_to(message, _("Template not found. Send /r to list templates."))
+                return
+            content = templates[int(arg) - 1]
+
+            thread_id = message.message_thread_id
+            db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (thread_id,))
+            if (row := db_cursor.fetchone()) is None or row[0] is None:
+                self.bot.reply_to(message, _("User not found"))
+                return
+            user_id = row[0]
+
+            try:
+                sent = self.bot.send_message(user_id, content)
+            except ApiTelegramException as e:
+                self.bot.reply_to(message, _("[Alert]") + _("Failed to forward message to user {}").format(
+                    user_id) + "\n" + str(e))
+                return
+            # Persist delivery before the separate echo request. If the echo fails,
+            # the original command remains a usable reply/reaction/delete target.
+            db_cursor.execute(
+                "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+                (message.message_id, sent.message_id, thread_id, True))
+            mapping_id = db_cursor.lastrowid
+            if self.message_handler is not None:
+                self.message_handler.after_reply_sent(db_cursor, user_id, thread_id)
+            db.commit()
+            # Keep one echo per delivered message. At the limit, omit only the decoration.
+            echo_text = "📝 " + content if len(content) <= 4094 else content
+            try:
+                echo = self.bot.send_message(self.group_id, echo_text, message_thread_id=thread_id)
+            except ApiTelegramException as e:
+                logger.error("Template delivered to user %s, but topic echo failed: %s", user_id, e)
+                return
+            db_cursor.execute("UPDATE messages SET received_id = ? WHERE id = ?", (echo.message_id, mapping_id))
+            db.commit()
+        try:
+            self.bot.delete_message(self.group_id, message.message_id)
+        except ApiTelegramException:
+            pass
 
     def allow_permissions(self, message: Message):
         """Grant explicit permission overrides for the current topic's user."""
@@ -663,55 +842,152 @@ class CommandHandler:
             _("Valid permission keys: {}").format(", ".join(list_permission_command_keys()))
 
     def handle_edit(self, message: Message):
-        """Handle edited messages."""
+        """Sync an edited text, caption or replaced media to all forwarded copies."""
         if self.check_valid_chat(message):
             return
 
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
-            db_cursor.execute(
-                "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? AND in_group = ? LIMIT 1",
-                (message.message_id, message.chat.id == self.group_id))
-            if (result := db_cursor.fetchone()) is None:
+            if (found := self._find_forwarded(db_cursor, message.chat.id, message.message_id)) is None:
                 return
-            topic_id, forwarded_id = result
-            edit_time = datetime.now().astimezone(self.time_zone).strftime("%Y-%m-%d %H:%M:%S")
-            edited_text = message.text + f"\n\n({_('Edited at')} {edit_time})"
-
-            if message.chat.id == self.group_id:
-                db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
-                if (user_id := db_cursor.fetchone()) is None or user_id[0] is None:
+            if message.chat.id != self.group_id:
+                if db_cursor.execute("SELECT 1 FROM blocked_users WHERE user_id = ?",
+                                     (message.from_user.id,)).fetchone() is not None:
                     return
+                if self.permission_manager is not None and any(
+                    not self.permission_manager.resolve_permission(message.from_user.id, key)
+                    for key in classify_message_permissions(message)
+                ):
+                    return
+            topic_id, forwarded_ids, target_chat_id = found
+            edit_time = datetime.now().astimezone(self.time_zone).strftime("%Y-%m-%d %H:%M:%S")
+            suffix = html.escape(f"\n\n({_('Edited at')} {edit_time})")
+            # Group-side copies live in the user's topic; user-side copies have no thread.
+            thread_id = topic_id if target_chat_id == self.group_id else None
+
+            try:
                 if message.content_type == "text":
-                    self.bot.edit_message_text(chat_id=user_id[0], message_id=forwarded_id,
-                                               text=edited_text)
-            else:
-                if message.content_type == "text":
-                    self.bot.edit_message_text(chat_id=self.group_id, message_id=forwarded_id,
-                                               text=edited_text)
+                    text_ids = forwarded_ids
+                    chunks = split_html_text(to_html(message.text, message.entities) + suffix)
+                else:
+                    caption, chunks = split_caption(
+                        (to_html(message.caption, getattr(message, "caption_entities", None)) or "") + suffix)
+                    if (media := self._input_media(message, caption)) is not None:
+                        # Covers replaced media as well as caption-only edits.
+                        self._edit_ignoring_unmodified(
+                            self.bot.edit_message_media, media=media, chat_id=target_chat_id,
+                            message_id=forwarded_ids[0])
+                    else:
+                        self._edit_ignoring_unmodified(
+                            self.bot.edit_message_caption, caption=caption, chat_id=target_chat_id,
+                            message_id=forwarded_ids[0], parse_mode="HTML")
+                    text_ids = forwarded_ids[1:]
+
+                self._sync_text_chunks(db_cursor, message.message_id, target_chat_id, thread_id,
+                                       topic_id, text_ids, chunks, forwarded_ids[-1])
+                db.commit()
+            except ApiTelegramException as e:
+                logger.error(_("Failed to sync edited message {}: {}").format(message.message_id, e))
+
+    # content_type -> (InputMedia class, attribute holding the file). Voice notes cannot be replaced.
+    _EDITABLE_MEDIA = {
+        "photo": (types.InputMediaPhoto, "photo"),
+        "video": (types.InputMediaVideo, "video"),
+        "animation": (types.InputMediaAnimation, "animation"),
+        "audio": (types.InputMediaAudio, "audio"),
+        "document": (types.InputMediaDocument, "document"),
+    }
+
+    @classmethod
+    def _input_media(cls, message: Message, caption: str | None):
+        """Build the InputMedia for an edited media message, or None when it cannot be replaced."""
+        if (spec := cls._EDITABLE_MEDIA.get(message.content_type)) is None:
+            return None
+        media_cls, attr = spec
+        file = getattr(message, attr, None)
+        if not file:
+            return None
+        file_id = file[-1].file_id if attr == "photo" else file.file_id
+        return media_cls(media=file_id, caption=caption, parse_mode="HTML")
+
+    @staticmethod
+    def _edit_ignoring_unmodified(edit_func, **kwargs):
+        """Call a Telegram edit method, treating "message is not modified" as success."""
+        try:
+            edit_func(**kwargs)
+        except ApiTelegramException as e:
+            if "message is not modified" not in str(e).lower():
+                raise
+
+    def _sync_text_chunks(self, db_cursor, received_id: int, chat_id: int, thread_id, topic_id: int,
+                          existing_ids: list[int], chunks: list[str], last_id: int):
+        """Make the forwarded text chunks match `chunks`: edit, append, or delete as needed."""
+        in_group = chat_id != self.group_id
+        for forwarded_id, chunk in zip(existing_ids, chunks):
+            self._edit_ignoring_unmodified(
+                self.bot.edit_message_text, text=chunk, chat_id=chat_id,
+                message_id=forwarded_id, parse_mode="HTML")
+
+        reply_to = existing_ids[-1] if existing_ids else last_id
+        for chunk in chunks[len(existing_ids):]:
+            sent = self.bot.send_message(chat_id=chat_id, text=chunk, message_thread_id=thread_id,
+                                         reply_to_message_id=reply_to, parse_mode="HTML")
+            reply_to = sent.message_id
+            db_cursor.execute(
+                "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+                (received_id, sent.message_id, topic_id, in_group))
+
+        for forwarded_id in existing_ids[len(chunks):]:
+            try:
+                self.bot.delete_message(chat_id=chat_id, message_id=forwarded_id)
+            except ApiTelegramException:
+                pass
+            db_cursor.execute("DELETE FROM messages WHERE forwarded_id = ? AND topic_id = ? AND in_group = ?",
+                              (forwarded_id, topic_id, in_group))
 
     def handle_reaction(self, message):
-        """Handle message reactions."""
+        """Mirror message reactions to the other side."""
         with sqlite3.connect(self.db_path) as db:
             db_cursor = db.cursor()
-            db_cursor.execute(
-                "SELECT topic_id, received_id FROM messages WHERE forwarded_id = ? LIMIT 1",
-                (message.message_id,))
-            if (result := db_cursor.fetchone()) is None:
-                db_cursor.execute(
-                    "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? LIMIT 1",
-                    (message.message_id,))
-                if (result := db_cursor.fetchone()) is None:
-                    return
-            topic_id, forwarded_id = result
             if message.chat.id == self.group_id:
+                # Reacted to a user's message forwarded into the group, or to an admin's own reply.
+                db_cursor.execute(
+                    "SELECT topic_id, received_id FROM messages WHERE forwarded_id = ? AND in_group = 0 LIMIT 1",
+                    (message.message_id,))
+                result = db_cursor.fetchone()
+                if result is None:
+                    db_cursor.execute(
+                        "SELECT topic_id, forwarded_id FROM messages WHERE received_id = ? AND in_group = 1 LIMIT 1",
+                        (message.message_id,))
+                    result = db_cursor.fetchone()
+                if result is None:
+                    return
+                topic_id, target_id = result
                 db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1", (topic_id,))
                 if (chat_id := db_cursor.fetchone()) is None or chat_id[0] is None:
                     return
                 chat_id = chat_id[0]
             else:
+                if (topic_id := self._user_thread_id(db_cursor, message.chat.id)) is None:
+                    return
+                db_cursor.execute(
+                    "SELECT received_id FROM messages WHERE forwarded_id = ? AND in_group = 1 AND topic_id = ? LIMIT 1",
+                    (message.message_id, topic_id))
+                result = db_cursor.fetchone()
+                if result is None:
+                    db_cursor.execute(
+                        "SELECT forwarded_id FROM messages WHERE received_id = ? AND in_group = 0 AND topic_id = ? "
+                        "LIMIT 1",
+                        (message.message_id, topic_id))
+                    result = db_cursor.fetchone()
+                if result is None:
+                    return
+                target_id = result[0]
                 chat_id = self.group_id
-            self.bot.set_message_reaction(chat_id=chat_id, message_id=forwarded_id,
+            reaction_ack = getattr(self.message_handler, "reaction_ack", None)
+            if reaction_ack is not None:
+                reaction_ack.release(chat_id, target_id)
+            self.bot.set_message_reaction(chat_id=chat_id, message_id=target_id,
                                           reaction=[message.new_reaction[-1]] if message.new_reaction else [])
 
     def _save_start_tag(self, message: Message):

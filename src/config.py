@@ -10,8 +10,12 @@ import telebot.apihelper
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="BetterForward - Telegram message forwarding bot")
-parser.add_argument("-token", type=str, required=True, help="Telegram bot token")
-parser.add_argument("-group_id", type=str, required=True, help="Group ID")
+# Token and group ID may come from the TOKEN / GROUP_ID environment variables so the
+# token does not show up in the process list.
+parser.add_argument("-token", type=str, default=os.environ.get("TOKEN") or None,
+                    required=not os.environ.get("TOKEN"), help="Telegram bot token (or env TOKEN)")
+parser.add_argument("-group_id", type=str, default=os.environ.get("GROUP_ID") or None,
+                    required=not os.environ.get("GROUP_ID"), help="Group ID (or env GROUP_ID)")
 parser.add_argument("-language", type=str, default="en_US", help="Language",
                     choices=["en_US", "zh_CN", "ja_JP"])
 parser.add_argument("-tg_api", type=str, required=False, default="", help="Telegram API URL")

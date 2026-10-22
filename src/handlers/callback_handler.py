@@ -290,6 +290,19 @@ class CallbackHandler:
                 self.admin_handler.reset_spam_topic(call.message)
             case "confirm_reset_spam_topic":
                 self.admin_handler.confirm_reset_spam_topic(call.message)
+            case "reply_templates":
+                self.admin_handler.reply_templates_menu(call.message)
+            case "add_reply_template":
+                self.admin_handler.add_reply_template(call.message)
+            case "select_reply_template" | "delete_reply_template":
+                if "id" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                if action == "select_reply_template":
+                    self.admin_handler.select_reply_template(call.message, data["id"])
+                else:
+                    self.admin_handler.delete_reply_template(call.message, data["id"])
             case "show_host_ip":
                 self.admin_handler.show_host_ip(call.message)
             case "show_version":

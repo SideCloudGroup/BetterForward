@@ -2,7 +2,6 @@
 
 import json
 import random
-import sqlite3
 import time
 
 import httpx
@@ -10,6 +9,7 @@ from diskcache import Cache
 from telebot import types
 
 from src.config import _, logger
+from src.utils.db_helper import get_db_connection
 
 CAPTCHA_METHODS = ("math", "button", "emoji", "qa", "sticker", "tguard")
 STICKER_MODES = ("any", "match")
@@ -218,10 +218,11 @@ def method_unready_reason(method):
 class CaptchaManager:
     """Manages captcha generation and verification."""
 
-    def __init__(self, bot, cache: Cache, group_id: int = None):
+    def __init__(self, bot, cache: Cache, group_id: int = None, db_path: str = "./data/storage.db"):
         self.bot = bot
         self.cache = cache
         self.group_id = group_id
+        self.db_path = db_path
 
     def get_config(self):
         return parse_captcha_config(self.cache.get("setting_captcha"))
@@ -462,7 +463,7 @@ class CaptchaManager:
                         if db is not None:
                             self.set_user_verified(user_id, db)
                         else:
-                            with sqlite3.connect("./data/storage.db") as fallback_db:
+                            with get_db_connection(self.db_path) as fallback_db:
                                 self.set_user_verified(user_id, fallback_db)
                         try:
                             self.bot.send_message(user_id, _("✅ Verification successful! You can now send messages."))

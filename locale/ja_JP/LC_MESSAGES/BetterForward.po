@@ -1613,3 +1613,118 @@ msgstr "この認証は無効です。メッセージを送信して新しい認
 
 #~ msgid "Do not forward message"
 #~ msgstr "メッセージを転送しない"
+
+msgid "Active users today: {}"
+msgstr "本日のアクティブユーザー：{}"
+
+msgid "Add Template"
+msgstr "テンプレートを追加"
+
+msgid "Banned users: {}"
+msgstr "ブロック中のユーザー：{}"
+
+msgid "Banned: {}"
+msgstr "ブロック：{}"
+
+msgid "Failed to sync edited message {}: {}"
+msgstr "編集されたメッセージ {} の同期に失敗しました：{}"
+
+msgid "First contact: {}"
+msgstr "初回連絡：{}"
+
+msgid "Full Name"
+msgstr "氏名"
+
+msgid "Last message: {}"
+msgstr "最終メッセージ：{}"
+
+msgid "Messages sent: {}"
+msgstr "送信メッセージ数：{}"
+
+msgid "Messages today: {} received / {} replied"
+msgstr "本日のメッセージ：受信 {} 件 / 返信 {} 件"
+
+msgid "New users today: {}"
+msgstr "本日の新規ユーザー：{}"
+
+msgid "No reply templates yet."
+msgstr "返信テンプレートはまだありません。"
+
+msgid "No reply templates. Add them in /help → Reply Templates."
+msgstr "返信テンプレートがありません。/help → 返信テンプレート から追加してください。"
+
+msgid ""
+"Please send the template text.\n"
+"Send /cancel to cancel this operation."
+msgstr ""
+"テンプレートの内容を送信してください。\n"
+"/cancel で操作をキャンセルします。"
+
+msgid "Queue: {} waiting, {} users processing, {} workers"
+msgstr "キュー：待機 {} 件、処理中ユーザー {} 人、ワーカー {} 個"
+
+msgid "Reply Templates"
+msgstr "返信テンプレート"
+
+msgid "Reply templates:"
+msgstr "返信テンプレート："
+
+msgid "Resuming {} remaining chunk(s) for user {} on new topic {}"
+msgstr "ユーザー {1} の残り {0} 件を新しいトピック {2} で再送しています"
+
+msgid "Send a reply template"
+msgstr "返信テンプレートを送信"
+
+msgid "Show statistics"
+msgstr "統計を表示"
+
+msgid "Show user info"
+msgstr "ユーザー情報を表示"
+
+msgid "Statistics"
+msgstr "統計"
+
+msgid "Template added."
+msgstr "テンプレートを追加しました。"
+
+msgid "Template not found"
+msgstr "テンプレートが見つかりません"
+
+msgid "Template not found. Send /r to list templates."
+msgstr "テンプレートが見つかりません。/r で一覧を表示します。"
+
+msgid "Usage: /r <number>"
+msgstr "使い方：/r <番号>"
+
+msgid "Use /r <number> in a user topic to send a template."
+msgstr "ユーザーのトピックで /r <番号> を送るとテンプレートを送信します。"
+
+msgid "User Info"
+msgstr "ユーザー情報"
+
+msgid "Users: {}"
+msgstr "ユーザー数：{}"
+
+msgid "Verified users: {}"
+msgstr "認証済みユーザー：{}"
+
+msgid "Verified: {}"
+msgstr "認証済み：{}"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "Failed to back up database before upgrading, aborting"
+msgstr "アップグレード前のデータベースのバックアップに失敗したため中止しました"
+
+msgid "Restore the backup to roll back: {}"
+msgstr "このバックアップを復元するとアップグレード前に戻せます：{}"
+
+msgid "Database backed up to {}"
+msgstr "データベースを {} にバックアップしました"
+
+msgid "Failed to add processed reaction to message {}: {}"
+msgstr "メッセージ {} への処理済みリアクションの追加に失敗しました：{}"
+
+msgid "Failed to remove processed reaction from message {}: {}"
+msgstr "メッセージ {} の処理済みリアクションの削除に失敗しました：{}"

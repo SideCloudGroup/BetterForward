@@ -26,4 +26,5 @@ ENV TG_API=""
 ENV WORKER="2"
 ENV BETTERFORWARD_VERSION=$VERSION
 
-CMD python -u /app/main.py -token "$TOKEN" -group_id "$GROUP_ID" -language "$LANGUAGE" -tg_api "$TG_API" -worker "$WORKER"
+# TOKEN and GROUP_ID are read from the environment so the token is not visible in `ps`.
+CMD python -u /app/main.py -language "$LANGUAGE" -tg_api "$TG_API" -workers "$WORKER"

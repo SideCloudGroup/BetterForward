@@ -84,6 +84,10 @@ containrrr/watchtower -cR \
 <Container Name>
 ```
 
+The bot upgrades its database automatically on startup. Before upgrading it backs the database up to `storage.db.bak-<old version>` in the data directory (the latest 3 are kept); if an upgrade fails, stop the container, delete `storage.db-wal` and `storage.db-shm` if present, then copy the backup over `storage.db` to restore.
+
+An existing backup for the same version is preserved across failed upgrade retries. A backup is published at that path only after it has been written completely.
+
 ## Feature Guide
 
 Configure most features via `/help` in the group main topic unless noted otherwise.
@@ -163,6 +167,23 @@ In a user topic:
 - `/setnote <text>` — set or clear a note for the topic
 - `/getnote` — show the note
 
+### Statistics & User Info
+
+- `/stats` — in the group, show user count, new/active users today, messages received and replied today, banned and verified counts, and message queue status
+- `/info` — in a user topic, show the user's profile, first contact, last message time, message count, verification and ban status
+
+For users who contacted the bot before upgrading, first contact shows as "Unknown" and the message count is estimated from existing records.
+
+### Reply Templates
+
+Add or delete canned replies in the **Reply Templates** menu. In a user topic, send `/r <number>` to send that template to the user, or `/r` to list templates.
+
+Menu: **Reply Templates**
+
+### Processed Reaction
+
+When a message from a user or an admin is forwarded successfully, the original gets a ❤ reaction that disappears after about 3 seconds, so you can tell the bot is online. Messages stopped by verification, bans, permissions or the spam filter get none.
+
 ## Admin Commands
 
 Available in the group (some apply only inside user topics):
@@ -182,6 +203,9 @@ Available in the group (some apply only inside user topics):
 | `/allow <keys...>` | Grant per-user permissions |
 | `/disallow <keys...>` | Deny per-user permissions |
 | `/resetpermissions <keys...>` | Reset to global defaults |
+| `/stats` | Show statistics |
+| `/info` | Show info about the topic's user |
+| `/r [number]` | Send a reply template; lists templates without a number |
 
 In private chat with the bot: `/help`, `/delete`.
 
