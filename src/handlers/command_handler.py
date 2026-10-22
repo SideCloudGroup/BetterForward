@@ -22,6 +22,7 @@ from src.config import logger, _
 from src.utils.captcha import VERIFICATION_DAYS_SETTING, verification_days
 from src.utils.helpers import build_user_info_pin_text, parse_start_payload, send_and_pin_user_info, to_html
 from src.utils.message_split import split_caption, split_html_text
+from src.utils.message_permissions import classify_message_permissions
 from src.utils.stats import get_summary, get_user_stats
 from src.utils.permissions import (
     ALLOW,
@@ -659,13 +660,23 @@ class CommandHandler:
                 self.bot.reply_to(message, _("[Alert]") + _("Failed to forward message to user {}").format(
                     user_id) + "\n" + str(e))
                 return
-            # Echo into the topic so admins see what was sent; map it like a normal reply.
-            echo = self.bot.send_message(self.group_id, "📝 " + content, message_thread_id=thread_id)
+            # Persist delivery before the separate echo request. If the echo fails,
+            # the original command remains a usable reply/reaction/delete target.
             db_cursor.execute(
                 "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
-                (echo.message_id, sent.message_id, thread_id, True))
+                (message.message_id, sent.message_id, thread_id, True))
+            mapping_id = db_cursor.lastrowid
             if self.message_handler is not None:
                 self.message_handler.after_reply_sent(db_cursor, user_id, thread_id)
+            db.commit()
+            # Keep one echo per delivered message. At the limit, omit only the decoration.
+            echo_text = "📝 " + content if len(content) <= 4094 else content
+            try:
+                echo = self.bot.send_message(self.group_id, echo_text, message_thread_id=thread_id)
+            except ApiTelegramException as e:
+                logger.error("Template delivered to user %s, but topic echo failed: %s", user_id, e)
+                return
+            db_cursor.execute("UPDATE messages SET received_id = ? WHERE id = ?", (echo.message_id, mapping_id))
             db.commit()
         try:
             self.bot.delete_message(self.group_id, message.message_id)
@@ -839,6 +850,15 @@ class CommandHandler:
             db_cursor = db.cursor()
             if (found := self._find_forwarded(db_cursor, message.chat.id, message.message_id)) is None:
                 return
+            if message.chat.id != self.group_id:
+                if db_cursor.execute("SELECT 1 FROM blocked_users WHERE user_id = ?",
+                                     (message.from_user.id,)).fetchone() is not None:
+                    return
+                if self.permission_manager is not None and any(
+                    not self.permission_manager.resolve_permission(message.from_user.id, key)
+                    for key in classify_message_permissions(message)
+                ):
+                    return
             topic_id, forwarded_ids, target_chat_id = found
             edit_time = datetime.now().astimezone(self.time_zone).strftime("%Y-%m-%d %H:%M:%S")
             suffix = html.escape(f"\n\n({_('Edited at')} {edit_time})")

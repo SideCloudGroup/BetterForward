@@ -3,6 +3,9 @@
 import importlib
 import os
 import sqlite3
+from unittest.mock import MagicMock
+
+import pytest
 
 from src.database import Database
 
@@ -102,3 +105,36 @@ def test_failed_backup_aborts_before_migrating(tmp_path, monkeypatch):
     else:
         raise AssertionError("expected exit")
     assert _db_version(db_path) == "20260803"
+
+
+def test_upgrade_retry_keeps_original_backup(tmp_path, monkeypatch):
+    db_path = str(tmp_path / "storage.db")
+    _migrate_up_to(db_path, 20261001)
+    migration = importlib.import_module("db_migrate.20261021_stats_templates")
+
+    def fail_after_schema_change(path):
+        with sqlite3.connect(path) as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS partial_upgrade (id INTEGER)")
+        raise RuntimeError("migration failed after DDL")
+
+    monkeypatch.setattr(migration, "upgrade", fail_after_schema_change)
+    for _ in range(2):
+        with pytest.raises(SystemExit):
+            Database(db_path)
+        with sqlite3.connect(db_path + ".bak-20261001") as conn:
+            assert conn.execute("SELECT name FROM sqlite_master WHERE name='partial_upgrade'").fetchone() is None
+            assert conn.execute("SELECT value FROM settings WHERE key='db_version'").fetchone() == ("20261001",)
+
+
+def test_incomplete_backup_is_not_published(tmp_path, monkeypatch):
+    db_path = str(tmp_path / "storage.db")
+    database = Database(db_path)
+    source = MagicMock()
+    source.backup.side_effect = OSError("disk full")
+    monkeypatch.setattr(database, "get_connection", lambda: source)
+
+    with pytest.raises(OSError, match="disk full"):
+        database.backup(int(LATEST_VERSION))
+
+    assert not list(tmp_path.glob("storage.db.bak-*"))
+    source.close.assert_called_once()

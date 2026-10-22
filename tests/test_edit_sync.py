@@ -174,3 +174,44 @@ def test_voice_edit_falls_back_to_caption(edit_env):
 
     bot.edit_message_media.assert_not_called()
     assert bot.edit_message_caption.call_args.kwargs["caption"].startswith("note")
+
+
+@pytest.mark.parametrize("content", [
+    {"text": None, "content_type": "video", "video": SimpleNamespace(file_id="NEW_VIDEO")},
+    {"text": None, "content_type": "photo", "caption": "https://example.com",
+     "photo": [SimpleNamespace(file_id="PHOTO")]},
+    {"text": "https://example.com"},
+])
+def test_user_edits_recheck_permissions(edit_env, content):
+    handler, bot, db_path = edit_env
+    _seed(db_path, topics=[(101, 55)], messages=[(10, 201, 55, False)])
+    handler.permission_manager = MagicMock()
+    handler.permission_manager.resolve_permission.side_effect = lambda user, key: key not in ("video", "link")
+
+    handler.handle_edit(make_message(message_id=10, chat_id=101, **content))
+
+    bot.edit_message_media.assert_not_called()
+    bot.edit_message_caption.assert_not_called()
+    bot.edit_message_text.assert_not_called()
+    bot.send_message.assert_not_called()
+    assert _forwarded_ids(db_path, 10) == [201]
+
+
+def test_blocked_user_cannot_edit_existing_forward(edit_env):
+    handler, bot, db_path = edit_env
+    _seed(db_path, topics=[(101, 55)], messages=[(10, 201, 55, False)])
+    with sqlite3.connect(db_path) as db:
+        db.execute("INSERT INTO blocked_users (user_id) VALUES (101)")
+    handler.handle_edit(make_message(message_id=10, chat_id=101, text="blocked edit"))
+    bot.edit_message_text.assert_not_called()
+
+
+def test_user_permissions_do_not_restrict_admin_edits(edit_env):
+    handler, bot, db_path = edit_env
+    _seed(db_path, topics=[(101, 55)], messages=[(20, 401, 55, True)])
+    handler.permission_manager = MagicMock()
+    handler.permission_manager.resolve_permission.return_value = False
+    handler.handle_edit(make_message(message_id=20, chat_id=GROUP_ID, chat_type="supergroup",
+                                    message_thread_id=55, user_id=1, text="https://example.com"))
+    bot.edit_message_text.assert_called_once()
+    handler.permission_manager.resolve_permission.assert_not_called()

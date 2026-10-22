@@ -9,7 +9,7 @@ import pytest
 
 from src.handlers.command_handler import CommandHandler
 from src.handlers.message_handler import MessageHandler
-from tests.helpers import init_core_db, make_cache, make_message
+from tests.helpers import init_core_db, make_api_error, make_cache, make_message
 
 
 GROUP_ID = -1001234567890
@@ -117,6 +117,47 @@ def test_template_reply_unknown_number(env):
     env.commands.handle_template_reply(_admin_message(70, "/r 3"))
     assert "Template not found" in _replied_text(env.bot)
     env.bot.send_message.assert_not_called()
+
+
+@pytest.mark.parametrize("length", [4094, 4095, 4096])
+def test_template_echo_fits_message_limit(env, length):
+    content = "a" * length
+    with sqlite3.connect(env.db_path) as conn:
+        conn.execute("INSERT INTO reply_templates (content) VALUES (?)", (content,))
+    sent_texts = []
+    def send(chat_id, text, **kwargs):
+        if len(text) > 4096:
+            raise make_api_error("Bad Request: message is too long")
+        sent_texts.append((chat_id, text))
+        return SimpleNamespace(message_id=1000 + len(sent_texts))
+    env.bot.send_message.side_effect = send
+
+    env.commands.handle_template_reply(_admin_message(70, "/r 1"))
+
+    assert sent_texts == [(USER_ID, content), (GROUP_ID, "📝 " + content if length <= 4094 else content)]
+    with sqlite3.connect(env.db_path) as conn:
+        assert conn.execute("SELECT received_id, forwarded_id FROM messages").fetchall() == [(1002, 1001)]
+        assert conn.execute("SELECT outgoing FROM daily_stats").fetchone() == (1,)
+
+
+def test_template_echo_failure_preserves_delivery_and_command_mapping(env):
+    with sqlite3.connect(env.db_path) as conn:
+        conn.execute("INSERT INTO reply_templates (content) VALUES ('Delivered')")
+    def send(chat_id, text, **kwargs):
+        if chat_id == GROUP_ID:
+            # Delivery must already be durable before the independent echo request.
+            with sqlite3.connect(env.db_path) as conn:
+                assert conn.execute("SELECT received_id, forwarded_id FROM messages").fetchall() == [(70, 1000)]
+                assert conn.execute("SELECT outgoing FROM daily_stats").fetchone() == (1,)
+            raise make_api_error("Too Many Requests", 429)
+        return SimpleNamespace(message_id=1000)
+    env.bot.send_message.side_effect = send
+
+    env.commands.handle_template_reply(_admin_message(70, "/r 1"))
+
+    env.bot.delete_message.assert_not_called()
+    with sqlite3.connect(env.db_path) as conn:
+        assert conn.execute("SELECT received_id, forwarded_id FROM messages").fetchall() == [(70, 1000)]
 
 
 def test_migration_backfills_existing_users(env):

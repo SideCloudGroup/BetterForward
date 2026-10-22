@@ -86,6 +86,8 @@ containrrr/watchtower -cR \
 
 The bot upgrades its database automatically on startup. Before upgrading it backs the database up to `storage.db.bak-<old version>` in the data directory (the latest 3 are kept); if an upgrade fails, stop the container, delete `storage.db-wal` and `storage.db-shm` if present, then copy the backup over `storage.db` to restore.
 
+An existing backup for the same version is preserved across failed upgrade retries. A backup is published at that path only after it has been written completely.
+
 ## Feature Guide
 
 Configure most features via `/help` in the group main topic unless noted otherwise.

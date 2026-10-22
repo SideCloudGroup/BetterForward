@@ -3,6 +3,7 @@
 import importlib
 import os
 import sqlite3
+import tempfile
 import threading
 from traceback import print_exc
 
@@ -91,21 +92,35 @@ class Database:
     BACKUPS_TO_KEEP = 3
 
     def backup(self, version: int) -> str:
-        """Copy the database to <db_path>.bak-<version> and prune old backups. Returns the backup path."""
+        """Keep the first complete backup of each version, including across failed upgrade retries."""
         backup_path = f"{self.db_path}.bak-{version}"
-        source = self.get_connection()
-        try:
-            target = sqlite3.connect(backup_path)
-            try:
-                # The backup API copies a consistent snapshot, including pages still in the WAL file.
-                source.backup(target)
-            finally:
-                target.close()
-        finally:
-            source.close()
-        logger.info(_("Database backed up to {}").format(backup_path))
+        if os.path.exists(backup_path):
+            return backup_path
 
         directory = os.path.dirname(self.db_path) or "."
+        fd, temporary_path = tempfile.mkstemp(
+            prefix=os.path.basename(backup_path) + ".", suffix=".tmp", dir=directory)
+        os.close(fd)
+        try:
+            source = self.get_connection()
+            try:
+                target = sqlite3.connect(temporary_path)
+                try:
+                    # Include WAL pages, but never publish a partially written backup.
+                    source.backup(target)
+                finally:
+                    target.close()
+            finally:
+                source.close()
+            try:
+                # Publish atomically without replacing another process's completed backup.
+                os.link(temporary_path, backup_path)
+            except FileExistsError:
+                pass
+        finally:
+            os.remove(temporary_path)
+        logger.info(_("Database backed up to {}").format(backup_path))
+
         prefix = os.path.basename(self.db_path) + ".bak-"
         backups = sorted(
             (f for f in os.listdir(directory) if f.startswith(prefix) and f[len(prefix):].isdigit()),
