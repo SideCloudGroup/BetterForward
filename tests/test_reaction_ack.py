@@ -1,6 +1,7 @@
 """Tests for the short-lived ❤ reaction on processed messages."""
 
 import sqlite3
+import threading
 import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -9,7 +10,7 @@ import pytest
 
 from src.handlers.message_handler import MessageHandler
 from src.utils.reaction_ack import ReactionAck
-from tests.helpers import init_core_db, make_cache, make_message
+from tests.helpers import init_core_db, make_api_error, make_cache, make_message
 
 
 GROUP_ID = -1001234567890
@@ -110,3 +111,68 @@ def test_mirrored_reaction_is_not_wiped_by_heart_removal(env):
     user_side = [c.kwargs["reaction"] for c in env.bot.set_message_reaction.call_args_list
                  if c.kwargs["chat_id"] == USER_ID]
     assert [[r.emoji for r in reaction] for reaction in user_side] == [["❤"], ["👍"]]
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_mirror_waits_for_inflight_ack_and_is_not_removed(monkeypatch, failure):
+    """A mirror arriving before the heart API returns must be applied afterwards."""
+    entered, response, mirror_started, mirrored = (threading.Event() for _ in range(4))
+    calls = []
+    timers = []
+    errors = []
+
+    def set_reaction(**kwargs):
+        emojis = [r.emoji for r in kwargs["reaction"]]
+        calls.append(emojis)
+        if emojis == ["❤"]:
+            entered.set()
+            if not response.wait(3):
+                raise TimeoutError("ack response was not released")
+            if failure:
+                raise make_api_error("Bad Request: reaction is unavailable")
+
+    def timer(delay, function, args):
+        timers.append((function, args))
+        return MagicMock()
+
+    monkeypatch.setattr("src.utils.reaction_ack.threading.Timer", timer)
+    bot = MagicMock()
+    bot.set_message_reaction.side_effect = set_reaction
+    ack = ReactionAck(bot)
+
+    def acknowledge():
+        try:
+            ack.ack(USER_ID, 1)
+        except Exception as error:
+            errors.append(error)
+
+    def mirror():
+        try:
+            mirror_started.set()
+            ack.release(USER_ID, 1)
+            bot.set_message_reaction(chat_id=USER_ID, message_id=1,
+                                     reaction=[SimpleNamespace(emoji="👍")])
+            mirrored.set()
+        except Exception as error:
+            errors.append(error)
+
+    ack_thread = threading.Thread(target=acknowledge, daemon=True)
+    mirror_thread = threading.Thread(target=mirror, daemon=True)
+    ack_thread.start()
+    try:
+        assert entered.wait(3)
+        mirror_thread.start()
+        assert mirror_started.wait(3)
+        assert not mirrored.wait(0.05), "mirror overtook the in-flight heart request"
+    finally:
+        response.set()
+        ack_thread.join(timeout=3)
+        if mirror_thread.ident is not None:
+            mirror_thread.join(timeout=3)
+    assert not ack_thread.is_alive() and not mirror_thread.is_alive()
+    assert not errors
+    assert mirrored.is_set()
+    assert len(timers) == (0 if failure else 1)
+    for callback, args in timers:
+        callback(*args)
+    assert calls == [["❤"], ["👍"]]

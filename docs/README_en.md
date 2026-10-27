@@ -167,6 +167,20 @@ In a user topic:
 - `/setnote <text>` — set or clear a note for the topic
 - `/getnote` — show the note
 
+### User Tags
+
+Use a bot start link to record a tag for a user, for example to identify their referral source. No admin menu configuration is required.
+
+1. Replace `YourBot` with your bot's username and share a link such as `https://t.me/YourBot?start=channel_a`.
+2. When the user opens the link and presses **Start**, the bot receives `/start channel_a` and saves `channel_a` as their tag. Users can also send `/start channel_a` directly in a private chat with the bot.
+3. When a user message creates a topic, the tag appears as `#tag` in the topic's initial pinned user info, e.g. `• Tag: #channel_a`. If the topic already exists, an admin must send `/refresh` in that user topic to send and pin user info containing the latest tag.
+
+The bot adds the `#` prefix when displaying the tag. Use only the tag itself in the start link payload or `/start` argument; do not include `#`.
+
+Tags must contain **1–64 characters**, using only English letters, digits, underscores `_`, and hyphens `-`, e.g. `channel_a`, `website`, or `campaign-2026`. Spaces and Chinese characters are not supported.
+
+Each user has one tag. A later valid `/start <tag>` replaces it; `/start` without a payload, `/help`, and invalid payloads leave the existing tag unchanged. There are currently no admin commands to manually set or clear tags, filter users by tag, or broadcast by tag. Use `/setnote` for notes written by admins.
+
 ### Statistics & User Info
 
 - `/stats` — in the group, show user count, new/active users today, messages received and replied today, banned and verified counts, and message queue status
@@ -177,6 +191,8 @@ For users who contacted the bot before upgrading, first contact shows as "Unknow
 ### Reply Templates
 
 Add or delete canned replies in the **Reply Templates** menu. In a user topic, send `/r <number>` to send that template to the user, or `/r` to list templates.
+
+The admin menu shows 10 templates per page. Long template details use a shortened preview, while `/r <number>` still sends the full content. Long `/r` listings are split across messages.
 
 Menu: **Reply Templates**
 
@@ -207,7 +223,7 @@ Available in the group (some apply only inside user topics):
 | `/info` | Show info about the topic's user |
 | `/r [number]` | Send a reply template; lists templates without a number |
 
-In private chat with the bot: `/help`, `/delete`.
+In private chat with the bot: `/start [tag]`, `/help`, `/delete`.
 
 ## Community
 

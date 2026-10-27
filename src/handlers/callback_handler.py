@@ -291,7 +291,7 @@ class CallbackHandler:
             case "confirm_reset_spam_topic":
                 self.admin_handler.confirm_reset_spam_topic(call.message)
             case "reply_templates":
-                self.admin_handler.reply_templates_menu(call.message)
+                self.admin_handler.reply_templates_menu(call.message, page=data.get("page", 1))
             case "add_reply_template":
                 self.admin_handler.add_reply_template(call.message)
             case "select_reply_template" | "delete_reply_template":
@@ -300,9 +300,9 @@ class CallbackHandler:
                     self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
                     return
                 if action == "select_reply_template":
-                    self.admin_handler.select_reply_template(call.message, data["id"])
+                    self.admin_handler.select_reply_template(call.message, data["id"], page=data.get("page", 1))
                 else:
-                    self.admin_handler.delete_reply_template(call.message, data["id"])
+                    self.admin_handler.delete_reply_template(call.message, data["id"], page=data.get("page", 1))
             case "show_host_ip":
                 self.admin_handler.show_host_ip(call.message)
             case "show_version":

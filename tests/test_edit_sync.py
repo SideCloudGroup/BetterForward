@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.handlers.command_handler import CommandHandler
-from tests.helpers import init_core_db, make_cache, make_message
+from tests.helpers import init_core_db, make_api_error, make_cache, make_message
 
 
 GROUP_ID = -1001234567890
@@ -215,3 +215,32 @@ def test_user_permissions_do_not_restrict_admin_edits(edit_env):
                                     message_thread_id=55, user_id=1, text="https://example.com"))
     bot.edit_message_text.assert_called_once()
     handler.permission_manager.resolve_permission.assert_not_called()
+
+
+@pytest.mark.parametrize("description, code", [
+    ("Too Many Requests", 429),
+    ("Bad Request: message can't be deleted", 400),
+])
+def test_shrinking_edit_keeps_failed_deletion_mapped_for_retry(edit_env, description, code):
+    handler, bot, db_path = edit_env
+    _seed(db_path, topics=[(101, 55)],
+          messages=[(10, 201, 55, False), (10, 202, 55, False)])
+    bot.delete_message.side_effect = make_api_error(description, code)
+    message = make_message(message_id=10, chat_id=101, text="short")
+
+    handler.handle_edit(message)
+    assert _forwarded_ids(db_path, 10) == [201, 202]
+
+    bot.delete_message.side_effect = None
+    handler.handle_edit(message)
+    assert _forwarded_ids(db_path, 10) == [201]
+    assert bot.delete_message.call_count == 2
+
+
+def test_shrinking_edit_removes_mapping_for_already_deleted_chunk(edit_env):
+    handler, bot, db_path = edit_env
+    _seed(db_path, topics=[(101, 55)],
+          messages=[(10, 201, 55, False), (10, 202, 55, False)])
+    bot.delete_message.side_effect = make_api_error("Bad Request: message to delete not found")
+    handler.handle_edit(make_message(message_id=10, chat_id=101, text="short"))
+    assert _forwarded_ids(db_path, 10) == [201]

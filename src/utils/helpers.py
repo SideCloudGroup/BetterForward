@@ -70,7 +70,7 @@ def build_user_info_pin_text(user_id: int, first_name: str, last_name: str | Non
         f"• {_('Language')}: {escape_markdown(format_language(language_code))}",
     ]
     if tag:
-        lines.append(f"• {_('Tag')}: {escape_markdown(tag)}")
+        lines.append(f"• {_('Tag')}: #{escape_markdown(tag)}")
     lines.append(f"#id{user_id}")
     return "\n".join(lines)
 

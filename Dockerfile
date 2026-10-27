@@ -1,5 +1,7 @@
 FROM python:3.13-alpine
 
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/uv
+
 WORKDIR /app
 
 ARG VERSION=dev
@@ -10,7 +12,7 @@ COPY requirements.txt /tmp/requirements.txt
 RUN apk add --no-cache ca-certificates && \
     update-ca-certificates
 
-RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+RUN uv pip install --system --no-cache -r /tmp/requirements.txt \
     && rm -f /tmp/requirements.txt \
     && mkdir -p /app/data \
     && find /app/locale -name '*.po' -type f -delete

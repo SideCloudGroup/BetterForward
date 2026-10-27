@@ -639,8 +639,9 @@ class CommandHandler:
                 else:
                     listing = "\n".join(f"{i}. {t if len(t) <= 80 else t[:80] + '…'}"
                                          for i, t in enumerate(templates, start=1))
-                    self.bot.reply_to(message, _("Reply templates:") + "\n" + listing + "\n\n" +
-                                      _("Usage: /r <number>"))
+                    text = _("Reply templates:") + "\n" + listing + "\n\n" + _("Usage: /r <number>")
+                    for chunk in split_html_text(html.escape(text)):
+                        self.bot.reply_to(message, chunk, parse_mode="HTML")
                 return
             if not arg.isdigit() or not 1 <= int(arg) <= len(templates):
                 self.bot.reply_to(message, _("Template not found. Send /r to list templates."))
@@ -940,8 +941,11 @@ class CommandHandler:
         for forwarded_id in existing_ids[len(chunks):]:
             try:
                 self.bot.delete_message(chat_id=chat_id, message_id=forwarded_id)
-            except ApiTelegramException:
-                pass
+            except ApiTelegramException as e:
+                # Only discard the mapping when the message is confirmed gone.
+                # Other errors must leave it available for the next edit/delete retry.
+                if e.error_code != 400 or "message to delete not found" not in str(e).lower():
+                    raise
             db_cursor.execute("DELETE FROM messages WHERE forwarded_id = ? AND topic_id = ? AND in_group = ?",
                               (forwarded_id, topic_id, in_group))
 

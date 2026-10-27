@@ -22,29 +22,44 @@ class ReactionAck:
     def __init__(self, bot, delay: float = ACK_SECONDS):
         self.bot = bot
         self.delay = delay
-        self._pending: dict[tuple[int, int], object] = {}
+        self._pending: dict[tuple[int, int], threading.Event] = {}
         self._lock = threading.Lock()
 
     def ack(self, chat_id: int, message_id: int) -> None:
         """React with ❤ now and schedule its removal."""
+        # Publish before the request so release() can wait for an in-flight heart.
+        # Keep network I/O outside the registry lock to avoid blocking other messages.
+        token = threading.Event()
+        with self._lock:
+            self._pending[(chat_id, message_id)] = token
+        sent = False
         try:
             self.bot.set_message_reaction(chat_id=chat_id, message_id=message_id,
                                           reaction=[ReactionTypeEmoji(ACK_EMOJI)])
+            sent = True
         except ApiTelegramException as e:
             logger.warning(_("Failed to add processed reaction to message {}: {}").format(message_id, e))
             return
+        finally:
+            if not sent:
+                with self._lock:
+                    if self._pending.get((chat_id, message_id)) is token:
+                        del self._pending[(chat_id, message_id)]
+            token.set()
 
-        token = object()
-        with self._lock:
-            self._pending[(chat_id, message_id)] = token
         timer = threading.Timer(self.delay, self._clear, args=(chat_id, message_id, token))
         timer.daemon = True
         timer.start()
 
     def release(self, chat_id: int, message_id: int) -> None:
-        """Keep the bot's next reaction on this message: cancel the pending ❤ removal."""
+        """Order the next reaction after any in-flight heart and cancel its removal."""
         with self._lock:
-            self._pending.pop((chat_id, message_id), None)
+            token = self._pending.get((chat_id, message_id))
+        if token is not None:
+            token.wait()
+            with self._lock:
+                if self._pending.get((chat_id, message_id)) is token:
+                    del self._pending[(chat_id, message_id)]
 
     def _clear(self, chat_id: int, message_id: int, token) -> None:
         # Hold the lock through the API call so a concurrent release() + new reaction
