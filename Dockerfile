@@ -1,4 +1,6 @@
-FROM python:3.12-alpine
+FROM python:3.13-alpine
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
@@ -10,7 +12,7 @@ COPY requirements.txt /tmp/requirements.txt
 RUN apk add --no-cache ca-certificates && \
     update-ca-certificates
 
-RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+RUN uv pip install --system --no-cache -r /tmp/requirements.txt \
     && rm -f /tmp/requirements.txt \
     && mkdir -p /app/data \
     && find /app/locale -name '*.po' -type f -delete
@@ -26,4 +28,5 @@ ENV TG_API=""
 ENV WORKER="2"
 ENV BETTERFORWARD_VERSION=$VERSION
 
-CMD python -u /app/main.py -token "$TOKEN" -group_id "$GROUP_ID" -language "$LANGUAGE" -tg_api "$TG_API" -worker "$WORKER"
+# TOKEN and GROUP_ID are read from the environment so the token is not visible in `ps`.
+CMD python -u /app/main.py -language "$LANGUAGE" -tg_api "$TG_API" -workers "$WORKER"

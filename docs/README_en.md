@@ -11,7 +11,7 @@ Forward private messages to topics in a group—one user per topic—so multiple
 - **Privacy & teamwork**: User messages appear in group topics; admins reply from the group.
 - **Multi-language**: English, Chinese, and Japanese (`en_US` / `zh_CN` / `ja_JP`).
 - **Auto reply**: Keyword-based replies with regex support and scheduled active hours.
-- **Human verification**: Button, math, or [TGuard](https://github.com/SideCloudGroup/TGuard) advanced verification.
+- **Human verification**: Button, math, emoji, custom Q&A, sticker, or [TGuard](https://github.com/SideCloudGroup/TGuard) verification, with random selection and configurable validity in days.
 - **Spam filtering**: Keyword-based detection with automatic routing to a dedicated spam topic.
 - **Permission controls**: Restrict message types globally and per user; view and reset overrides.
 - **User management**: Ban/unban, blocked-user auto-reply, terminate threads, topic notes, broadcast, and more.
@@ -84,6 +84,10 @@ containrrr/watchtower -cR \
 <Container Name>
 ```
 
+The bot upgrades its database automatically on startup. Before upgrading it backs the database up to `storage.db.bak-<old version>` in the data directory (the latest 3 are kept); if an upgrade fails, stop the container, delete `storage.db-wal` and `storage.db-shm` if present, then copy the backup over `storage.db` to restore.
+
+An existing backup for the same version is preserved across failed upgrade retries. A backup is published at that path only after it has been written completely.
+
 ## Feature Guide
 
 Configure most features via `/help` in the group main topic unless noted otherwise.
@@ -111,13 +115,20 @@ Menus: **Banned Users**, **Blocked User Reply**
 
 ### Human Verification
 
-Three methods (choose in **Captcha Settings**):
+Six methods (enable multiple in **Captcha Settings** to choose one at random whenever verification is needed):
 
 1. **Button** — tap to verify
 2. **Math** — solve a simple arithmetic problem
-3. **TGuard** — configure API URL and key under **TGuard API Settings**; verification opens in a Telegram Mini App
+3. **Emoji** — tap the emoji matching the prompt
+4. **Custom Q&A** — configure questions and accepted answers; supports multiple answers and ignores case and surrounding whitespace
+5. **Sticker** — send any sticker or send back an admin-configured sticker
+6. **TGuard** — configure API URL and key under **TGuard API Settings**; verification opens in a Telegram Mini App
 
-Admins can also mark a user as verified with `/verify` in a user topic.
+Under **Captcha Settings → Verification Validity**, enter a non-negative whole number of days, such as `7` or `30`. The default `0` keeps verification permanent. A positive value counts from the latest successful verification; the next message after expiry requires verification again. This applies to every method, and ordinary messages do not extend validity. Disabling captcha bypasses verification.
+
+Validity changes apply immediately to existing verification records. Previously verified users keep their status, with the database upgrade time used as their starting timestamp. The default permanent behavior remains unchanged.
+
+Admins can also use `/verify true` in a user topic to verify a user and renew validity, or `/verify false` to revoke verification. Expired buttons and buttons from older challenges cannot be reused to pass a new challenge.
 
 ### Spam Filtering
 
@@ -156,6 +167,39 @@ In a user topic:
 - `/setnote <text>` — set or clear a note for the topic
 - `/getnote` — show the note
 
+### User Tags
+
+Use a bot start link to record a tag for a user, for example to identify their referral source. No admin menu configuration is required.
+
+1. Replace `YourBot` with your bot's username and share a link such as `https://t.me/YourBot?start=channel_a`.
+2. When the user opens the link and presses **Start**, the bot receives `/start channel_a` and saves `channel_a` as their tag. Users can also send `/start channel_a` directly in a private chat with the bot.
+3. When a user message creates a topic, the tag appears as `#tag` in the topic's initial pinned user info, e.g. `• Tag: #channel_a`. If the topic already exists, an admin must send `/refresh` in that user topic to send and pin user info containing the latest tag.
+
+The bot adds the `#` prefix when displaying the tag. Use only the tag itself in the start link payload or `/start` argument; do not include `#`.
+
+Tags must contain **1–64 characters**, using only English letters, digits, underscores `_`, and hyphens `-`, e.g. `channel_a`, `website`, or `campaign-2026`. Spaces and Chinese characters are not supported.
+
+Each user has one tag. A later valid `/start <tag>` replaces it; `/start` without a payload, `/help`, and invalid payloads leave the existing tag unchanged. There are currently no admin commands to manually set or clear tags, filter users by tag, or broadcast by tag. Use `/setnote` for notes written by admins.
+
+### Statistics & User Info
+
+- `/stats` — in the group, show user count, new/active users today, messages received and replied today, banned and verified counts, and message queue status
+- `/info` — in a user topic, show the user's profile, first contact, last message time, message count, verification and ban status
+
+For users who contacted the bot before upgrading, first contact shows as "Unknown" and the message count is estimated from existing records.
+
+### Reply Templates
+
+Add or delete canned replies in the **Reply Templates** menu. In a user topic, send `/r <number>` to send that template to the user, or `/r` to list templates.
+
+The admin menu shows 10 templates per page. Long template details use a shortened preview, while `/r <number>` still sends the full content. Long `/r` listings are split across messages.
+
+Menu: **Reply Templates**
+
+### Processed Reaction
+
+When a message from a user or an admin is forwarded successfully, the original gets a ❤ reaction that disappears after about 3 seconds, so you can tell the bot is online. Messages stopped by verification, bans, permissions or the spam filter get none.
+
 ## Admin Commands
 
 Available in the group (some apply only inside user topics):
@@ -175,8 +219,11 @@ Available in the group (some apply only inside user topics):
 | `/allow <keys...>` | Grant per-user permissions |
 | `/disallow <keys...>` | Deny per-user permissions |
 | `/resetpermissions <keys...>` | Reset to global defaults |
+| `/stats` | Show statistics |
+| `/info` | Show info about the topic's user |
+| `/r [number]` | Send a reply template; lists templates without a number |
 
-In private chat with the bot: `/help`, `/delete`.
+In private chat with the bot: `/start [tag]`, `/help`, `/delete`.
 
 ## Community
 

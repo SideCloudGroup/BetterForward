@@ -3,6 +3,7 @@
 import importlib
 import os
 import sqlite3
+import tempfile
 import threading
 from traceback import print_exc
 
@@ -57,6 +58,17 @@ class Database:
         files = [f for f in os.listdir(db_migrate_dir) if f.endswith('.py')]
         files.sort(key=lambda x: int(x.split('_')[0]))
 
+        pending = [f for f in files if int(f.split('_')[0]) > current_version]
+        backup_path = None
+        if pending and current_version > 0:
+            try:
+                backup_path = self.backup(current_version)
+            except Exception:
+                # Never migrate without a backup; the data stays untouched at the current version.
+                logger.error(_("Failed to back up database before upgrading, aborting"))
+                print_exc()
+                exit(1)
+
         for file in files:
             try:
                 if (version := int(file.split('_')[0])) > current_version:
@@ -72,8 +84,50 @@ class Database:
                         db.close()
             except Exception:
                 logger.error(_("Failed to upgrade database"))
+                if backup_path:
+                    logger.error(_("Restore the backup to roll back: {}").format(backup_path))
                 print_exc()
                 exit(1)
+
+    BACKUPS_TO_KEEP = 3
+
+    def backup(self, version: int) -> str:
+        """Keep the first complete backup of each version, including across failed upgrade retries."""
+        backup_path = f"{self.db_path}.bak-{version}"
+        if os.path.exists(backup_path):
+            return backup_path
+
+        directory = os.path.dirname(self.db_path) or "."
+        fd, temporary_path = tempfile.mkstemp(
+            prefix=os.path.basename(backup_path) + ".", suffix=".tmp", dir=directory)
+        os.close(fd)
+        try:
+            source = self.get_connection()
+            try:
+                target = sqlite3.connect(temporary_path)
+                try:
+                    # Include WAL pages, but never publish a partially written backup.
+                    source.backup(target)
+                finally:
+                    target.close()
+            finally:
+                source.close()
+            try:
+                # Publish atomically without replacing another process's completed backup.
+                os.link(temporary_path, backup_path)
+            except FileExistsError:
+                pass
+        finally:
+            os.remove(temporary_path)
+        logger.info(_("Database backed up to {}").format(backup_path))
+
+        prefix = os.path.basename(self.db_path) + ".bak-"
+        backups = sorted(
+            (f for f in os.listdir(directory) if f.startswith(prefix) and f[len(prefix):].isdigit()),
+            key=lambda f: int(f[len(prefix):]))
+        for old_backup in backups[:-self.BACKUPS_TO_KEEP]:
+            os.remove(os.path.join(directory, old_backup))
+        return backup_path
 
     def get_setting(self, key: str):
         """Get a setting value from the database."""

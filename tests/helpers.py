@@ -109,7 +109,8 @@ def init_core_db(db_path: str):
         cursor.execute(
             """
             CREATE TABLE verified_users (
-                user_id INTEGER PRIMARY KEY
+                user_id INTEGER PRIMARY KEY,
+                verified_at REAL NOT NULL DEFAULT 0
             )
             """
         )
@@ -143,6 +144,43 @@ def init_core_db(db_path: str):
                 override TEXT NOT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id, permission_key)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE user_tags (
+                user_id INTEGER PRIMARY KEY,
+                tag TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE user_stats (
+                user_id INTEGER PRIMARY KEY,
+                first_seen INTEGER,
+                last_seen INTEGER,
+                message_count INTEGER NOT NULL DEFAULT 0,
+                language TEXT
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE daily_stats (
+                day TEXT PRIMARY KEY,
+                incoming INTEGER NOT NULL DEFAULT 0,
+                outgoing INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE reply_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL
             )
             """
         )

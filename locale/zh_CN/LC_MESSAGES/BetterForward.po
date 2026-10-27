@@ -1248,6 +1248,10 @@ msgstr "仅管理员可以刷新用户信息。"
 msgid "Full Name"
 msgstr "全名"
 
+#: src/utils/helpers.py
+msgid "Tag"
+msgstr "标签"
+
 #: src/handlers/admin_handler.py
 msgid "Default Permission Settings"
 msgstr "默认权限设置"
@@ -1468,3 +1472,247 @@ msgstr "话题 {} 对用户 {} 不存在，正在重建并重试"
 
 msgid "This verification is not for you."
 msgstr "此验证不属于你。"
+
+msgid "Emoji Captcha"
+msgstr "Emoji验证"
+
+msgid "Custom Q&A Captcha"
+msgstr "自定义问答验证"
+
+msgid "Sticker Captcha"
+msgstr "贴纸验证"
+
+msgid "Enabled methods are chosen at random when verifying a new user."
+msgstr "验证新用户时，将从已启用的方式中随机选择一种。"
+
+msgid "Current: {}"
+msgstr "当前：{}"
+
+msgid "Configure Custom Q&A"
+msgstr "配置自定义问答"
+
+msgid "Configure Sticker Captcha"
+msgstr "配置贴纸验证"
+
+msgid "Custom Q&A requires at least one question. Please add a question first."
+msgstr "自定义问答至少需要一道题目，请先添加问题。"
+
+msgid "Sticker captcha requires a target sticker. Please set it first."
+msgstr "指定贴纸验证需要先录入目标贴纸。"
+
+msgid "Custom Q&A"
+msgstr "自定义问答"
+
+msgid "No custom questions yet."
+msgstr "还没有自定义问题。"
+
+msgid "Answers: {}"
+msgstr "答案：{}"
+
+msgid "Delete: {}"
+msgstr "删除：{}"
+
+msgid "Add Question"
+msgstr "添加问题"
+
+msgid "Maximum number of questions reached."
+msgstr "问题数量已达上限。"
+
+msgid "Please send the question.\nSend /cancel to cancel this operation."
+msgstr "请发送问题。\n发送 /cancel 取消此操作。"
+
+msgid "Please send the accepted answers. One per line, or separate with |.\nSend /cancel to cancel this operation."
+msgstr "请发送可接受的答案。每行一个，或用 | 分隔。\n发送 /cancel 取消此操作。"
+
+msgid "Answers cannot be empty."
+msgstr "答案不能为空。"
+
+msgid "Question added."
+msgstr "问题已添加。"
+
+msgid "Sticker Captcha Settings"
+msgstr "贴纸验证设置"
+
+msgid "Switch to any sticker"
+msgstr "切换为任意贴纸"
+
+msgid "Switch to match specific sticker"
+msgstr "切换为指定贴纸"
+
+msgid "Set target sticker"
+msgstr "设置目标贴纸"
+
+msgid "Mode: Match specific sticker"
+msgstr "模式：发回指定贴纸"
+
+msgid "Mode: Any sticker"
+msgstr "模式：任意贴纸"
+
+msgid "Target sticker: set"
+msgstr "目标贴纸：已设置"
+
+msgid "Target sticker: not set"
+msgstr "目标贴纸：未设置"
+
+msgid "Please send the sticker that users must send back.\nSend /cancel to cancel this operation."
+msgstr "请发送用户需要发回的贴纸。\n发送 /cancel 取消此操作。"
+
+msgid "Please send a sticker."
+msgstr "请发送一张贴纸。"
+
+msgid "Target sticker updated."
+msgstr "目标贴纸已更新。"
+
+msgid "Please click the matching emoji: {}"
+msgstr "请点击对应的 emoji：{}"
+
+msgid "Wrong emoji. Please try again."
+msgstr "emoji 不正确，请重试。"
+
+msgid "Please solve this question and send the answer:\n{}"
+msgstr "请回答下面的问题并直接发送答案：\n{}"
+
+msgid "Please send this sticker back to verify."
+msgstr "请发回这张贴纸以完成验证。"
+
+msgid "Please send any sticker to verify."
+msgstr "请发送任意贴纸以完成验证。"
+
+msgid "The sticker is incorrect, please try again"
+msgstr "贴纸不正确，请重试"
+
+msgid "No captcha method is available. Please check captcha settings."
+msgstr "没有可用的人机验证方式，请检查验证设置。"
+
+msgid "Verification Validity"
+msgstr "验证有效期"
+
+msgid "Permanent"
+msgstr "永久有效"
+
+msgid "{} days"
+msgstr "{} 天"
+
+msgid "Verification validity: {}"
+msgstr "验证有效期：{}"
+
+msgid "Please send the verification validity in days (a non-negative integer).\n0 means permanent validity and is the default. Changes apply to existing users too.\nSend /cancel to cancel this operation."
+msgstr "请发送验证有效期，单位为天（非负整数）。\n默认 0 表示永久有效，修改也会应用于已有用户。\n发送 /cancel 取消此操作。"
+
+msgid "Please enter a non-negative integer number of days (0 means permanent)."
+msgstr "请输入非负整数天数（0 表示永久有效）。"
+
+msgid "This verification has expired. Send a message to request a new challenge."
+msgstr "此验证已失效，请发送消息获取新的验证题目。"
+
+msgid "Active users today: {}"
+msgstr "今日活跃用户：{}"
+
+msgid "Add Template"
+msgstr "添加模板"
+
+msgid "Banned users: {}"
+msgstr "封禁用户：{}"
+
+msgid "Banned: {}"
+msgstr "已封禁：{}"
+
+msgid "Failed to sync edited message {}: {}"
+msgstr "同步已编辑的消息 {} 失败：{}"
+
+msgid "First contact: {}"
+msgstr "首次联系：{}"
+
+msgid "Last message: {}"
+msgstr "最近消息：{}"
+
+msgid "Messages sent: {}"
+msgstr "发送消息数：{}"
+
+msgid "Messages today: {} received / {} replied"
+msgstr "今日消息：收到 {} 条 / 回复 {} 条"
+
+msgid "New users today: {}"
+msgstr "今日新用户：{}"
+
+msgid "No reply templates yet."
+msgstr "暂无回复模板。"
+
+msgid "No reply templates. Add them in /help → Reply Templates."
+msgstr "暂无回复模板，请在 /help → 回复模板 中添加。"
+
+msgid ""
+"Please send the template text.\n"
+"Send /cancel to cancel this operation."
+msgstr ""
+"请发送模板内容。\n"
+"发送 /cancel 取消操作。"
+
+msgid "Queue: {} waiting, {} users processing, {} workers"
+msgstr "队列：{} 条等待中，{} 位用户处理中，{} 个工作线程"
+
+msgid "Reply Templates"
+msgstr "回复模板"
+
+msgid "Reply templates:"
+msgstr "回复模板："
+
+msgid "Resuming {} remaining chunk(s) for user {} on new topic {}"
+msgstr "正在为用户 {1} 在新话题 {2} 中继续发送剩余的 {0} 段消息"
+
+msgid "Send a reply template"
+msgstr "发送回复模板"
+
+msgid "Show statistics"
+msgstr "查看统计"
+
+msgid "Show user info"
+msgstr "查看用户信息"
+
+msgid "Statistics"
+msgstr "统计"
+
+msgid "Template added."
+msgstr "模板已添加。"
+
+msgid "Template not found"
+msgstr "未找到模板"
+
+msgid "Template not found. Send /r to list templates."
+msgstr "未找到该模板，发送 /r 查看模板列表。"
+
+msgid "Usage: /r <number>"
+msgstr "用法：/r <编号>"
+
+msgid "Use /r <number> in a user topic to send a template."
+msgstr "在用户话题中发送 /r <编号> 即可发送模板。"
+
+msgid "User Info"
+msgstr "用户信息"
+
+msgid "Users: {}"
+msgstr "用户数：{}"
+
+msgid "Verified users: {}"
+msgstr "已验证用户：{}"
+
+msgid "Verified: {}"
+msgstr "已验证：{}"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Failed to back up database before upgrading, aborting"
+msgstr "升级前备份数据库失败，已中止升级"
+
+msgid "Restore the backup to roll back: {}"
+msgstr "可用此备份恢复到升级前的状态：{}"
+
+msgid "Database backed up to {}"
+msgstr "数据库已备份到 {}"
+
+msgid "Failed to add processed reaction to message {}: {}"
+msgstr "为消息 {} 添加处理确认表情失败：{}"
+
+msgid "Failed to remove processed reaction from message {}: {}"
+msgstr "移除消息 {} 的处理确认表情失败：{}"

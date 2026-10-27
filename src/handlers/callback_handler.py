@@ -38,6 +38,9 @@ class CallbackHandler:
         if action == "verify_button":
             self._handle_verify_button(call, data)
             return
+        if action == "verify_emoji":
+            self._handle_verify_emoji(call, data)
+            return
 
         # Admin end callbacks
         if call.message.chat.id != self.group_id:
@@ -68,6 +71,46 @@ class CallbackHandler:
                 _("This verification is not for you."),
                 show_alert=True,
             )
+            return
+
+        if not self.captcha_manager.is_current_callback(user_id, "button", call.message.message_id):
+            self.bot.answer_callback_query(
+                call.id, _("This verification has expired. Send a message to request a new challenge."),
+                show_alert=True,
+            )
+            return
+
+        with sqlite3.connect(self.db_path) as db:
+            self.captcha_manager.set_user_verified(user_id, db)
+        self.bot.answer_callback_query(call.id)
+        self.bot.send_message(user_id, _("Verification successful, you can now send messages"))
+        self.bot.delete_message(call.message.chat.id, call.message.message_id)
+
+    def _handle_verify_emoji(self, call: types.CallbackQuery, data: dict):
+        """Handle emoji captcha verification."""
+        user_id = data.get("u") or data.get("user_id")
+        if not user_id:
+            self.bot.answer_callback_query(call.id, _("Invalid user ID"), show_alert=True)
+            return
+        if call.from_user.id != user_id:
+            self.bot.answer_callback_query(
+                call.id,
+                _("This verification is not for you."),
+                show_alert=True,
+            )
+            return
+        if not self.captcha_manager.is_current_callback(user_id, "emoji", call.message.message_id):
+            self.bot.answer_callback_query(
+                call.id, _("This verification has expired. Send a message to request a new challenge."),
+                show_alert=True,
+            )
+            return
+        if not self.captcha_manager.verify_emoji_choice(user_id, data.get("i")):
+            self.bot.answer_callback_query(call.id, _("Wrong emoji. Please try again."), show_alert=True)
+            try:
+                self.captcha_manager.generate_captcha(user_id, "emoji")
+            except Exception:
+                logger.error(_("Invalid captcha setting"))
             return
 
         with sqlite3.connect(self.db_path) as db:
@@ -151,11 +194,31 @@ class CallbackHandler:
             case "empty_default_msg":
                 self.admin_handler.empty_default_msg(call.message)
             case "captcha_settings":
-                self.admin_handler.captcha_settings_menu(call.message)
+                self.admin_handler.captcha_settings_menu(call.message, edit=True)
+            case "captcha_verification_days":
+                self.admin_handler.set_captcha_verification_days(call.message)
+            case "toggle_captcha":
+                self.admin_handler.toggle_captcha(call.message, data.get("v") or data.get("value"))
             case "set_captcha":
-                self.admin_handler.set_captcha(call.message, data["value"])
+                self.admin_handler.toggle_captcha(call.message, data.get("v") or data.get("value"))
+            case "captcha_qa_settings":
+                self.admin_handler.captcha_qa_settings_menu(call.message, edit=True)
+            case "captcha_qa_add":
+                self.admin_handler.start_add_captcha_qa(call.message)
+            case "captcha_qa_del":
+                if "id" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                self.admin_handler.delete_captcha_qa(call.message, data["id"])
+            case "captcha_sticker_settings":
+                self.admin_handler.captcha_sticker_settings_menu(call.message, edit=True)
+            case "captcha_sticker_mode":
+                self.admin_handler.set_captcha_sticker_mode(call.message, data.get("v"))
+            case "captcha_sticker_set":
+                self.admin_handler.start_set_captcha_sticker(call.message)
             case "tguard_api_settings":
-                self.admin_handler.tguard_api_settings_menu(call.message)
+                self.admin_handler.tguard_api_settings_menu(call.message, edit=True)
             case "set_tguard_api_url":
                 self.admin_handler.set_tguard_api_url(call.message)
             case "set_tguard_api_key":
@@ -227,6 +290,19 @@ class CallbackHandler:
                 self.admin_handler.reset_spam_topic(call.message)
             case "confirm_reset_spam_topic":
                 self.admin_handler.confirm_reset_spam_topic(call.message)
+            case "reply_templates":
+                self.admin_handler.reply_templates_menu(call.message, page=data.get("page", 1))
+            case "add_reply_template":
+                self.admin_handler.add_reply_template(call.message)
+            case "select_reply_template" | "delete_reply_template":
+                if "id" not in data:
+                    self.bot.delete_message(self.group_id, call.message.message_id)
+                    self.bot.send_message(self.group_id, _("Invalid action"), reply_markup=markup)
+                    return
+                if action == "select_reply_template":
+                    self.admin_handler.select_reply_template(call.message, data["id"], page=data.get("page", 1))
+                else:
+                    self.admin_handler.delete_reply_template(call.message, data["id"], page=data.get("page", 1))
             case "show_host_ip":
                 self.admin_handler.show_host_ip(call.message)
             case "show_version":

@@ -13,6 +13,18 @@ from telebot.types import Message
 
 from src.config import logger, _
 from src.utils.auto_response import looks_like_regex
+from src.utils.captcha import (
+    CAPTCHA_METHODS,
+    QA_MAX_ITEMS,
+    VERIFICATION_DAYS_SETTING,
+    method_configured,
+    method_unready_reason,
+    next_qa_id,
+    parse_captcha_config,
+    parse_qa_answers,
+    save_captcha_config,
+    verification_days,
+)
 from src.version import VERSION
 from src.utils.permissions import (
     DEFAULT_RESTRICTED_REPLY_MESSAGE,
@@ -105,10 +117,10 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "blocked_reply_settings"})),
             types.InlineKeyboardButton("🔐" + _("Permission Settings"),
                                        callback_data=json.dumps({"action": "permission_settings"})),
+            types.InlineKeyboardButton("📝" + _("Reply Templates"),
+                                       callback_data=json.dumps({"action": "reply_templates"})),
             types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
                                        callback_data=json.dumps({"action": "captcha_settings"})),
-            types.InlineKeyboardButton("🛡️" + _("TGuard API Settings"),
-                                       callback_data=json.dumps({"action": "tguard_api_settings"})),
             types.InlineKeyboardButton("🌍" + _("Time Zone Settings"),
                                        callback_data=json.dumps({"action": "time_zone_settings"})),
             types.InlineKeyboardButton("📢" + _("Broadcast Message"),
@@ -764,85 +776,349 @@ class AdminHandler:
                                    message.chat.id, message.message_id, reply_markup=markup)
 
     # Captcha Settings
-    def captcha_settings_menu(self, message: Message):
-        """Display captcha settings menu."""
-        captcha_list = {
-            _("Disable Captcha"): "disable",
-            _("Math Captcha"): "math",
-            _("Button Captcha"): "button",
-            _("TGuard Captcha"): "tguard",
+    def _captcha_method_labels(self):
+        return {
+            "math": _("Math Captcha"),
+            "button": _("Button Captcha"),
+            "emoji": _("Emoji Captcha"),
+            "qa": _("Custom Q&A Captcha"),
+            "sticker": _("Sticker Captcha"),
+            "tguard": _("TGuard Captcha"),
         }
+
+    def _load_captcha_config(self):
+        raw = self.cache.get("setting_captcha")
+        if raw is None:
+            raw = self.database.get_setting("captcha")
+        return parse_captcha_config(raw)
+
+    def _save_captcha_config(self, config):
+        return save_captcha_config(self.database, self.cache, config)
+
+    def captcha_settings_menu(self, message: Message, edit: bool = False):
+        """Display captcha settings hub."""
         if not self.check_valid_chat(message):
             return
 
+        config = self._load_captcha_config()
+        enabled = set(config.get("methods") or [])
+        labels = self._captcha_method_labels()
         markup = types.InlineKeyboardMarkup()
-        for key, value in captcha_list.items():
-            icon = "✅" + _("(Selected) ") if self.database.get_setting("captcha") == value else "⚪"
+        disable_icon = "✅" + _("(Selected) ") if not enabled else "⚪"
+        markup.add(types.InlineKeyboardButton(
+            disable_icon + _("Disable Captcha"),
+            callback_data=json.dumps({"action": "toggle_captcha", "v": "disable"})))
+        for method in CAPTCHA_METHODS:
+            icon = "✅" + _("(Selected) ") if method in enabled else "⚪"
             markup.add(types.InlineKeyboardButton(
-                icon + key,
-                callback_data=json.dumps({"action": "set_captcha", "value": value})))
+                icon + labels[method],
+                callback_data=json.dumps({"action": "toggle_captcha", "v": method})))
+        markup.add(types.InlineKeyboardButton(
+            "✏️" + _("Configure Custom Q&A"),
+            callback_data=json.dumps({"action": "captcha_qa_settings"})))
+        markup.add(types.InlineKeyboardButton(
+            "🎫" + _("Configure Sticker Captcha"),
+            callback_data=json.dumps({"action": "captcha_sticker_settings"})))
+        markup.add(types.InlineKeyboardButton(
+            "🛡️" + _("TGuard API Settings"),
+            callback_data=json.dumps({"action": "tguard_api_settings"})))
+        markup.add(types.InlineKeyboardButton(
+            "⏳" + _("Verification Validity"),
+            callback_data=json.dumps({"action": "captcha_verification_days"})))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                               callback_data=json.dumps({"action": "menu"})))
-        self.bot.send_message(text=_("Captcha Settings") + "\n",
-                              chat_id=message.chat.id,
-                              message_thread_id=None,
-                              reply_markup=markup)
 
-    def set_captcha(self, message: Message, value: str):
-        """Set captcha setting."""
-        # Check if TGuard is selected and if API settings are configured
-        if value == "tguard":
-            api_url = self.database.get_setting('tguard_api_url')
-            api_key = self.database.get_setting('tguard_api_key')
-            if not api_url or not api_key:
+        if enabled:
+            current = ", ".join(labels[method] for method in CAPTCHA_METHODS if method in enabled)
+        else:
+            current = _("Disabled")
+        text = _("Captcha Settings") + "\n\n"
+        text += _("Enabled methods are chosen at random when verifying a new user.") + "\n"
+        text += _("Current: {}").format(current) + "\n"
+        raw_days = self.cache.get(f"setting_{VERIFICATION_DAYS_SETTING}")
+        if raw_days is None:
+            raw_days = self.database.get_setting(VERIFICATION_DAYS_SETTING)
+        days = verification_days(raw_days)
+        validity = _("Permanent") if days == 0 else _("{} days").format(days)
+        text += _("Verification validity: {}").format(validity)
+        self._send_or_edit_permission_menu_message(message, text, markup, edit)
+
+    def set_captcha_verification_days(self, message: Message):
+        """Ask for the verification validity period in whole days."""
+        if not self.check_valid_chat(message):
+            return
+        msg = self.bot.edit_message_text(
+            _("Please send the verification validity in days (a non-negative integer).\n"
+              "0 means permanent validity and is the default. Changes apply to existing users too.\n"
+              "Send /cancel to cancel this operation."),
+            message.chat.id, message.message_id,
+        )
+        self.bot.register_next_step_handler(msg, self.process_captcha_verification_days)
+
+    def process_captcha_verification_days(self, message: Message):
+        """Save validity after authenticating the admin who started this flow."""
+        if not self._accept_admin_step(message, self.process_captcha_verification_days):
+            return
+        text = (message.text or "").strip()
+        if text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+        try:
+            if message.content_type != "text" or not re.fullmatch(r"[0-9]+", text):
+                raise ValueError
+            days = int(text)
+        except ValueError:
+            msg = self.bot.send_message(
+                self.group_id, _("Please enter a non-negative integer number of days (0 means permanent)."))
+            self.bot.register_next_step_handler(msg, self.process_captcha_verification_days)
+            return
+        self.database.set_setting(VERIFICATION_DAYS_SETTING, str(days))
+        self.cache.set(f"setting_{VERIFICATION_DAYS_SETTING}", str(days))
+        self.captcha_settings_menu(message)
+
+    def toggle_captcha(self, message: Message, value: str):
+        """Toggle a captcha method or disable all methods."""
+        if not self.check_valid_chat(message):
+            return
+        config = self._load_captcha_config()
+        methods = list(config.get("methods") or [])
+        if value == "disable":
+            config["methods"] = []
+            self._save_captcha_config(config)
+            self.captcha_settings_menu(message, edit=True)
+            return
+        if value not in CAPTCHA_METHODS:
+            return
+        if value in methods:
+            methods = [method for method in methods if method != value]
+        else:
+            if not method_configured(config, value, self.cache):
                 markup = types.InlineKeyboardMarkup()
                 markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
                                                       callback_data=json.dumps({"action": "captcha_settings"})))
                 self.bot.edit_message_text(
-                    _("TGuard Captcha requires API URL and API Key to be configured.\n"
-                      "Please configure them in TGuard API Settings first."),
+                    method_unready_reason(value),
                     message.chat.id, message.message_id, reply_markup=markup)
                 return
-        
-        self.database.set_setting('captcha', value)
-        self.cache.set("setting_captcha", value)
+            methods.append(value)
+        config["methods"] = [method for method in CAPTCHA_METHODS if method in set(methods)]
+        self._save_captcha_config(config)
+        self.captcha_settings_menu(message, edit=True)
+
+    def captcha_qa_settings_menu(self, message: Message, edit: bool = True):
+        """Display custom Q&A captcha questions."""
+        if not self.check_valid_chat(message):
+            return
+        config = self._load_captcha_config()
+        items = config.get("qa") or []
+        markup = types.InlineKeyboardMarkup()
+        text = _("Custom Q&A") + "\n\n"
+        if not items:
+            text += _("No custom questions yet.") + "\n"
+        else:
+            for item in items:
+                answers = " | ".join(item.get("answers") or [])
+                text += f"#{item['id']} {item['question']}\n"
+                text += _("Answers: {}").format(answers) + "\n\n"
+                label = item["question"]
+                if len(label) > 24:
+                    label = label[:24] + "…"
+                markup.add(types.InlineKeyboardButton(
+                    "🗑️" + _("Delete: {}").format(label),
+                    callback_data=json.dumps({"action": "captcha_qa_del", "id": item["id"]})))
+        if len(items) < QA_MAX_ITEMS:
+            markup.add(types.InlineKeyboardButton(
+                "➕" + _("Add Question"),
+                callback_data=json.dumps({"action": "captcha_qa_add"})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "captcha_settings"})))
+        self._send_or_edit_permission_menu_message(message, text, markup, edit)
+
+    def start_add_captcha_qa(self, message: Message):
+        """Start adding a custom Q&A item."""
+        if not self.check_valid_chat(message):
+            return
+        config = self._load_captcha_config()
+        if len(config.get("qa") or []) >= QA_MAX_ITEMS:
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "captcha_qa_settings"})))
+            self.bot.edit_message_text(_("Maximum number of questions reached."),
+                                       message.chat.id, message.message_id, reply_markup=markup)
+            return
+        msg = self.bot.edit_message_text(
+            _("Please send the question.\nSend /cancel to cancel this operation."),
+            message.chat.id, message.message_id)
+        self.bot.register_next_step_handler(msg, self.process_captcha_qa_question)
+
+    def process_captcha_qa_question(self, message: Message):
+        """Store the custom question and ask for answers."""
+        if not self._accept_admin_step(message, self.process_captcha_qa_question):
+            return
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+        if message.content_type != "text" or not (message.text or "").strip():
+            self.bot.send_message(self.group_id, _("Invalid input"))
+            return
+        self.cache.set("captcha_qa_question", message.text.strip(), 300)
+        msg = self.bot.send_message(
+            self.group_id,
+            _("Please send the accepted answers. One per line, or separate with |.\n"
+              "Send /cancel to cancel this operation."))
+        self.bot.register_next_step_handler(msg, self.process_captcha_qa_answers)
+
+    def process_captcha_qa_answers(self, message: Message):
+        """Save a custom Q&A item."""
+        if not self._accept_admin_step(message, self.process_captcha_qa_answers):
+            return
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.cache.delete("captcha_qa_question")
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+        question = self.cache.get("captcha_qa_question")
+        if not question:
+            self.bot.send_message(self.group_id,
+                                  _("The operation has timed out. Please initiate the process again."))
+            return
+        if message.content_type != "text":
+            self.bot.send_message(self.group_id, _("Invalid input"))
+            return
+        answers = parse_qa_answers(message.text)
+        if not answers:
+            self.bot.send_message(self.group_id, _("Answers cannot be empty."))
+            return
+        config = self._load_captcha_config()
+        if len(config.get("qa") or []) >= QA_MAX_ITEMS:
+            self.cache.delete("captcha_qa_question")
+            self.bot.send_message(self.group_id, _("Maximum number of questions reached."))
+            return
+        config.setdefault("qa", []).append({
+            "id": next_qa_id(config),
+            "question": question,
+            "answers": answers,
+        })
+        self._save_captcha_config(config)
+        self.cache.delete("captcha_qa_question")
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
-                                              callback_data=json.dumps({"action": "menu"})))
-        self.bot.edit_message_text(_("Captcha settings updated"),
-                                   message.chat.id, message.message_id, reply_markup=markup)
+                                              callback_data=json.dumps({"action": "captcha_qa_settings"})))
+        self.bot.send_message(self.group_id, _("Question added."), reply_markup=markup)
+
+    def delete_captcha_qa(self, message: Message, item_id: int):
+        """Delete a custom Q&A item."""
+        if not self.check_valid_chat(message):
+            return
+        config = self._load_captcha_config()
+        remaining = [item for item in config.get("qa") or [] if int(item.get("id")) != int(item_id)]
+        config["qa"] = remaining
+        if not remaining:
+            config["methods"] = [method for method in config.get("methods") or [] if method != "qa"]
+        self._save_captcha_config(config)
+        self.captcha_qa_settings_menu(message, edit=True)
+
+    def captcha_sticker_settings_menu(self, message: Message, edit: bool = True):
+        """Display sticker captcha settings."""
+        if not self.check_valid_chat(message):
+            return
+        config = self._load_captcha_config()
+        sticker = config.get("sticker") or {}
+        mode = sticker.get("mode") if sticker.get("mode") in ("any", "match") else "any"
+        has_target = bool(sticker.get("file_id") and sticker.get("file_unique_id"))
+        markup = types.InlineKeyboardMarkup()
+        if mode == "match":
+            markup.add(types.InlineKeyboardButton(
+                "🔄" + _("Switch to any sticker"),
+                callback_data=json.dumps({"action": "captcha_sticker_mode", "v": "any"})))
+        else:
+            markup.add(types.InlineKeyboardButton(
+                "🎯" + _("Switch to match specific sticker"),
+                callback_data=json.dumps({"action": "captcha_sticker_mode", "v": "match"})))
+        markup.add(types.InlineKeyboardButton(
+            "📌" + _("Set target sticker"),
+            callback_data=json.dumps({"action": "captcha_sticker_set"})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "captcha_settings"})))
+        text = _("Sticker Captcha Settings") + "\n\n"
+        text += (_("Mode: Match specific sticker") if mode == "match" else _("Mode: Any sticker")) + "\n"
+        text += _("Target sticker: set") if has_target else _("Target sticker: not set")
+        self._send_or_edit_permission_menu_message(message, text, markup, edit)
+
+    def set_captcha_sticker_mode(self, message: Message, mode: str):
+        """Switch sticker captcha mode."""
+        if not self.check_valid_chat(message) or mode not in ("any", "match"):
+            return
+        config = self._load_captcha_config()
+        sticker = config.setdefault("sticker", {"mode": "any", "file_id": None, "file_unique_id": None})
+        sticker["mode"] = mode
+        if mode == "match" and not (sticker.get("file_id") and sticker.get("file_unique_id")):
+            config["methods"] = [method for method in config.get("methods") or [] if method != "sticker"]
+        config["sticker"] = sticker
+        self._save_captcha_config(config)
+        self.captcha_sticker_settings_menu(message, edit=True)
+
+    def start_set_captcha_sticker(self, message: Message):
+        """Ask admin to send the target sticker."""
+        if not self.check_valid_chat(message):
+            return
+        msg = self.bot.edit_message_text(
+            _("Please send the sticker that users must send back.\n"
+              "Send /cancel to cancel this operation."),
+            message.chat.id, message.message_id)
+        self.bot.register_next_step_handler(msg, self.process_captcha_sticker)
+
+    def process_captcha_sticker(self, message: Message):
+        """Save the target sticker for match mode."""
+        if not self._accept_admin_step(message, self.process_captcha_sticker):
+            return
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+        if message.content_type != "sticker" or message.sticker is None:
+            self.bot.send_message(self.group_id, _("Please send a sticker."))
+            return
+        config = self._load_captcha_config()
+        config["sticker"] = {
+            "mode": (config.get("sticker") or {}).get("mode") or "any",
+            "file_id": message.sticker.file_id,
+            "file_unique_id": message.sticker.file_unique_id,
+        }
+        self._save_captcha_config(config)
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "captcha_sticker_settings"})))
+        self.bot.send_message(self.group_id, _("Target sticker updated."), reply_markup=markup)
+
+    def set_captcha(self, message: Message, value: str):
+        """Backward-compatible alias for toggling captcha methods."""
+        self.toggle_captcha(message, value)
 
     # TGuard API Settings
-    def tguard_api_settings_menu(self, message: Message):
+    def tguard_api_settings_menu(self, message: Message, edit: bool = False):
         """Display TGuard API settings menu."""
         if not self.check_valid_chat(message):
             return
-        
+
         current_url = self.database.get_setting('tguard_api_url') or _("Not set")
         current_key = self.database.get_setting('tguard_api_key') or _("Not set")
-        
-        # Mask API key for display
+
         if current_key != _("Not set") and len(current_key) > 8:
             masked_key = current_key[:4] + "*" * (len(current_key) - 8) + current_key[-4:]
         else:
             masked_key = current_key
-        
+
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("🔗" + _("Set API URL"),
                                               callback_data=json.dumps({"action": "set_tguard_api_url"})))
         markup.add(types.InlineKeyboardButton("🔑" + _("Set API Key"),
                                               callback_data=json.dumps({"action": "set_tguard_api_key"})))
         markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
-                                              callback_data=json.dumps({"action": "menu"})))
-        
+                                              callback_data=json.dumps({"action": "captcha_settings"})))
+
         text = _("TGuard API Settings") + "\n\n"
         text += _("API URL: {}").format(current_url) + "\n"
         text += _("API Key: {}").format(masked_key) + "\n"
-        
-        self.bot.send_message(text=text,
-                              chat_id=message.chat.id,
-                              message_thread_id=None,
-                              reply_markup=markup)
+        self._send_or_edit_permission_menu_message(message, text, markup, edit)
 
     def set_tguard_api_url(self, message: Message):
         """Start setting TGuard API URL."""
@@ -1449,6 +1725,111 @@ class AdminHandler:
         self.bot.edit_message_text(_("Blocked user reply message cleared."),
                                    message.chat.id, message.message_id,
                                    reply_markup=markup)
+
+    # Reply Templates
+    def reply_templates_menu(self, message: Message, page: int = 1):
+        """List reply templates in bounded pages, retaining their global /r numbers."""
+        page_size = 10
+        with sqlite3.connect(self.db_path) as db:
+            total = db.execute("SELECT COUNT(*) FROM reply_templates").fetchone()[0]
+            total_pages = max(1, (total + page_size - 1) // page_size)
+            page = max(1, min(page, total_pages))
+            offset = (page - 1) * page_size
+            templates = db.execute(
+                "SELECT id, content FROM reply_templates ORDER BY id LIMIT ? OFFSET ?",
+                (page_size, offset)).fetchall()
+
+        markup = types.InlineKeyboardMarkup()
+        text = _("Reply Templates") + "\n\n"
+        text += _("Page: {}").format(page) + f"/{total_pages}\n\n"
+        if not templates:
+            text += _("No reply templates yet.") + "\n"
+        else:
+            buttons = []
+            for number, (template_id, content) in enumerate(templates, start=offset + 1):
+                preview = content if len(content) <= 80 else content[:80] + "…"
+                text += f"{number}. {preview}\n"
+                buttons.append(types.InlineKeyboardButton(
+                    f"#{number}", callback_data=json.dumps(
+                        {"action": "select_reply_template", "id": template_id, "page": page})))
+            for i in range(0, len(buttons), 5):
+                markup.row(*buttons[i:i + 5])
+        text += "\n" + _("Use /r <number> in a user topic to send a template.")
+
+        navigation = []
+        if page > 1:
+            navigation.append(types.InlineKeyboardButton(
+                "⬅️" + _("Previous Page"),
+                callback_data=json.dumps({"action": "reply_templates", "page": page - 1})))
+        if page < total_pages:
+            navigation.append(types.InlineKeyboardButton(
+                "➡️" + _("Next Page"),
+                callback_data=json.dumps({"action": "reply_templates", "page": page + 1})))
+        if navigation:
+            markup.row(*navigation)
+        markup.add(types.InlineKeyboardButton("➕" + _("Add Template"),
+                                              callback_data=json.dumps({"action": "add_reply_template"})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "menu"})))
+        self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
+
+    def add_reply_template(self, message: Message):
+        """Start adding a reply template."""
+        msg = self.bot.edit_message_text(
+            text=_("Please send the template text.\nSend /cancel to cancel this operation."),
+            chat_id=self.group_id,
+            message_id=message.message_id)
+        self.bot.register_next_step_handler(msg, self.process_add_reply_template)
+
+    def process_add_reply_template(self, message: Message):
+        """Save a new reply template."""
+        if not self._accept_admin_step(message, self.process_add_reply_template):
+            return
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "reply_templates"})))
+        if message.content_type != "text" or not message.text.strip():
+            self.bot.send_message(self.group_id, _("Invalid input"), reply_markup=markup)
+            return
+
+        with sqlite3.connect(self.db_path) as db:
+            db.execute("INSERT INTO reply_templates (content) VALUES (?)", (message.text.strip(),))
+            db.commit()
+        self.bot.send_message(self.group_id, _("Template added."), reply_markup=markup)
+
+    def select_reply_template(self, message: Message, template_id: int, page: int = 1):
+        """Show a template with a delete option."""
+        with sqlite3.connect(self.db_path) as db:
+            row = db.execute("SELECT content FROM reply_templates WHERE id = ?", (template_id,)).fetchone()
+
+        markup = types.InlineKeyboardMarkup()
+        if row is None:
+            markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                                  callback_data=json.dumps({"action": "reply_templates", "page": page})))
+            self.bot.edit_message_text(_("Template not found"), message.chat.id, message.message_id,
+                                       reply_markup=markup)
+            return
+        markup.add(types.InlineKeyboardButton("❌" + _("Delete"),
+                                              callback_data=json.dumps({"action": "delete_reply_template",
+                                                                        "id": template_id, "page": page})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "reply_templates", "page": page})))
+        footer = "\n\n" + _("Select an action:")
+        preview_limit = 4096 - len(footer)
+        preview = row[0] if len(row[0]) <= preview_limit else row[0][:preview_limit - 1] + "…"
+        self.bot.edit_message_text(preview + footer,
+                                   message.chat.id, message.message_id, reply_markup=markup)
+
+    def delete_reply_template(self, message: Message, template_id: int, page: int = 1):
+        """Delete a reply template."""
+        with sqlite3.connect(self.db_path) as db:
+            db.execute("DELETE FROM reply_templates WHERE id = ?", (template_id,))
+            db.commit()
+        self.reply_templates_menu(message, page=page)
 
     # Spam Topic Management
     def reset_spam_topic(self, message: Message):
