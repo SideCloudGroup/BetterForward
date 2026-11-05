@@ -20,7 +20,14 @@ from telebot.types import Message
 
 from src.config import logger, _
 from src.utils.captcha import VERIFICATION_DAYS_SETTING, verification_days
-from src.utils.helpers import build_user_info_pin_text, parse_start_payload, send_and_pin_user_info, to_html
+from src.utils.helpers import (
+    blocked_user_notice,
+    build_user_info_pin_text,
+    is_user_blocked,
+    parse_start_payload,
+    send_and_pin_user_info,
+    to_html,
+)
 from src.utils.message_split import split_caption, split_html_text
 from src.utils.message_permissions import classify_message_permissions
 from src.utils.stats import get_summary, get_user_stats
@@ -128,6 +135,10 @@ class CommandHandler:
             menu_callback(message)
         else:
             if getattr(message.chat, "type", None) == "private":
+                with sqlite3.connect(self.db_path) as db:
+                    if is_user_blocked(db, message.from_user.id):
+                        self.bot.send_message(message.chat.id, blocked_user_notice(self.cache))
+                        return
                 self._save_start_tag(message)
             default_message = self._get_setting('default_message')
             if default_message is None:

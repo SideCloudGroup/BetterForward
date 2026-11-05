@@ -6,6 +6,7 @@ import sqlite3
 from telebot import types
 
 from src.config import logger, _
+from src.utils.helpers import blocked_user_notice, is_user_blocked
 
 
 class CallbackHandler:
@@ -72,6 +73,8 @@ class CallbackHandler:
                 show_alert=True,
             )
             return
+        if self._reject_banned_verification(call, user_id):
+            return
 
         if not self.captcha_manager.is_current_callback(user_id, "button", call.message.message_id):
             self.bot.answer_callback_query(
@@ -99,6 +102,8 @@ class CallbackHandler:
                 show_alert=True,
             )
             return
+        if self._reject_banned_verification(call, user_id):
+            return
         if not self.captcha_manager.is_current_callback(user_id, "emoji", call.message.message_id):
             self.bot.answer_callback_query(
                 call.id, _("This verification has expired. Send a message to request a new challenge."),
@@ -118,6 +123,16 @@ class CallbackHandler:
         self.bot.answer_callback_query(call.id)
         self.bot.send_message(user_id, _("Verification successful, you can now send messages"))
         self.bot.delete_message(call.message.chat.id, call.message.message_id)
+
+    def _reject_banned_verification(self, call: types.CallbackQuery, user_id: int) -> bool:
+        """Refuse captcha completion for banned users. Returns True when rejected."""
+        with sqlite3.connect(self.db_path) as db:
+            if not is_user_blocked(db, user_id):
+                return False
+        self.captcha_manager.clear_pending(user_id)
+        self.bot.answer_callback_query(
+            call.id, blocked_user_notice(self.captcha_manager.cache), show_alert=True)
+        return True
 
     def _handle_admin_callback(self, call: types.CallbackQuery, action: str, data: dict):
         """Handle admin callbacks."""
