@@ -253,3 +253,89 @@ def test_random_selection_excludes_unconfigured_methods(env, monkeypatch):
                                            ("button", ["button"]), ("tguard", ["tguard"])])
 def test_legacy_captcha_settings_remain_supported(legacy, methods):
     assert parse_captcha_config(legacy)["methods"] == methods
+
+
+def _sent_texts(bot):
+    texts = []
+    for call in bot.send_message.call_args_list:
+        if len(call.args) > 1:
+            texts.append(call.args[1])
+        elif "text" in call.kwargs:
+            texts.append(call.kwargs["text"])
+    return texts
+
+
+def test_banned_user_does_not_start_verification(env, monkeypatch):
+    env.db.execute("INSERT INTO blocked_users (user_id) VALUES (?)", (USER_ID,))
+    env.db.commit()
+    env.cache.set("setting_captcha", json.dumps({"methods": ["tguard"]}))
+    env.cache.set("setting_tguard_api_url", "https://example.com")
+    env.cache.set("setting_tguard_api_key", "test")
+    client = MagicMock()
+    factory = MagicMock()
+    factory.return_value.__enter__.return_value = client
+    monkeypatch.setattr("src.utils.captcha.httpx.Client", factory)
+
+    generate = MagicMock(wraps=env.captcha.generate_captcha)
+    monkeypatch.setattr(env.captcha, "generate_captcha", generate)
+
+    env.handler.handle_message(make_message(chat_id=USER_ID, user_id=USER_ID, text="hello"))
+
+    client.post.assert_not_called()
+    generate.assert_not_called()
+    assert env.captcha.get_pending(USER_ID) is None
+    assert "You have been banned." in _sent_texts(env.bot)
+    assert not env.captcha.is_user_verified(USER_ID, env.db)
+
+
+def test_banned_user_receives_custom_reply_instead_of_captcha(env):
+    env.db.execute("INSERT INTO blocked_users (user_id) VALUES (?)", (USER_ID,))
+    env.db.commit()
+    env.cache.set("setting_captcha", json.dumps({"methods": ["math"]}))
+    env.cache.set("setting_blocked_user_reply_enabled", "enable")
+    env.cache.set("setting_blocked_user_reply_message", "Stay out")
+
+    env.handler.handle_message(make_message(chat_id=USER_ID, user_id=USER_ID, text="hello"))
+
+    assert env.captcha.get_pending(USER_ID) is None
+    assert "Stay out" in _sent_texts(env.bot)
+    assert not any("Captcha is enabled" in str(text) for text in _sent_texts(env.bot))
+
+
+def test_banned_user_cannot_complete_callback_verification(env):
+    env.captcha.generate_captcha(USER_ID, "button")
+    env.db.execute("INSERT INTO blocked_users (user_id) VALUES (?)", (USER_ID,))
+    env.db.commit()
+    env.bot.reset_mock()
+
+    click(env, "verify_button")
+
+    assert not env.captcha.is_user_verified(USER_ID, env.db)
+    assert env.captcha.get_pending(USER_ID) is None
+    assert env.bot.answer_callback_query.call_args.kwargs["show_alert"]
+    assert env.bot.answer_callback_query.call_args.args[1] == "You have been banned."
+    env.bot.send_message.assert_not_called()
+
+
+def test_banned_user_check_captcha_does_not_generate(env, monkeypatch):
+    env.db.execute("INSERT INTO blocked_users (user_id) VALUES (?)", (USER_ID,))
+    env.db.commit()
+    generate = MagicMock()
+    monkeypatch.setattr(env.captcha, "generate_captcha", generate)
+    assert check_message(env) is False
+    generate.assert_not_called()
+
+
+def test_banned_user_start_gets_notice_not_welcome(env):
+    env.db.execute("INSERT INTO blocked_users (user_id) VALUES (?)", (USER_ID,))
+    env.db.commit()
+    handler = CommandHandler(env.bot, GROUP_ID, env.db_path, env.cache, None, env.captcha)
+    handler.help_command(make_message(chat_id=USER_ID, user_id=USER_ID, text="/start"), MagicMock())
+    texts = _sent_texts(env.bot)
+    assert texts == ["You have been banned."]
+
+
+def test_non_banned_user_still_starts_verification(env):
+    assert check_message(env) is False
+    assert env.captcha.get_pending(USER_ID)["type"] == "math"
+    assert any("Captcha is enabled" in str(text) for text in _sent_texts(env.bot))

@@ -11,6 +11,25 @@ from src.config import _, logger
 START_PAYLOAD_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 
 
+def is_user_blocked(cursor, user_id: int) -> bool:
+    """Return True when the user is in blocked_users."""
+    return cursor.execute(
+        "SELECT 1 FROM blocked_users WHERE user_id = ? LIMIT 1", (user_id,)
+    ).fetchone() is not None
+
+
+def blocked_user_notice(cache) -> str:
+    """Message shown when a banned user contacts the bot.
+
+    A configured blocked-user auto-reply overrides the default notice.
+    """
+    if cache.get("setting_blocked_user_reply_enabled") == "enable":
+        reply = cache.get("setting_blocked_user_reply_message")
+        if reply:
+            return reply
+    return _("You have been banned.")
+
+
 def to_html(text: str | None, entities) -> str | None:
     """Render message text/caption with its entities as Telegram HTML."""
     if text is None:

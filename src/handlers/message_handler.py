@@ -9,7 +9,14 @@ from telebot.types import Message, ReplyParameters
 from src.config import logger, _
 from src.utils.captcha import parse_captcha_config, pick_captcha_type
 from src.utils.db_helper import get_db_connection
-from src.utils.helpers import build_user_info_pin_text, escape_markdown, send_and_pin_user_info, to_html
+from src.utils.helpers import (
+    blocked_user_notice,
+    build_user_info_pin_text,
+    escape_markdown,
+    is_user_blocked,
+    send_and_pin_user_info,
+    to_html,
+)
 from src.utils.message_permissions import classify_message_permissions
 from src.utils.message_split import split_caption, split_html_text
 from src.utils.stats import record_incoming, record_outgoing
@@ -77,40 +84,15 @@ class MessageHandler:
             _("Received message from {}, content: {}, type: {}").format(
                 message.from_user.id, message.text, message.content_type))
 
+        # Ban first: never start or complete captcha / TGuard for blocked users.
+        if self._reject_blocked_user(message, cursor, start_time):
+            return
+
         # Captcha handler
         if not self._check_captcha(message, cursor, db):
             processing_time = (time.time() - start_time) * 1000
             logger.info(_("Message from user {} blocked by captcha ({:.2f}ms)").format(
                 message.from_user.id, processing_time))
-            return
-
-        # Check if the user is blocked
-        is_blocked = cursor.execute("SELECT 1 FROM blocked_users WHERE user_id = ? LIMIT 1",
-                                    (message.from_user.id,)).fetchone() is not None
-
-        if is_blocked:
-            # Update user info in blocked_users table
-            cursor.execute(
-                "UPDATE blocked_users SET username = ?, first_name = ?, last_name = ? WHERE user_id = ?",
-                (message.from_user.username, message.from_user.first_name,
-                 message.from_user.last_name, message.from_user.id)
-            )
-
-            processing_time = (time.time() - start_time) * 1000
-            logger.info(_("Message from blocked user {} rejected ({:.2f}ms)").format(
-                message.from_user.id, processing_time))
-
-            # Send auto-reply if enabled
-            if self.cache.get("setting_blocked_user_reply_enabled") == "enable":
-                reply_message = self.cache.get("setting_blocked_user_reply_message")
-                if reply_message:
-                    try:
-                        self.bot.send_message(message.chat.id, reply_message)
-                        logger.info(_("Sent auto-reply to blocked user {}").format(message.from_user.id))
-                    except Exception as e:
-                        logger.error(_("Failed to send auto-reply to blocked user {}: {}").format(
-                            message.from_user.id, str(e)))
-
             return
 
         denied_permissions = self._get_denied_permissions(message)
@@ -280,6 +262,29 @@ class MessageHandler:
 
         return True
 
+    def _reject_blocked_user(self, message: Message, cursor, start_time: float) -> bool:
+        """Notify and stop when the sender is banned. Returns True if rejected."""
+        if not is_user_blocked(cursor, message.from_user.id):
+            return False
+
+        cursor.execute(
+            "UPDATE blocked_users SET username = ?, first_name = ?, last_name = ? WHERE user_id = ?",
+            (message.from_user.username, message.from_user.first_name,
+             message.from_user.last_name, message.from_user.id)
+        )
+
+        processing_time = (time.time() - start_time) * 1000
+        logger.info(_("Message from blocked user {} rejected ({:.2f}ms)").format(
+            message.from_user.id, processing_time))
+
+        try:
+            self.bot.send_message(message.chat.id, blocked_user_notice(self.cache))
+            logger.info(_("Sent auto-reply to blocked user {}").format(message.from_user.id))
+        except Exception as e:
+            logger.error(_("Failed to send auto-reply to blocked user {}: {}").format(
+                message.from_user.id, str(e)))
+        return True
+
     def _check_captcha(self, message: Message, cursor, db) -> bool:
         """Check and handle captcha verification."""
         config = parse_captcha_config(self.cache.get("setting_captcha"))
@@ -287,6 +292,9 @@ class MessageHandler:
             return True
 
         user_id = message.from_user.id
+        if is_user_blocked(cursor, user_id):
+            return False
+
         pending = self.captcha_manager.get_pending(user_id)
         if pending:
             pending_type = pending.get("type")
