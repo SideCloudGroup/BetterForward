@@ -21,6 +21,15 @@ def make_user(user_id: int = 101, first_name: str = "Alice", username: str = "al
     )
 
 
+def make_quote(text: str, position: int = 0, is_manual: bool = True, entities=None):
+    return SimpleNamespace(
+        text=text,
+        position=position,
+        is_manual=is_manual,
+        entities=entities,
+    )
+
+
 def make_message(
     *,
     message_id: int = 1,
@@ -34,6 +43,7 @@ def make_message(
     caption=None,
     caption_entities=None,
     reply_to_message=None,
+    quote=None,
     **extra,
 ):
     user = make_user(user_id=user_id)
@@ -48,6 +58,7 @@ def make_message(
         caption=caption,
         caption_entities=caption_entities,
         reply_to_message=reply_to_message,
+        quote=quote,
         photo=extra.get("photo"),
         sticker=extra.get("sticker"),
         video=extra.get("video"),
