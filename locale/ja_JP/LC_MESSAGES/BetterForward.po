@@ -884,6 +884,10 @@ msgstr "このスレッドを削除"
 msgid "User banned"
 msgstr "ユーザーを禁止された"
 
+#: src/utils/helpers.py
+msgid "You have been banned."
+msgstr "あなたは禁止されています。"
+
 #: src/handlers/command_handler.py:128 src/handlers/command_handler.py:162
 #: src/handlers/command_handler.py:165
 msgid "User unbanned"

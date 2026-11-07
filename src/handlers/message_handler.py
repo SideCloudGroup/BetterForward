@@ -4,12 +4,19 @@ import time
 
 import pytz
 from telebot.apihelper import ApiTelegramException, create_forum_topic
-from telebot.types import Message
+from telebot.types import Message, ReplyParameters
 
 from src.config import logger, _
 from src.utils.captcha import parse_captcha_config, pick_captcha_type
 from src.utils.db_helper import get_db_connection
-from src.utils.helpers import build_user_info_pin_text, escape_markdown, send_and_pin_user_info, to_html
+from src.utils.helpers import (
+    blocked_user_notice,
+    build_user_info_pin_text,
+    escape_markdown,
+    is_user_blocked,
+    send_and_pin_user_info,
+    to_html,
+)
 from src.utils.message_permissions import classify_message_permissions
 from src.utils.message_split import split_caption, split_html_text
 from src.utils.stats import record_incoming, record_outgoing
@@ -77,40 +84,15 @@ class MessageHandler:
             _("Received message from {}, content: {}, type: {}").format(
                 message.from_user.id, message.text, message.content_type))
 
+        # Ban first: never start or complete captcha / TGuard for blocked users.
+        if self._reject_blocked_user(message, cursor, start_time):
+            return
+
         # Captcha handler
         if not self._check_captcha(message, cursor, db):
             processing_time = (time.time() - start_time) * 1000
             logger.info(_("Message from user {} blocked by captcha ({:.2f}ms)").format(
                 message.from_user.id, processing_time))
-            return
-
-        # Check if the user is blocked
-        is_blocked = cursor.execute("SELECT 1 FROM blocked_users WHERE user_id = ? LIMIT 1",
-                                    (message.from_user.id,)).fetchone() is not None
-
-        if is_blocked:
-            # Update user info in blocked_users table
-            cursor.execute(
-                "UPDATE blocked_users SET username = ?, first_name = ?, last_name = ? WHERE user_id = ?",
-                (message.from_user.username, message.from_user.first_name,
-                 message.from_user.last_name, message.from_user.id)
-            )
-
-            processing_time = (time.time() - start_time) * 1000
-            logger.info(_("Message from blocked user {} rejected ({:.2f}ms)").format(
-                message.from_user.id, processing_time))
-
-            # Send auto-reply if enabled
-            if self.cache.get("setting_blocked_user_reply_enabled") == "enable":
-                reply_message = self.cache.get("setting_blocked_user_reply_message")
-                if reply_message:
-                    try:
-                        self.bot.send_message(message.chat.id, reply_message)
-                        logger.info(_("Sent auto-reply to blocked user {}").format(message.from_user.id))
-                    except Exception as e:
-                        logger.error(_("Failed to send auto-reply to blocked user {}: {}").format(
-                            message.from_user.id, str(e)))
-
             return
 
         denied_permissions = self._get_denied_permissions(message)
@@ -280,6 +262,29 @@ class MessageHandler:
 
         return True
 
+    def _reject_blocked_user(self, message: Message, cursor, start_time: float) -> bool:
+        """Notify and stop when the sender is banned. Returns True if rejected."""
+        if not is_user_blocked(cursor, message.from_user.id):
+            return False
+
+        cursor.execute(
+            "UPDATE blocked_users SET username = ?, first_name = ?, last_name = ? WHERE user_id = ?",
+            (message.from_user.username, message.from_user.first_name,
+             message.from_user.last_name, message.from_user.id)
+        )
+
+        processing_time = (time.time() - start_time) * 1000
+        logger.info(_("Message from blocked user {} rejected ({:.2f}ms)").format(
+            message.from_user.id, processing_time))
+
+        try:
+            self.bot.send_message(message.chat.id, blocked_user_notice(self.cache))
+            logger.info(_("Sent auto-reply to blocked user {}").format(message.from_user.id))
+        except Exception as e:
+            logger.error(_("Failed to send auto-reply to blocked user {}: {}").format(
+                message.from_user.id, str(e)))
+        return True
+
     def _check_captcha(self, message: Message, cursor, db) -> bool:
         """Check and handle captcha verification."""
         config = parse_captcha_config(self.cache.get("setting_captcha"))
@@ -287,6 +292,9 @@ class MessageHandler:
             return True
 
         user_id = message.from_user.id
+        if is_user_blocked(cursor, user_id):
+            return False
+
         pending = self.captcha_manager.get_pending(user_id)
         if pending:
             pending_type = pending.get("type")
@@ -613,9 +621,73 @@ class MessageHandler:
             return int(result[0])
         return None
 
+    @staticmethod
+    def _excerpt_quote(message: Message):
+        """Return a manual/partial quote excerpt, or None for a full-message reply.
+
+        Telegram sets ``Message.quote`` (TextQuote) when a reply cites part of
+        another message. ``is_manual=False`` is an automatic preview added to
+        ordinary swipe-replies (typically long messages) and must keep the
+        existing full-reply behavior.
+        """
+        quote = getattr(message, "quote", None)
+        if quote is None:
+            return None
+        if not getattr(quote, "text", None):
+            return None
+        if getattr(quote, "is_manual", None) is False:
+            return None
+        return quote
+
+    @staticmethod
+    def _is_quote_error(exc: Exception) -> bool:
+        """Return True when Telegram rejected the quoted excerpt."""
+        description = getattr(exc, "description", "") or ""
+        haystack = f"{exc} {description}".lower()
+        return "quote" in haystack
+
+    @staticmethod
+    def _quote_blockquote(quote) -> str:
+        """Render a quoted excerpt as Telegram HTML blockquote."""
+        return f"<blockquote>{to_html(quote.text, getattr(quote, 'entities', None))}</blockquote>"
+
+    @staticmethod
+    def _reply_send_kwargs(reply_id: int | None, quote=None) -> dict:
+        """Build send_* kwargs for a mapped reply, including a native quote excerpt."""
+        if reply_id is None:
+            return {}
+        if quote is not None:
+            entities = getattr(quote, "entities", None) or None
+            return {
+                "reply_parameters": ReplyParameters(
+                    message_id=reply_id,
+                    quote=quote.text,
+                    quote_entities=entities,
+                    quote_position=getattr(quote, "position", None),
+                )
+            }
+        return {"reply_to_message_id": reply_id}
+
+    @staticmethod
+    def _embed_quote_excerpt(message: Message, msg_text: str | None, msg_caption: str | None,
+                             quote) -> tuple[str | None, str | None, bool]:
+        """Prepend the quoted excerpt when a native reply quote cannot be used.
+
+        Returns (msg_text, msg_caption, needs_standalone_prefix).
+        """
+        block = MessageHandler._quote_blockquote(quote)
+        if message.content_type == "text" or msg_text:
+            joined = f"{block}\n{msg_text}" if msg_text else block
+            return joined, msg_caption, False
+        if message.content_type in ("photo", "video", "document", "audio", "voice", "animation"):
+            joined = f"{block}\n{msg_caption}" if msg_caption else block
+            return msg_text, joined, False
+        return msg_text, msg_caption, True
+
     def _send_text_chunks(self, chat_id: int, thread_id, chunks: list[str],
-                          reply_id: int | None, silent: bool) -> list[Message]:
-        """Send pre-split text chunks; only the first keeps reply_to_message_id."""
+                          reply_id: int | None, silent: bool, quote=None) -> list[Message]:
+        """Send pre-split text chunks; only the first keeps the reply/quote."""
+        first_kwargs = self._reply_send_kwargs(reply_id, quote)
         sent_messages: list[Message] = []
         for index, chunk in enumerate(chunks):
             try:
@@ -624,9 +696,9 @@ class MessageHandler:
                         chat_id=chat_id,
                         text=chunk,
                         message_thread_id=thread_id,
-                        reply_to_message_id=reply_id if index == 0 else None,
                         parse_mode='HTML',
                         disable_notification=silent,
+                        **(first_kwargs if index == 0 else {}),
                     )
                 )
             except ApiTelegramException as e:
@@ -635,12 +707,13 @@ class MessageHandler:
 
     def _send_media_with_caption(self, send_media, chat_id: int, thread_id,
                                  msg_caption: str | None, reply_id: int | None,
-                                 silent: bool) -> list[Message]:
+                                 silent: bool, quote=None) -> list[Message]:
         """Send media plus caption overflow follow-ups, tracking partial progress."""
         caption, extras = split_caption(msg_caption)
+        reply_kwargs = self._reply_send_kwargs(reply_id, quote)
         sent: list[Message] = []
         try:
-            sent.append(send_media(caption=caption, reply_to_message_id=reply_id))
+            sent.append(send_media(caption=caption, **reply_kwargs))
         except ApiTelegramException as e:
             # Media itself failed: caller must fully retry (cannot resume with text-only).
             raise PartialSendError(e, sent, extras, needs_full_retry=True) from e
@@ -662,6 +735,73 @@ class MessageHandler:
                     e, sent, extras[index:], needs_full_retry=True) from e
         return sent
 
+    def _dispatch_send_by_type(self, message: Message, msg_text: str, msg_caption: str,
+                               chat_id: int, thread_id: int | None, reply_id: int | None,
+                               silent: bool, quote) -> list[Message]:
+        """Send one message (or its split chunks) with the given reply/quote."""
+        match message.content_type:
+            case "photo":
+                return self._send_media_with_caption(
+                    lambda caption, **reply_kwargs: self.bot.send_photo(
+                        chat_id=chat_id, photo=message.photo[-1].file_id,
+                        caption=caption, message_thread_id=thread_id,
+                        parse_mode='HTML', disable_notification=silent, **reply_kwargs),
+                    chat_id, thread_id, msg_caption, reply_id, silent, quote)
+            case "text":
+                return self._send_text_chunks(
+                    chat_id, thread_id, split_html_text(msg_text), reply_id, silent, quote)
+            case "sticker":
+                return [self.bot.send_sticker(chat_id=chat_id, sticker=message.sticker.file_id,
+                                              message_thread_id=thread_id,
+                                              disable_notification=silent,
+                                              **self._reply_send_kwargs(reply_id, quote))]
+            case "video":
+                return self._send_media_with_caption(
+                    lambda caption, **reply_kwargs: self.bot.send_video(
+                        chat_id=chat_id, video=message.video.file_id,
+                        caption=caption, message_thread_id=thread_id,
+                        parse_mode='HTML', disable_notification=silent, **reply_kwargs),
+                    chat_id, thread_id, msg_caption, reply_id, silent, quote)
+            case "document":
+                return self._send_media_with_caption(
+                    lambda caption, **reply_kwargs: self.bot.send_document(
+                        chat_id=chat_id, document=message.document.file_id,
+                        caption=caption, message_thread_id=thread_id,
+                        parse_mode='HTML', disable_notification=silent, **reply_kwargs),
+                    chat_id, thread_id, msg_caption, reply_id, silent, quote)
+            case "audio":
+                return self._send_media_with_caption(
+                    lambda caption, **reply_kwargs: self.bot.send_audio(
+                        chat_id=chat_id, audio=message.audio.file_id,
+                        caption=caption, message_thread_id=thread_id,
+                        parse_mode='HTML', disable_notification=silent, **reply_kwargs),
+                    chat_id, thread_id, msg_caption, reply_id, silent, quote)
+            case "voice":
+                return self._send_media_with_caption(
+                    lambda caption, **reply_kwargs: self.bot.send_voice(
+                        chat_id=chat_id, voice=message.voice.file_id,
+                        caption=caption, message_thread_id=thread_id,
+                        parse_mode='HTML', disable_notification=silent, **reply_kwargs),
+                    chat_id, thread_id, msg_caption, reply_id, silent, quote)
+            case "animation":
+                return self._send_media_with_caption(
+                    lambda caption, **reply_kwargs: self.bot.send_animation(
+                        chat_id=chat_id, animation=message.animation.file_id,
+                        caption=caption, message_thread_id=thread_id,
+                        parse_mode='HTML', disable_notification=silent, **reply_kwargs),
+                    chat_id, thread_id, msg_caption, reply_id, silent, quote)
+            case "contact":
+                return [self.bot.send_contact(chat_id=chat_id,
+                                              phone_number=message.contact.phone_number,
+                                              first_name=message.contact.first_name,
+                                              last_name=message.contact.last_name,
+                                              message_thread_id=thread_id,
+                                              disable_notification=silent,
+                                              **self._reply_send_kwargs(reply_id, quote))]
+            case _:
+                logger.error(_("Unsupported message type") + message.content_type)
+                raise ValueError(_("Unsupported message type") + message.content_type)
+
     def _send_message_by_type(self, message: Message, msg_text: str, msg_caption: str,
                               chat_id: int, thread_id: int = None, reply_id: int = None,
                               silent: bool = False) -> list[Message]:
@@ -669,76 +809,44 @@ class MessageHandler:
 
         Text messages longer than Telegram's limit are split into multiple sends.
         Oversized captions are truncated onto the media with follow-up text chunks.
-        Only the first chunk keeps reply_to_message_id.
+        Only the first chunk keeps the reply (and a partial quote excerpt when
+        the sender cited a portion of the source message).
 
         Raises PartialSendError when some chunks succeed before an API failure so
         callers can resume the remaining chunks after topic recovery.
         """
-        match message.content_type:
-            case "photo":
-                return self._send_media_with_caption(
-                    lambda caption, reply_to_message_id: self.bot.send_photo(
-                        chat_id=chat_id, photo=message.photo[-1].file_id,
-                        caption=caption, message_thread_id=thread_id,
-                        reply_to_message_id=reply_to_message_id, parse_mode='HTML',
-                        disable_notification=silent),
-                    chat_id, thread_id, msg_caption, reply_id, silent)
-            case "text":
-                return self._send_text_chunks(
-                    chat_id, thread_id, split_html_text(msg_text), reply_id, silent)
-            case "sticker":
-                return [self.bot.send_sticker(chat_id=chat_id, sticker=message.sticker.file_id,
-                                              message_thread_id=thread_id,
-                                              reply_to_message_id=reply_id,
-                                              disable_notification=silent)]
-            case "video":
-                return self._send_media_with_caption(
-                    lambda caption, reply_to_message_id: self.bot.send_video(
-                        chat_id=chat_id, video=message.video.file_id,
-                        caption=caption, message_thread_id=thread_id,
-                        reply_to_message_id=reply_to_message_id, parse_mode='HTML',
-                        disable_notification=silent),
-                    chat_id, thread_id, msg_caption, reply_id, silent)
-            case "document":
-                return self._send_media_with_caption(
-                    lambda caption, reply_to_message_id: self.bot.send_document(
-                        chat_id=chat_id, document=message.document.file_id,
-                        caption=caption, message_thread_id=thread_id,
-                        reply_to_message_id=reply_to_message_id, parse_mode='HTML',
-                        disable_notification=silent),
-                    chat_id, thread_id, msg_caption, reply_id, silent)
-            case "audio":
-                return self._send_media_with_caption(
-                    lambda caption, reply_to_message_id: self.bot.send_audio(
-                        chat_id=chat_id, audio=message.audio.file_id,
-                        caption=caption, message_thread_id=thread_id,
-                        reply_to_message_id=reply_to_message_id, parse_mode='HTML',
-                        disable_notification=silent),
-                    chat_id, thread_id, msg_caption, reply_id, silent)
-            case "voice":
-                return self._send_media_with_caption(
-                    lambda caption, reply_to_message_id: self.bot.send_voice(
-                        chat_id=chat_id, voice=message.voice.file_id,
-                        caption=caption, message_thread_id=thread_id,
-                        reply_to_message_id=reply_to_message_id, parse_mode='HTML',
-                        disable_notification=silent),
-                    chat_id, thread_id, msg_caption, reply_id, silent)
-            case "animation":
-                return self._send_media_with_caption(
-                    lambda caption, reply_to_message_id: self.bot.send_animation(
-                        chat_id=chat_id, animation=message.animation.file_id,
-                        caption=caption, message_thread_id=thread_id,
-                        reply_to_message_id=reply_to_message_id, parse_mode='HTML',
-                        disable_notification=silent),
-                    chat_id, thread_id, msg_caption, reply_id, silent)
-            case "contact":
-                return [self.bot.send_contact(chat_id=chat_id,
-                                              phone_number=message.contact.phone_number,
-                                              first_name=message.contact.first_name,
-                                              last_name=message.contact.last_name,
-                                              message_thread_id=thread_id,
-                                              reply_to_message_id=reply_id,
-                                              disable_notification=silent)]
-            case _:
-                logger.error(_("Unsupported message type") + message.content_type)
-                raise ValueError(_("Unsupported message type") + message.content_type)
+        quote = self._excerpt_quote(message)
+        prefix: list[Message] = []
+        if quote is not None and reply_id is None:
+            msg_text, msg_caption, needs_prefix = self._embed_quote_excerpt(
+                message, msg_text, msg_caption, quote)
+            if needs_prefix:
+                prefix = self._send_text_chunks(
+                    chat_id, thread_id, [self._quote_blockquote(quote)], None, silent)
+            quote = None
+
+        try:
+            sent = self._dispatch_send_by_type(
+                message, msg_text, msg_caption, chat_id, thread_id, reply_id, silent, quote)
+        except (PartialSendError, ApiTelegramException) as e:
+            api_error = e.cause if isinstance(e, PartialSendError) else e
+            already_sent = e.sent if isinstance(e, PartialSendError) else []
+            if (
+                quote is None
+                or reply_id is None
+                or already_sent
+                or not self._is_quote_error(api_error)
+            ):
+                raise
+            logger.warning(
+                _("Quoted excerpt could not be attached, embedding it instead: {}").format(
+                    api_error))
+            msg_text, msg_caption, needs_prefix = self._embed_quote_excerpt(
+                message, msg_text, msg_caption, quote)
+            if needs_prefix:
+                prefix = self._send_text_chunks(
+                    chat_id, thread_id, [self._quote_blockquote(quote)], reply_id, silent)
+                reply_id = None
+            sent = self._dispatch_send_by_type(
+                message, msg_text, msg_caption, chat_id, thread_id, reply_id, silent, None)
+        return prefix + sent

@@ -13,6 +13,7 @@ from tests.helpers import (
     make_api_error,
     make_cache,
     make_message,
+    make_quote,
 )
 
 
@@ -313,3 +314,241 @@ def test_denied_permission_blocks_forward(handler_env):
     with sqlite3.connect(db_path) as conn:
         count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
     assert count == 0
+
+
+def test_excerpt_quote_detects_manual_partial_quote():
+    message = make_message(quote=make_quote("only this part", position=4, is_manual=True))
+    quote = MessageHandler._excerpt_quote(message)
+    assert quote is not None
+    assert quote.text == "only this part"
+
+    auto_quote = make_message(quote=make_quote("preview", is_manual=False))
+    assert MessageHandler._excerpt_quote(auto_quote) is None
+    assert MessageHandler._excerpt_quote(make_message()) is None
+    assert MessageHandler._excerpt_quote(make_message(quote=make_quote(""))) is None
+
+
+def test_full_reply_from_user_maps_to_source_message(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id = 11
+    user_copy_id = 22
+    _seed_topic(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+            (admin_msg_id, user_copy_id, thread_id, True),
+        )
+        conn.commit()
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9002
+    bot.send_message.return_value = forwarded
+
+    source = make_message(message_id=user_copy_id, chat_id=user_id, user_id=0, text="whole source")
+    message = make_message(
+        message_id=80,
+        chat_id=user_id,
+        user_id=user_id,
+        text="full reply",
+        reply_to_message=source,
+    )
+    handler.handle_message(message)
+
+    kwargs = bot.send_message.call_args.kwargs
+    assert kwargs["chat_id"] == GROUP_ID
+    assert kwargs["reply_to_message_id"] == admin_msg_id
+    assert "reply_parameters" not in kwargs
+    assert kwargs["text"] == "full reply"
+
+
+def test_manual_quote_from_user_forwards_excerpt(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id = 11
+    user_copy_id = 22
+    _seed_topic(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+            (admin_msg_id, user_copy_id, thread_id, True),
+        )
+        conn.commit()
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9003
+    bot.send_message.return_value = forwarded
+
+    source = make_message(
+        message_id=user_copy_id,
+        chat_id=user_id,
+        user_id=0,
+        text="Hello world, this is a long message",
+    )
+    message = make_message(
+        message_id=81,
+        chat_id=user_id,
+        user_id=user_id,
+        text="got it",
+        reply_to_message=source,
+        quote=make_quote("this is a long", position=13, is_manual=True),
+    )
+    handler.handle_message(message)
+
+    kwargs = bot.send_message.call_args.kwargs
+    assert kwargs["chat_id"] == GROUP_ID
+    assert "reply_to_message_id" not in kwargs
+    reply = kwargs["reply_parameters"]
+    assert reply.message_id == admin_msg_id
+    assert reply.quote == "this is a long"
+    assert reply.quote_position == 13
+    assert kwargs["text"] == "got it"
+
+
+def test_auto_quote_keeps_full_reply_behavior(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id = 11
+    user_copy_id = 22
+    _seed_topic(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+            (admin_msg_id, user_copy_id, thread_id, True),
+        )
+        conn.commit()
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9004
+    bot.send_message.return_value = forwarded
+
+    source = make_message(message_id=user_copy_id, chat_id=user_id, user_id=0, text="long original")
+    message = make_message(
+        message_id=82,
+        chat_id=user_id,
+        user_id=user_id,
+        text="swipe reply",
+        reply_to_message=source,
+        quote=make_quote("long original", position=0, is_manual=False),
+    )
+    handler.handle_message(message)
+
+    kwargs = bot.send_message.call_args.kwargs
+    assert kwargs["reply_to_message_id"] == admin_msg_id
+    assert "reply_parameters" not in kwargs
+    assert kwargs["text"] == "swipe reply"
+
+
+def test_group_manual_quote_forwards_excerpt_to_user(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 303
+    thread_id = 777
+    user_msg_id = 11
+    group_copy_id = 22
+    _seed_topic(db_path, user_id, thread_id)
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 5002
+    bot.send_message.return_value = forwarded
+
+    source = make_message(
+        message_id=group_copy_id,
+        chat_id=GROUP_ID,
+        chat_type="supergroup",
+        user_id=0,
+        text="user said several things here",
+        message_thread_id=thread_id,
+    )
+    message = make_message(
+        message_id=67,
+        chat_id=GROUP_ID,
+        chat_type="supergroup",
+        user_id=999,
+        text="about this part",
+        message_thread_id=thread_id,
+        reply_to_message=source,
+        quote=make_quote("several things", position=10, is_manual=True),
+    )
+    handler.handle_message(message)
+
+    kwargs = bot.send_message.call_args.kwargs
+    assert kwargs["chat_id"] == user_id
+    reply = kwargs["reply_parameters"]
+    assert reply.message_id == user_msg_id
+    assert reply.quote == "several things"
+    assert reply.quote_position == 10
+    assert kwargs["text"] == "about this part"
+
+
+def test_unmapped_quote_embeds_excerpt_as_blockquote(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    _seed_topic(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9005
+    bot.send_message.return_value = forwarded
+
+    source = make_message(message_id=404, chat_id=user_id, user_id=0, text="not in mapping")
+    message = make_message(
+        message_id=83,
+        chat_id=user_id,
+        user_id=user_id,
+        text="still reply",
+        reply_to_message=source,
+        quote=make_quote("not in", position=0, is_manual=True),
+    )
+    handler.handle_message(message)
+
+    kwargs = bot.send_message.call_args.kwargs
+    assert "reply_to_message_id" not in kwargs
+    assert "reply_parameters" not in kwargs
+    assert kwargs["text"] == "<blockquote>not in</blockquote>\nstill reply"
+
+
+def test_invalid_quote_falls_back_to_embed_and_full_reply(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id = 11
+    user_copy_id = 22
+    _seed_topic(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+            (admin_msg_id, user_copy_id, thread_id, True),
+        )
+        conn.commit()
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9006
+    bot.send_message.side_effect = [
+        make_api_error("Bad Request: QUOTE_TEXT_INVALID"),
+        forwarded,
+    ]
+
+    source = make_message(message_id=user_copy_id, chat_id=user_id, user_id=0, text="original")
+    message = make_message(
+        message_id=84,
+        chat_id=user_id,
+        user_id=user_id,
+        text="comment",
+        reply_to_message=source,
+        quote=make_quote("missing slice", position=2, is_manual=True),
+    )
+    handler.handle_message(message)
+
+    assert bot.send_message.call_count == 2
+    retry = bot.send_message.call_args.kwargs
+    assert retry["reply_to_message_id"] == admin_msg_id
+    assert "reply_parameters" not in retry
+    assert retry["text"] == "<blockquote>missing slice</blockquote>\ncomment"
