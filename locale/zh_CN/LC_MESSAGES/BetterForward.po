@@ -1720,3 +1720,24 @@ msgstr "为消息 {} 添加处理确认表情失败：{}"
 
 msgid "Failed to remove processed reaction from message {}: {}"
 msgstr "移除消息 {} 的处理确认表情失败：{}"
+
+msgid "Click to verify"
+msgstr "点击验证"
+
+msgid "Check verification"
+msgstr "确认验证"
+
+msgid "Complete verification, then return here and tap Check verification if needed."
+msgstr "请点击按钮完成验证，返回后如未收到成功提示，请点击“确认验证”。"
+
+msgid "Verification is pending or expired. Complete it and try again shortly."
+msgstr "验证尚未完成或已过期，请完成验证后稍候重试；过期时可发送消息重新申请。"
+
+msgid "Please wait a minute before requesting another verification."
+msgstr "请稍候一分钟再申请新的验证。"
+
+msgid "Your pending messages will be sent after verification. Please verify before the challenge expires."
+msgstr "暂存消息将在验证通过后自动发送，请在验证过期前完成操作。"
+
+msgid "Pending message limit reached. Please resend this message after verification."
+msgstr "暂存消息已达上限，请在验证通过后重新发送这条消息。"

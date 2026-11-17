@@ -230,3 +230,6 @@ Bot 启动时会自动升级数据库。升级前会先把数据库备份为数�
 - Telegram 频道 [@betterforward](https://t.me/betterforward)
 
 请通过 `issues` 报告问题或提出功能建议。
+# 验证体验与版本兼容
+
+验证前的首条消息会暂存，通过后自动补发；TGuard 增加“确认验证”按钮，旧版 TGuard 也可使用。普通的新消息仍会正常转发，不会被当作确认消息丢弃。设置环境变量 `CAPTCHA_REPLAY=disable` 可关闭暂存。暂存仅在内存中，过期或重启后不恢复。数量上限、兼容协议及验证清单见 [验证流程说明](verification-flow.md)。

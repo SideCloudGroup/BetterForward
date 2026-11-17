@@ -6,6 +6,7 @@ import sqlite3
 from telebot import types
 
 from src.config import logger, _
+from src.utils.captcha import captcha_serialized
 from src.utils.helpers import blocked_user_notice, is_user_blocked
 
 
@@ -22,6 +23,7 @@ class CallbackHandler:
         self.spam_detector = spam_detector
         self.db_path = db_path
 
+    @captcha_serialized
     def handle_callback_query(self, call: types.CallbackQuery):
         """Main callback query handler."""
         if call.data == "null":
@@ -33,6 +35,12 @@ class CallbackHandler:
             action = data["action"]
         except json.JSONDecodeError:
             logger.error(_("Invalid JSON data received"))
+            return
+
+        if action == "check_tguard":
+            self.bot.answer_callback_query(call.id)
+            if call.message.chat.type == "private" and call.message.chat.id == call.from_user.id:
+                self.command_handler.confirm_tguard(call.from_user.id, message_id=call.message.message_id)
             return
 
         # User end callbacks (answer inside after auth checks)
@@ -83,11 +91,9 @@ class CallbackHandler:
             )
             return
 
+        self.bot.answer_callback_query(call.id, _("Verification successful, you can now send messages"))
         with sqlite3.connect(self.db_path) as db:
             self.captcha_manager.set_user_verified(user_id, db)
-        self.bot.answer_callback_query(call.id)
-        self.bot.send_message(user_id, _("Verification successful, you can now send messages"))
-        self.bot.delete_message(call.message.chat.id, call.message.message_id)
 
     def _handle_verify_emoji(self, call: types.CallbackQuery, data: dict):
         """Handle emoji captcha verification."""
@@ -118,11 +124,9 @@ class CallbackHandler:
                 logger.error(_("Invalid captcha setting"))
             return
 
+        self.bot.answer_callback_query(call.id, _("Verification successful, you can now send messages"))
         with sqlite3.connect(self.db_path) as db:
             self.captcha_manager.set_user_verified(user_id, db)
-        self.bot.answer_callback_query(call.id)
-        self.bot.send_message(user_id, _("Verification successful, you can now send messages"))
-        self.bot.delete_message(call.message.chat.id, call.message.message_id)
 
     def _reject_banned_verification(self, call: types.CallbackQuery, user_id: int) -> bool:
         """Refuse captcha completion for banned users. Returns True when rejected."""
