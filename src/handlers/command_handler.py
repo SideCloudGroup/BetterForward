@@ -19,7 +19,7 @@ from telebot.apihelper import (
 from telebot.types import Message
 
 from src.config import logger, _
-from src.utils.captcha import VERIFICATION_DAYS_SETTING, verification_days
+from src.utils.captcha import captcha_serialized, VERIFICATION_DAYS_SETTING, verification_days
 from src.utils.helpers import (
     blocked_user_notice,
     build_user_info_pin_text,
@@ -127,6 +127,7 @@ class CommandHandler:
             return None
         return topic_id, [row[0] for row in rows], self.group_id
 
+    @captcha_serialized
     def help_command(self, message: Message, menu_callback):
         """Handle /help and /start commands."""
         if self.check_valid_chat(message):
@@ -139,6 +140,10 @@ class CommandHandler:
                     if is_user_blocked(db, message.from_user.id):
                         self.bot.send_message(message.chat.id, blocked_user_notice(self.cache))
                         return
+                payload = parse_start_payload(message.text)
+                if payload and payload.startswith("tg_"):
+                    self.confirm_tguard(message.from_user.id, payload[3:])
+                    return
                 self._save_start_tag(message)
             default_message = self._get_setting('default_message')
             if default_message is None:
@@ -149,6 +154,24 @@ class CommandHandler:
                                       disable_web_page_preview=True)
             else:
                 self.bot.send_message(message.chat.id, default_message)
+
+    def confirm_tguard(self, user_id, token=None, message_id=None):
+        with self.captcha_manager.user_lock(user_id):
+            with sqlite3.connect(self.db_path) as db:
+                if is_user_blocked(db, user_id):
+                    self.bot.send_message(user_id, blocked_user_notice(self.cache))
+                    return
+                pending = self.captcha_manager.get_pending(user_id)
+                expected = self.cache.get(f"tguard_token_{user_id}")
+                if not expected and self.captcha_manager.is_user_verified(user_id, db):
+                    return  # A concurrent confirmation already completed this challenge.
+                if not expected or (token is not None and token != expected) or (
+                    message_id is not None and (not pending or pending.get("message_id") != message_id)
+                ):
+                    self.bot.send_message(user_id, _("This verification has expired. Send a message to request a new challenge."))
+                    return
+                if not self.captcha_manager.check_tguard_verification_status(user_id, db):
+                    self.bot.send_message(user_id, _("Verification is pending or expired. Complete it and try again shortly."))
 
     def ban_user(self, message: Message):
         """Ban a user from sending messages."""
@@ -853,8 +876,11 @@ class CommandHandler:
                  "Use all to reset all permission overrides.") + "\n" + \
             _("Valid permission keys: {}").format(", ".join(list_permission_command_keys()))
 
+    @captcha_serialized
     def handle_edit(self, message: Message):
         """Sync an edited text, caption or replaced media to all forwarded copies."""
+        if message.chat.type == "private":
+            self.captcha_manager.update_buffered_message(message)
         if self.check_valid_chat(message):
             return
 
