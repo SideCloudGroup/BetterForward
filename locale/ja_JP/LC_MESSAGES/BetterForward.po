@@ -1126,6 +1126,10 @@ msgstr "ユーザー {} との新しいスレッドを作成する"
 msgid "Failed to forward message from user {}"
 msgstr "ユーザー {} からのメッセージ転送できない"
 
+#, python-brace-format
+msgid "Replied-to message not found, sending without reply: {}"
+msgstr "返信先メッセージが見つからないため、返信なしで送信します：{}"
+
 #: src/handlers/message_handler.py:402 src/handlers/message_handler.py:405
 #, python-brace-format
 msgid "Failed to forward message to user {}"

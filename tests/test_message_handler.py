@@ -1,6 +1,7 @@
 """Core message forwarding and stale-topic compensation tests."""
 
 import sqlite3
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -360,6 +361,7 @@ def test_full_reply_from_user_maps_to_source_message(handler_env):
     kwargs = bot.send_message.call_args.kwargs
     assert kwargs["chat_id"] == GROUP_ID
     assert kwargs["reply_to_message_id"] == admin_msg_id
+    assert kwargs["allow_sending_without_reply"] is True
     assert "reply_parameters" not in kwargs
     assert kwargs["text"] == "full reply"
 
@@ -406,6 +408,7 @@ def test_manual_quote_from_user_forwards_excerpt(handler_env):
     assert reply.message_id == admin_msg_id
     assert reply.quote == "this is a long"
     assert reply.quote_position == 13
+    assert reply.allow_sending_without_reply is True
     assert kwargs["text"] == "got it"
 
 
@@ -441,6 +444,7 @@ def test_auto_quote_keeps_full_reply_behavior(handler_env):
 
     kwargs = bot.send_message.call_args.kwargs
     assert kwargs["reply_to_message_id"] == admin_msg_id
+    assert kwargs["allow_sending_without_reply"] is True
     assert "reply_parameters" not in kwargs
     assert kwargs["text"] == "swipe reply"
 
@@ -483,6 +487,7 @@ def test_group_manual_quote_forwards_excerpt_to_user(handler_env):
     assert reply.message_id == user_msg_id
     assert reply.quote == "several things"
     assert reply.quote_position == 10
+    assert reply.allow_sending_without_reply is True
     assert kwargs["text"] == "about this part"
 
 
@@ -550,5 +555,279 @@ def test_invalid_quote_falls_back_to_embed_and_full_reply(handler_env):
     assert bot.send_message.call_count == 2
     retry = bot.send_message.call_args.kwargs
     assert retry["reply_to_message_id"] == admin_msg_id
+    assert retry["allow_sending_without_reply"] is True
     assert "reply_parameters" not in retry
     assert retry["text"] == "<blockquote>missing slice</blockquote>\ncomment"
+
+
+def test_is_reply_not_found_error_detects_known_markers():
+    assert MessageHandler._is_reply_not_found_error(
+        make_api_error("Bad Request: message to be replied not found")
+    )
+    assert MessageHandler._is_reply_not_found_error(
+        make_api_error("Bad Request: replied message not found")
+    )
+    assert MessageHandler._is_reply_not_found_error(
+        make_api_error("MESSAGE_TO_BE_REPLIED_NOT_FOUND")
+    )
+    assert not MessageHandler._is_reply_not_found_error(
+        make_api_error("Bad Request: QUOTE_TEXT_INVALID")
+    )
+    assert not MessageHandler._is_quote_error(
+        make_api_error("Bad Request: message to be replied not found")
+    )
+
+
+def test_reply_send_kwargs_sets_allow_sending_without_reply():
+    assert MessageHandler._reply_send_kwargs(None) == {}
+    kwargs = MessageHandler._reply_send_kwargs(42)
+    assert kwargs == {"reply_to_message_id": 42, "allow_sending_without_reply": True}
+    quoted = MessageHandler._reply_send_kwargs(42, make_quote("slice", position=3))
+    reply = quoted["reply_parameters"]
+    assert reply.message_id == 42
+    assert reply.quote == "slice"
+    assert reply.allow_sending_without_reply is True
+
+
+def _seed_admin_copy(db_path: str, user_id: int, thread_id: int, admin_msg_id=11, user_copy_id=22):
+    _seed_topic(db_path, user_id, thread_id)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO messages (received_id, forwarded_id, topic_id, in_group) VALUES (?, ?, ?, ?)",
+            (admin_msg_id, user_copy_id, thread_id, True),
+        )
+        conn.commit()
+    return admin_msg_id, user_copy_id
+
+
+def test_user_reply_to_deleted_group_message_forwards_without_reply(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id, user_copy_id = _seed_admin_copy(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9100
+    bot.send_message.side_effect = [
+        make_api_error("Bad Request: message to be replied not found"),
+        forwarded,
+    ]
+
+    source = make_message(message_id=user_copy_id, chat_id=user_id, user_id=0, text="old admin")
+    message = make_message(
+        message_id=90,
+        chat_id=user_id,
+        user_id=user_id,
+        text="有客服吗，这个",
+        reply_to_message=source,
+    )
+    handler.handle_message(message)
+
+    assert bot.send_message.call_count == 2
+    first = bot.send_message.call_args_list[0].kwargs
+    retry = bot.send_message.call_args_list[1].kwargs
+    assert first["reply_to_message_id"] == admin_msg_id
+    assert first["allow_sending_without_reply"] is True
+    assert retry["text"] == "有客服吗，这个"
+    assert retry.get("reply_to_message_id") is None
+    assert "reply_parameters" not in retry
+    assert retry.get("allow_sending_without_reply") is None
+    bot.forward_message.assert_not_called()
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT forwarded_id, topic_id FROM messages WHERE received_id = ?",
+            (90,),
+        ).fetchone()
+    assert row == (9100, thread_id)
+
+
+def test_group_reply_to_deleted_user_message_forwards_without_reply(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 303
+    thread_id = 777
+    user_msg_id = 11
+    group_copy_id = 22
+    _seed_topic(db_path, user_id, thread_id)
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 5100
+    bot.send_message.side_effect = [
+        make_api_error("Bad Request: replied message not found"),
+        forwarded,
+    ]
+
+    source = make_message(
+        message_id=group_copy_id,
+        chat_id=GROUP_ID,
+        chat_type="supergroup",
+        user_id=0,
+        text="user original",
+        message_thread_id=thread_id,
+    )
+    message = make_message(
+        message_id=68,
+        chat_id=GROUP_ID,
+        chat_type="supergroup",
+        user_id=999,
+        text="admin reply",
+        message_thread_id=thread_id,
+        reply_to_message=source,
+    )
+    handler.handle_message(message)
+
+    assert bot.send_message.call_count == 2
+    retry = bot.send_message.call_args.kwargs
+    assert retry["chat_id"] == user_id
+    assert retry["text"] == "admin reply"
+    assert retry.get("reply_to_message_id") is None
+    assert "reply_parameters" not in retry
+    alert_calls = [
+        call for call in bot.send_message.call_args_list
+        if call.kwargs.get("chat_id") == GROUP_ID
+        or (call.args and call.args[0] == GROUP_ID)
+    ]
+    assert alert_calls == []
+
+
+def test_sticker_reply_to_deleted_message_retries_without_reply(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id, user_copy_id = _seed_admin_copy(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9101
+    bot.send_sticker.side_effect = [
+        make_api_error("Bad Request: message to be replied not found"),
+        forwarded,
+    ]
+
+    source = make_message(message_id=user_copy_id, chat_id=user_id, user_id=0, text="old")
+    message = make_message(
+        message_id=91,
+        chat_id=user_id,
+        user_id=user_id,
+        text=None,
+        content_type="sticker",
+        sticker=SimpleNamespace(file_id="STICKER_ID"),
+        reply_to_message=source,
+    )
+    handler.handle_message(message)
+
+    assert bot.send_sticker.call_count == 2
+    first = bot.send_sticker.call_args_list[0].kwargs
+    retry = bot.send_sticker.call_args_list[1].kwargs
+    assert first["reply_to_message_id"] == admin_msg_id
+    assert first["allow_sending_without_reply"] is True
+    assert retry.get("reply_to_message_id") is None
+    assert retry.get("allow_sending_without_reply") is None
+    bot.forward_message.assert_not_called()
+
+
+def test_photo_reply_to_deleted_message_retries_without_reply(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id, user_copy_id = _seed_admin_copy(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9102
+    bot.send_photo.side_effect = [
+        make_api_error("Bad Request: message to be replied not found"),
+        forwarded,
+    ]
+
+    source = make_message(message_id=user_copy_id, chat_id=user_id, user_id=0, text="old")
+    message = make_message(
+        message_id=92,
+        chat_id=user_id,
+        user_id=user_id,
+        text=None,
+        content_type="photo",
+        caption="see this",
+        photo=[SimpleNamespace(file_id="PHOTO_ID")],
+        reply_to_message=source,
+    )
+    handler.handle_message(message)
+
+    assert bot.send_photo.call_count == 2
+    first = bot.send_photo.call_args_list[0].kwargs
+    retry = bot.send_photo.call_args_list[1].kwargs
+    assert first["reply_to_message_id"] == admin_msg_id
+    assert first["allow_sending_without_reply"] is True
+    assert first["caption"] == "see this"
+    assert retry.get("reply_to_message_id") is None
+    assert retry["caption"] == "see this"
+    bot.forward_message.assert_not_called()
+
+
+def test_quoted_reply_to_deleted_message_drops_reply_not_quote_fallback(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id, user_copy_id = _seed_admin_copy(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9103
+    bot.send_message.side_effect = [
+        make_api_error("Bad Request: message to be replied not found"),
+        forwarded,
+    ]
+
+    source = make_message(message_id=user_copy_id, chat_id=user_id, user_id=0, text="original")
+    message = make_message(
+        message_id=93,
+        chat_id=user_id,
+        user_id=user_id,
+        text="comment",
+        reply_to_message=source,
+        quote=make_quote("orig", position=0, is_manual=True),
+    )
+    handler.handle_message(message)
+
+    assert bot.send_message.call_count == 2
+    first = bot.send_message.call_args_list[0].kwargs
+    retry = bot.send_message.call_args.kwargs
+    assert first["reply_parameters"].message_id == admin_msg_id
+    assert retry["text"] == "comment"
+    assert retry.get("reply_to_message_id") is None
+    assert "reply_parameters" not in retry
+    bot.forward_message.assert_not_called()
+
+
+def test_invalid_quote_then_missing_reply_embeds_excerpt_without_reply(handler_env):
+    handler, bot, cache, db_path = handler_env
+    user_id = 101
+    thread_id = 555
+    admin_msg_id, user_copy_id = _seed_admin_copy(db_path, user_id, thread_id)
+    cache.set(f"chat_{user_id}_threadid", thread_id)
+
+    forwarded = MagicMock(spec=Message)
+    forwarded.message_id = 9104
+    bot.send_message.side_effect = [
+        make_api_error("Bad Request: QUOTE_TEXT_INVALID"),
+        make_api_error("Bad Request: message to be replied not found"),
+        forwarded,
+    ]
+
+    source = make_message(message_id=user_copy_id, chat_id=user_id, user_id=0, text="original")
+    message = make_message(
+        message_id=94,
+        chat_id=user_id,
+        user_id=user_id,
+        text="comment",
+        reply_to_message=source,
+        quote=make_quote("missing slice", position=2, is_manual=True),
+    )
+    handler.handle_message(message)
+
+    assert bot.send_message.call_count == 3
+    retry = bot.send_message.call_args.kwargs
+    assert retry.get("reply_to_message_id") is None
+    assert "reply_parameters" not in retry
+    assert retry["text"] == "<blockquote>missing slice</blockquote>\ncomment"
+    bot.forward_message.assert_not_called()
