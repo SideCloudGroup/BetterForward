@@ -1114,6 +1114,10 @@ msgstr "与用户{}新建话题"
 msgid "Failed to forward message from user {}"
 msgstr "转发用户{}的消息失败"
 
+#, python-brace-format
+msgid "Replied-to message not found, sending without reply: {}"
+msgstr "被回复的消息不存在，将忽略回复后发送：{}"
+
 #: src/handlers/message_handler.py:402 src/handlers/message_handler.py:405
 #, python-brace-format
 msgid "Failed to forward message to user {}"

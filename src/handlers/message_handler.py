@@ -640,8 +640,23 @@ class MessageHandler:
         return quote
 
     @staticmethod
+    def _is_reply_not_found_error(exc: Exception) -> bool:
+        """Return True when Telegram cannot find the mapped reply target."""
+        description = getattr(exc, "description", "") or ""
+        haystack = f"{exc} {description}".lower()
+        markers = (
+            "message to be replied not found",
+            "replied message not found",
+            "reply message not found",
+            "message_to_be_replied_not_found",
+        )
+        return any(marker in haystack for marker in markers)
+
+    @staticmethod
     def _is_quote_error(exc: Exception) -> bool:
         """Return True when Telegram rejected the quoted excerpt."""
+        if MessageHandler._is_reply_not_found_error(exc):
+            return False
         description = getattr(exc, "description", "") or ""
         haystack = f"{exc} {description}".lower()
         return "quote" in haystack
@@ -653,7 +668,12 @@ class MessageHandler:
 
     @staticmethod
     def _reply_send_kwargs(reply_id: int | None, quote=None) -> dict:
-        """Build send_* kwargs for a mapped reply, including a native quote excerpt."""
+        """Build send_* kwargs for a mapped reply, including a native quote excerpt.
+
+        ``allow_sending_without_reply`` is set so Telegram can drop the reply
+        instead of failing. Cross-chat / forum-topic replies still reject a
+        missing target, so callers also retry once without reply kwargs.
+        """
         if reply_id is None:
             return {}
         if quote is not None:
@@ -664,9 +684,13 @@ class MessageHandler:
                     quote=quote.text,
                     quote_entities=entities,
                     quote_position=getattr(quote, "position", None),
+                    allow_sending_without_reply=True,
                 )
             }
-        return {"reply_to_message_id": reply_id}
+        return {
+            "reply_to_message_id": reply_id,
+            "allow_sending_without_reply": True,
+        }
 
     @staticmethod
     def _embed_quote_excerpt(message: Message, msg_text: str | None, msg_caption: str | None,
@@ -802,6 +826,19 @@ class MessageHandler:
                 logger.error(_("Unsupported message type") + message.content_type)
                 raise ValueError(_("Unsupported message type") + message.content_type)
 
+    def _send_dropping_missing_reply(self, send_fn, reply_id: int | None):
+        """Call ``send_fn(reply_id)``; retry once without a reply if the target is gone."""
+        try:
+            return send_fn(reply_id)
+        except (PartialSendError, ApiTelegramException) as e:
+            api_error = e.cause if isinstance(e, PartialSendError) else e
+            already_sent = e.sent if isinstance(e, PartialSendError) else []
+            if already_sent or reply_id is None or not self._is_reply_not_found_error(api_error):
+                raise
+            logger.warning(
+                _("Replied-to message not found, sending without reply: {}").format(api_error))
+            return send_fn(None)
+
     def _send_message_by_type(self, message: Message, msg_text: str, msg_caption: str,
                               chat_id: int, thread_id: int = None, reply_id: int = None,
                               silent: bool = False) -> list[Message]:
@@ -825,9 +862,14 @@ class MessageHandler:
                     chat_id, thread_id, [self._quote_blockquote(quote)], None, silent)
             quote = None
 
+        def dispatch(current_reply_id: int | None, current_quote=None) -> list[Message]:
+            return self._dispatch_send_by_type(
+                message, msg_text, msg_caption, chat_id, thread_id,
+                current_reply_id, silent, current_quote)
+
         try:
-            sent = self._dispatch_send_by_type(
-                message, msg_text, msg_caption, chat_id, thread_id, reply_id, silent, quote)
+            sent = self._send_dropping_missing_reply(
+                lambda current_reply_id: dispatch(current_reply_id, quote), reply_id)
         except (PartialSendError, ApiTelegramException) as e:
             api_error = e.cause if isinstance(e, PartialSendError) else e
             already_sent = e.sent if isinstance(e, PartialSendError) else []
@@ -844,9 +886,12 @@ class MessageHandler:
             msg_text, msg_caption, needs_prefix = self._embed_quote_excerpt(
                 message, msg_text, msg_caption, quote)
             if needs_prefix:
-                prefix = self._send_text_chunks(
-                    chat_id, thread_id, [self._quote_blockquote(quote)], reply_id, silent)
+                prefix = self._send_dropping_missing_reply(
+                    lambda current_reply_id: self._send_text_chunks(
+                        chat_id, thread_id, [self._quote_blockquote(quote)],
+                        current_reply_id, silent),
+                    reply_id)
                 reply_id = None
-            sent = self._dispatch_send_by_type(
-                message, msg_text, msg_caption, chat_id, thread_id, reply_id, silent, None)
+            sent = self._send_dropping_missing_reply(
+                lambda current_reply_id: dispatch(current_reply_id, None), reply_id)
         return prefix + sent
