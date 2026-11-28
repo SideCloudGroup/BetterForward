@@ -872,15 +872,10 @@ class MessageHandler:
         Raises PartialSendError when some chunks succeed before an API failure so
         callers can resume the remaining chunks after topic recovery.
         """
-        if getattr(message, "_verification_replay", False):
-            # Copy the original; deleted originals must not be resurrected from snapshots.
-            return [self.bot.copy_message(
-                chat_id=chat_id, from_chat_id=message.chat.id, message_id=message.message_id,
-                message_thread_id=thread_id, reply_to_message_id=reply_id,
-                disable_notification=silent)]
+        replay = getattr(message, "_verification_replay", False)
         quote = self._excerpt_quote(message)
         prefix: list[Message] = []
-        if quote is not None and reply_id is None:
+        if quote is not None and reply_id is None and not replay:
             msg_text, msg_caption, needs_prefix = self._embed_quote_excerpt(
                 message, msg_text, msg_caption, quote)
             if needs_prefix:
@@ -889,6 +884,13 @@ class MessageHandler:
             quote = None
 
         def dispatch(current_reply_id: int | None, current_quote=None) -> list[Message]:
+            if replay:
+                # Only copy a live original, even when its reply or quote is unavailable.
+                return [self.bot.copy_message(
+                    chat_id=chat_id, from_chat_id=message.chat.id, message_id=message.message_id,
+                    message_thread_id=thread_id, disable_notification=silent,
+                    **self._reply_send_kwargs(current_reply_id, current_quote),
+                )]
             return self._dispatch_send_by_type(
                 message, msg_text, msg_caption, chat_id, thread_id,
                 current_reply_id, silent, current_quote)
@@ -906,6 +908,8 @@ class MessageHandler:
                 or not self._is_quote_error(api_error)
             ):
                 raise
+            if replay:
+                return self._send_dropping_missing_reply(dispatch, reply_id)
             logger.warning(
                 _("Quoted excerpt could not be attached, embedding it instead: {}").format(
                     api_error))

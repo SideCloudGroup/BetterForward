@@ -179,6 +179,8 @@ The bot adds the `#` prefix when displaying the tag. Use only the tag itself in 
 
 Tags must contain **1–64 characters**, using only English letters, digits, underscores `_`, and hyphens `-`, e.g. `channel_a`, `website`, or `campaign-2026`. Spaces and Chinese characters are not supported.
 
+Source tags may use the `tg_` prefix, as in `tg_campaign`. For 24 hours after issuing a TGuard return link to a user, the bot recognizes repeat visits and expired links from that user as verification requests.
+
 Each user has one tag. A later valid `/start <tag>` replaces it; `/start` without a payload, `/help`, and invalid payloads leave the existing tag unchanged. There are currently no admin commands to manually set or clear tags, filter users by tag, or broadcast by tag. Use `/setnote` for notes written by admins.
 
 ### Statistics & User Info

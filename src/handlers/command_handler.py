@@ -142,8 +142,10 @@ class CommandHandler:
                         return
                 payload = parse_start_payload(message.text)
                 if payload and payload.startswith("tg_"):
-                    self.confirm_tguard(message.from_user.id, payload[3:])
-                    return
+                    token = payload[3:]
+                    if self.captcha_manager.is_tguard_return(message.from_user.id, token):
+                        self.confirm_tguard(message.from_user.id, token)
+                        return
                 self._save_start_tag(message)
             default_message = self._get_setting('default_message')
             if default_message is None:
@@ -186,23 +188,17 @@ class CommandHandler:
             # Get user_id from thread
             db_cursor.execute("SELECT user_id FROM topics WHERE thread_id = ? LIMIT 1",
                               (message.message_thread_id,))
-            if (user_id := db_cursor.fetchone()) is not None:
-                user_id = user_id[0]
-                # Add to blocked_users table with user info
-                username = message.from_user.username if hasattr(message, 'from_user') else None
-                # Get user info from the message that triggered ban (we need to get it from the thread)
-                # Since we don't have direct access, we'll get it from the first message in thread
-                db_cursor.execute(
-                    "INSERT OR REPLACE INTO blocked_users (user_id, username, first_name, last_name) VALUES (?, ?, ?, ?)",
-                    (user_id, None, None, None)  # Will be updated when user sends next message
-                )
-                # Remove user from verified list (DB + cache)
-                self.captcha_manager.remove_user_verification(user_id, db)
-                db.commit()
-            else:
+            row = db_cursor.fetchone()
+            if row is None:
                 self.bot.send_message(self.group_id, _("User not found"),
                                       message_thread_id=message.message_thread_id)
                 return
+            user_id = row[0]
+            # Private message processing acquires this lock before any SQLite write.
+            with self.captcha_manager.user_lock(user_id):
+                db_cursor.execute("INSERT OR REPLACE INTO blocked_users (user_id) VALUES (?)", (user_id,))
+                self.captcha_manager.remove_user_verification(user_id, db)
+                db.commit()
 
         # Send message with delete thread button
         markup = types.InlineKeyboardMarkup()

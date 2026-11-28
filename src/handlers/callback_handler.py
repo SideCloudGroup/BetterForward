@@ -38,7 +38,7 @@ class CallbackHandler:
             return
 
         if action == "check_tguard":
-            self.bot.answer_callback_query(call.id)
+            self._acknowledge_verification(call.id)
             if call.message.chat.type == "private" and call.message.chat.id == call.from_user.id:
                 self.command_handler.confirm_tguard(call.from_user.id, message_id=call.message.message_id)
             return
@@ -68,6 +68,12 @@ class CallbackHandler:
         self.admin_handler.set_operator(call.from_user.id)
         self._handle_admin_callback(call, action, data)
 
+    def _acknowledge_verification(self, callback_id):
+        try:
+            self.bot.answer_callback_query(callback_id)
+        except Exception:
+            logger.warning("Could not acknowledge verification callback", exc_info=True)
+
     def _handle_verify_button(self, call: types.CallbackQuery, data: dict):
         """Handle button captcha verification."""
         user_id = data.get("user_id")
@@ -91,7 +97,7 @@ class CallbackHandler:
             )
             return
 
-        self.bot.answer_callback_query(call.id, _("Verification successful, you can now send messages"))
+        self._acknowledge_verification(call.id)
         with sqlite3.connect(self.db_path) as db:
             self.captcha_manager.set_user_verified(user_id, db)
 
@@ -124,7 +130,7 @@ class CallbackHandler:
                 logger.error(_("Invalid captcha setting"))
             return
 
-        self.bot.answer_callback_query(call.id, _("Verification successful, you can now send messages"))
+        self._acknowledge_verification(call.id)
         with sqlite3.connect(self.db_path) as db:
             self.captcha_manager.set_user_verified(user_id, db)
 

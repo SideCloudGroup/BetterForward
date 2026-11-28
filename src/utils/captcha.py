@@ -1,5 +1,6 @@
 """Captcha functionality for BetterForward."""
 
+import hashlib
 import json
 import random
 import time
@@ -322,10 +323,14 @@ class CaptchaManager:
 
     def get_pending(self, user_id: int):
         pending = self.cache.get(self.pending_key(user_id))
-        if isinstance(pending, dict) and pending.get("expires_at", float("inf")) <= time.time():
+        if not isinstance(pending, dict) or not pending.get("type"):
+            return None
+        # Older versions could persist a keyboard before Telegram delivered it.
+        missing_keyboard = pending["type"] in ("button", "emoji") and pending.get("message_id") is None
+        if missing_keyboard or pending.get("expires_at", float("inf")) <= time.time():
             self.clear_pending(user_id)
             return None
-        return pending if isinstance(pending, dict) and pending.get("type") else None
+        return pending
 
     def set_pending(self, user_id: int, captcha_type: str, answer=None, ttl: int = PENDING_TTL,
                     message_id=None):
@@ -340,9 +345,12 @@ class CaptchaManager:
         return bool(pending and pending.get("type") == captcha_type
                     and message_id is not None and pending.get("message_id") == message_id)
 
-    def clear_pending(self, user_id: int):
+    def clear_pending(self, user_id: int, *, keep_messages=False):
         self.cache.delete(self.pending_key(user_id))
         self.cache.delete(f"tguard_token_{user_id}")
+        if not keep_messages:
+            with self._buffer_lock:
+                self._buffer.pop(user_id, None)
 
     @user_serialized
     def generate_captcha(self, user_id: int, captcha_type: str = "math", config=None):
@@ -368,16 +376,15 @@ class CaptchaManager:
         num1 = random.randint(1, 10)
         num2 = random.randint(1, 10)
         answer = num1 + num2
-        self.set_pending(user_id, "math", answer)
         question = f"{num1} + {num2} = ?"
         self.bot.send_message(
             user_id,
             _("Captcha is enabled. Please solve the following question and send the result directly\n") + question,
         )
+        self.set_pending(user_id, "math", answer)
         return question
 
     def _generate_button_captcha(self, user_id: int):
-        self.set_pending(user_id, "button", None)
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(
             _("Click to verify"),
@@ -393,7 +400,6 @@ class CaptchaManager:
         decoys = random.sample([item for item in EMOJI_POOL if item != target], 5)
         options = decoys + [target]
         random.shuffle(options)
-        self.set_pending(user_id, "emoji", options.index(target))
         markup = types.InlineKeyboardMarkup()
         row = []
         for index, emoji in enumerate(options):
@@ -420,11 +426,11 @@ class CaptchaManager:
         if not questions:
             raise ValueError(_("Custom Q&A requires at least one question. Please add a question first."))
         item = random.choice(questions)
-        self.set_pending(user_id, "qa", item.get("answers") or [])
         self.bot.send_message(
             user_id,
             _("Please solve this question and send the answer:\n{}").format(item["question"]),
         )
+        self.set_pending(user_id, "qa", item.get("answers") or [])
         return item["question"]
 
     def _generate_sticker_captcha(self, user_id: int, config):
@@ -435,12 +441,12 @@ class CaptchaManager:
             unique_id = sticker.get("file_unique_id")
             if not file_id or not unique_id:
                 raise ValueError(_("Sticker captcha requires a target sticker. Please set it first."))
-            self.set_pending(user_id, "sticker", unique_id)
             self.bot.send_sticker(user_id, file_id)
             self.bot.send_message(user_id, _("Please send this sticker back to verify."))
+            self.set_pending(user_id, "sticker", unique_id)
             return None
-        self.set_pending(user_id, "sticker", "any")
         self.bot.send_message(user_id, _("Please send any sticker to verify."))
+        self.set_pending(user_id, "sticker", "any")
         return None
 
     def _generate_tguard_captcha(self, user_id: int):
@@ -525,6 +531,8 @@ class CaptchaManager:
                     reply_markup=markup
                 )
                 self.set_pending(user_id, "tguard", ttl=ttl, message_id=sent.message_id)
+                # Recognize recently expired or already consumed return links without retaining their tokens.
+                self.cache.set(self._tguard_return_key(user_id, token), True, 86400)
                 return None
         except httpx.HTTPStatusError as e:
             error_msg = _("TGuard API error: {}").format(e)
@@ -553,6 +561,15 @@ class CaptchaManager:
                 except Exception:
                     pass
             raise ValueError(_("Failed to create verification request"))
+
+    @staticmethod
+    def _tguard_return_key(user_id: int, token: str) -> str:
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        return f"tguard_return_{user_id}_{digest}"
+
+    def is_tguard_return(self, user_id: int, token: str) -> bool:
+        return (token == self.cache.get(f"tguard_token_{user_id}")
+                or bool(self.cache.get(self._tguard_return_key(user_id, token))))
 
     @user_serialized
     def check_tguard_verification_status(self, user_id: int, db=None) -> bool:
@@ -589,7 +606,6 @@ class CaptchaManager:
                         else:
                             with get_db_connection(self.db_path) as fallback_db:
                                 self.set_user_verified(user_id, fallback_db)
-                        self.clear_pending(user_id)
                         logger.info(_("User {} completed TGuard verification").format(user_id))
                         return True
                 elif response.status_code == 404:
@@ -660,7 +676,7 @@ class CaptchaManager:
         db.commit()
         self.cache.set(f"verified_{user_id}", {"verified_at": verified_at}, 1800)
         pending = self.get_pending(user_id)
-        self.clear_pending(user_id)
+        self.clear_pending(user_id, keep_messages=bool(pending and self.on_verified))
         if pending and pending.get("message_id"):
             try:
                 self.bot.delete_message(user_id, pending["message_id"])
@@ -671,7 +687,7 @@ class CaptchaManager:
                 self.bot.send_message(user_id, _("✅ Verification successful! You can now send messages."))
             except Exception:
                 logger.warning("Unable to send verification confirmation to %s", user_id)
-        if self.on_verified:
+        if pending and self.on_verified:
             self.on_verified(user_id)
 
     @user_serialized
@@ -681,5 +697,4 @@ class CaptchaManager:
         cursor.execute("DELETE FROM verified_users WHERE user_id = ?", (user_id,))
         db.commit()
         self.cache.delete(f"verified_{user_id}")
-        self.take_messages(user_id)
         self.clear_pending(user_id)
