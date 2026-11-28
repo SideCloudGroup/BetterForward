@@ -3,6 +3,12 @@
 import json
 import random
 import time
+import re
+import os
+import threading
+from collections import OrderedDict
+from datetime import datetime, timezone
+from functools import wraps
 
 import httpx
 from diskcache import Cache
@@ -215,6 +221,26 @@ def method_unready_reason(method):
     return _("Invalid captcha setting")
 
 
+def captcha_serialized(method):
+    """Serialize verification and message delivery for the same user."""
+    @wraps(method)
+    def wrapped(self, event, *args, **kwargs):
+        message = getattr(event, "message", None) or event
+        if getattr(getattr(message, "chat", None), "type", None) != "private":
+            return method(self, event, *args, **kwargs)
+        with self.captcha_manager.user_lock(event.from_user.id):
+            return method(self, event, *args, **kwargs)
+    return wrapped
+
+
+def user_serialized(method):
+    @wraps(method)
+    def wrapped(self, user_id, *args, **kwargs):
+        with self.user_lock(user_id):
+            return method(self, user_id, *args, **kwargs)
+    return wrapped
+
+
 class CaptchaManager:
     """Manages captcha generation and verification."""
 
@@ -223,6 +249,70 @@ class CaptchaManager:
         self.cache = cache
         self.group_id = group_id
         self.db_path = db_path
+        self._locks = [threading.RLock() for _ in range(256)]
+        self._buffer_lock = threading.RLock()
+        self._buffer = OrderedDict()
+        self.on_verified = None
+
+    def user_lock(self, user_id):
+        return self._locks[user_id % len(self._locks)]
+
+    def replay_enabled(self):
+        value = self.cache.get("setting_captcha_replay", os.getenv("CAPTCHA_REPLAY", "enable"))
+        return str(value).lower() not in ("disable", "false", "0")
+
+    def remember_message(self, message):
+        """Bounded, volatile snapshots: reuse all normal checks on replay."""
+        if not self.replay_enabled():
+            return
+        if (message.text or "").startswith("/"):
+            return
+        user_id = message.from_user.id
+        pending = self.get_pending(user_id)
+        if not pending:
+            return
+        expires = pending.get("expires_at", time.time() + PENDING_TTL)
+        with self._buffer_lock:
+            for key, (deadline, _) in list(self._buffer.items()):
+                if deadline <= time.time():
+                    self._buffer.pop(key, None)
+            if user_id not in self._buffer:
+                if len(self._buffer) >= 1000:
+                    self._buffer.popitem(last=False)
+                self._buffer[user_id] = (expires, [])
+            deadline, messages = self._buffer[user_id]
+            if any(m.message_id == message.message_id for m in messages):
+                return
+            group = getattr(message, "media_group_id", None)
+            groups = {getattr(m, "media_group_id", None) or (m.message_id,) for m in messages}
+            if len(messages) >= 20 or (len(groups) >= 5 and (group or (message.message_id,)) not in groups):
+                return "full"
+            messages.append(message)
+            return "first" if len(messages) == 1 else "saved"
+
+    def update_buffered_message(self, message):
+        with self._buffer_lock:
+            deadline, messages = self._buffer.get(message.from_user.id, (0, []))
+            if deadline <= time.time():
+                return
+            for index, old in enumerate(messages):
+                if old.message_id == message.message_id and old.chat.id == message.chat.id:
+                    messages[index] = message
+                    return
+
+    def take_messages(self, user_id):
+        with self._buffer_lock:
+            deadline, messages = self._buffer.pop(user_id, (0, []))
+        if deadline <= time.time() or not self.replay_enabled():
+            return []
+        return sorted(messages, key=lambda m: m.message_id)
+
+    def allow_request(self, key, seconds):
+        now = time.time()
+        if self.cache.get(key, 0) > now:
+            return False
+        self.cache.set(key, now + seconds, seconds)
+        return True
 
     def get_config(self):
         return parse_captcha_config(self.cache.get("setting_captcha"))
@@ -232,12 +322,16 @@ class CaptchaManager:
 
     def get_pending(self, user_id: int):
         pending = self.cache.get(self.pending_key(user_id))
+        if isinstance(pending, dict) and pending.get("expires_at", float("inf")) <= time.time():
+            self.clear_pending(user_id)
+            return None
         return pending if isinstance(pending, dict) and pending.get("type") else None
 
     def set_pending(self, user_id: int, captcha_type: str, answer=None, ttl: int = PENDING_TTL,
                     message_id=None):
         self.cache.set(self.pending_key(user_id), {
             "type": captcha_type, "answer": answer, "message_id": message_id,
+            "expires_at": time.time() + ttl,
         }, ttl)
 
     def is_current_callback(self, user_id: int, captcha_type: str, message_id: int) -> bool:
@@ -250,6 +344,7 @@ class CaptchaManager:
         self.cache.delete(self.pending_key(user_id))
         self.cache.delete(f"tguard_token_{user_id}")
 
+    @user_serialized
     def generate_captcha(self, user_id: int, captcha_type: str = "math", config=None):
         """Generate a captcha for the user."""
         config = parse_captcha_config(config) if config is not None else self.get_config()
@@ -285,7 +380,7 @@ class CaptchaManager:
         self.set_pending(user_id, "button", None)
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(
-            "Click to verify",
+            _("Click to verify"),
             callback_data=json.dumps({"action": "verify_button", "user_id": user_id})
         ))
         message = self.bot.send_message(user_id, _("Please click the button to verify."),
@@ -350,6 +445,10 @@ class CaptchaManager:
 
     def _generate_tguard_captcha(self, user_id: int):
         """Generate TGuard verification request."""
+        if self.get_pending(user_id) and self.cache.get(f"tguard_token_{user_id}"):
+            return None
+        if not self.allow_request(f"tguard_create_limit_{user_id}", 60):
+            raise ValueError(_("Please wait a minute before requesting another verification."))
         api_url = self.cache.get("setting_tguard_api_url")
         api_key = self.cache.get("setting_tguard_api_key")
 
@@ -367,11 +466,18 @@ class CaptchaManager:
                     pass
             raise ValueError(_("TGuard API not configured"))
 
+        payload = {"user_id": user_id}
+        try:
+            username = self.bot.get_me().username
+            if isinstance(username, str) and re.fullmatch(r"[A-Za-z0-9_]{5,32}", username):
+                payload["bot_username"] = username
+        except Exception:
+            pass  # Verification still works without the optional return link.
         try:
             with httpx.Client(timeout=10.0) as client:
                 response = client.post(
                     f"{api_url.rstrip('/')}/api/verification/create",
-                    json={"user_id": user_id},
+                    json=payload,
                     headers={"X-API-Key": api_key}
                 )
                 response.raise_for_status()
@@ -394,8 +500,16 @@ class CaptchaManager:
                             pass
                     raise ValueError(error_msg)
 
-                self.set_pending(user_id, "tguard", None, ttl=600)
-                self.cache.set(f"tguard_token_{user_id}", token, 600)
+                ttl = 600
+                if data.get("expires_at"):
+                    expiry = datetime.fromisoformat(data["expires_at"].replace("Z", "+00:00"))
+                    if expiry.tzinfo is None:
+                        expiry = expiry.replace(tzinfo=timezone.utc)
+                    ttl = min(3600, int(expiry.timestamp() - time.time()))
+                    if ttl <= 0:
+                        raise ValueError("Expired TGuard verification")
+                self.set_pending(user_id, "tguard", None, ttl=ttl)
+                self.cache.set(f"tguard_token_{user_id}", token, ttl)
 
                 markup = types.InlineKeyboardMarkup()
                 markup.add(types.InlineKeyboardButton(
@@ -403,12 +517,14 @@ class CaptchaManager:
                     web_app=types.WebAppInfo(url=verification_url)
                 ))
 
-                self.bot.send_message(
+                markup.add(types.InlineKeyboardButton(
+                    _("Check verification"), callback_data=json.dumps({"action": "check_tguard"})))
+                sent = self.bot.send_message(
                     user_id,
-                    _("Please complete the verification by clicking the button below.\n"
-                      "After completing verification, send a message to check your verification status."),
+                    _("Complete verification, then return here and tap Check verification if needed."),
                     reply_markup=markup
                 )
+                self.set_pending(user_id, "tguard", ttl=ttl, message_id=sent.message_id)
                 return None
         except httpx.HTTPStatusError as e:
             error_msg = _("TGuard API error: {}").format(e)
@@ -424,6 +540,7 @@ class CaptchaManager:
                     pass
             raise ValueError(_("Failed to create verification request"))
         except Exception as e:
+            self.clear_pending(user_id)
             error_msg = _("TGuard verification error: {}").format(e)
             logger.error(error_msg)
             if self.group_id:
@@ -437,12 +554,14 @@ class CaptchaManager:
                     pass
             raise ValueError(_("Failed to create verification request"))
 
+    @user_serialized
     def check_tguard_verification_status(self, user_id: int, db=None) -> bool:
         """
         Check TGuard verification status immediately.
         Called when user sends a message to check if verification is completed.
         Returns True if verification is completed, False otherwise.
         """
+        self.get_pending(user_id)  # Enforce the deadline even for non-expiring test caches.
         token = self.cache.get(f"tguard_token_{user_id}")
         if not token:
             return False
@@ -451,6 +570,8 @@ class CaptchaManager:
         if not api_url:
             return False
 
+        if not self.allow_request(f"tguard_check_limit_{user_id}", 3):
+            return False
         try:
             with httpx.Client(timeout=5.0) as client:
                 response = client.get(
@@ -459,16 +580,15 @@ class CaptchaManager:
 
                 if response.status_code == 200:
                     data = response.json()
-                    if data.get("completed"):
+                    if data.get("expired"):
+                        self.clear_pending(user_id)
+                        return False
+                    if data.get("completed") is True:
                         if db is not None:
                             self.set_user_verified(user_id, db)
                         else:
                             with get_db_connection(self.db_path) as fallback_db:
                                 self.set_user_verified(user_id, fallback_db)
-                        try:
-                            self.bot.send_message(user_id, _("✅ Verification successful! You can now send messages."))
-                        except Exception:
-                            pass
                         self.clear_pending(user_id)
                         logger.info(_("User {} completed TGuard verification").format(user_id))
                         return True
@@ -527,6 +647,7 @@ class CaptchaManager:
         days = verification_days(self.cache.get(f"setting_{VERIFICATION_DAYS_SETTING}"))
         return days == 0 or time.time() - verified["verified_at"] < days * 86400
 
+    @user_serialized
     def set_user_verified(self, user_id: int, db):
         """Mark a user as verified."""
         verified_at = time.time()
@@ -538,12 +659,27 @@ class CaptchaManager:
         )
         db.commit()
         self.cache.set(f"verified_{user_id}", {"verified_at": verified_at}, 1800)
+        pending = self.get_pending(user_id)
         self.clear_pending(user_id)
+        if pending and pending.get("message_id"):
+            try:
+                self.bot.delete_message(user_id, pending["message_id"])
+            except Exception:
+                pass
+        if pending:
+            try:
+                self.bot.send_message(user_id, _("✅ Verification successful! You can now send messages."))
+            except Exception:
+                logger.warning("Unable to send verification confirmation to %s", user_id)
+        if self.on_verified:
+            self.on_verified(user_id)
 
+    @user_serialized
     def remove_user_verification(self, user_id: int, db):
         """Remove user verification status."""
         cursor = db.cursor()
         cursor.execute("DELETE FROM verified_users WHERE user_id = ?", (user_id,))
         db.commit()
         self.cache.delete(f"verified_{user_id}")
+        self.take_messages(user_id)
         self.clear_pending(user_id)

@@ -10,5 +10,6 @@ services:
       - LANGUAGE=zh_CN
       - TG_API=
       - WORKER=2
+      - CAPTCHA_REPLAY=enable # Set disable to turn off pending-message replay
     volumes:
       - ./data:/app/data

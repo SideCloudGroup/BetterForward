@@ -1736,3 +1736,27 @@ msgstr "メッセージ {} への処理済みリアクションの追加に失�
 
 msgid "Failed to remove processed reaction from message {}: {}"
 msgstr "メッセージ {} の処理済みリアクションの削除に失敗しました：{}"
+
+msgid "Click to verify"
+msgstr "クリックして認証"
+
+msgid "Check verification"
+msgstr "認証を確認"
+
+msgid "Complete verification, then return here and tap Check verification if needed."
+msgstr "認証後に戻り、成功通知が表示されない場合は「認証を確認」を押してください。"
+
+msgid "Verification is pending or expired. Complete it and try again shortly."
+msgstr "認証は未完了または期限切れです。認証後に再度確認してください。期限切れの場合はメッセージを送信してください。"
+
+msgid "Please wait a minute before requesting another verification."
+msgstr "新しい認証を申請するには1分ほどお待ちください。"
+
+msgid "Do not forward message"
+msgstr "メッセージを転送しない"
+
+msgid "Your pending messages will be sent after verification. Please verify before the challenge expires."
+msgstr "保留中のメッセージは認証後に自動送信されます。有効期限内に認証してください。"
+
+msgid "Pending message limit reached. Please resend this message after verification."
+msgstr "保留件数が上限に達しました。このメッセージは認証後に再送してください。"

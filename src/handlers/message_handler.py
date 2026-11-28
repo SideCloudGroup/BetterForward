@@ -7,7 +7,7 @@ from telebot.apihelper import ApiTelegramException, create_forum_topic
 from telebot.types import Message, ReplyParameters
 
 from src.config import logger, _
-from src.utils.captcha import parse_captcha_config, pick_captcha_type
+from src.utils.captcha import captcha_serialized, parse_captcha_config, pick_captcha_type
 from src.utils.db_helper import get_db_connection
 from src.utils.helpers import (
     blocked_user_notice,
@@ -49,11 +49,30 @@ class MessageHandler:
         self.bot_instance = bot_instance
         self.permission_manager = permission_manager or getattr(bot_instance, "permission_manager", None)
         self.reaction_ack = reaction_ack
+        self.captcha_manager.on_verified = self._replay_verified_messages
+
+    def _replay_verified_messages(self, user_id):
+        for message in self.captcha_manager.take_messages(user_id):
+            try:
+                message._verification_replay = True
+                self.handle_message(message)
+            except Exception:
+                logger.exception("Failed to replay pending message %s", message.message_id)
+
+    def _remember_pending_message(self, message):
+        result = self.captcha_manager.remember_message(message)
+        if result == "first":
+            self.bot.send_message(message.chat.id, _(
+                "Your pending messages will be sent after verification. Please verify before the challenge expires."))
+        elif result == "full":
+            self.bot.send_message(message.chat.id, _(
+                "Pending message limit reached. Please resend this message after verification."))
 
     def check_valid_chat(self, message: Message) -> bool:
         """Check if message is in valid chat context."""
         return message.chat.id == self.group_id and message.message_thread_id is None
 
+    @captcha_serialized
     def handle_message(self, message: Message):
         """Main message handler."""
         # Not responding in General topic
@@ -301,7 +320,6 @@ class MessageHandler:
             if pending_type in ("math", "qa"):
                 if self.captcha_manager.verify_text_answer(user_id, message.text):
                     logger.info(_("User {} passed the captcha").format(user_id))
-                    self.bot.send_message(message.chat.id, _("Verification successful, you can now send messages"))
                     self.captcha_manager.set_user_verified(user_id, db)
                     return False
                 logger.info(_("User {} entered an incorrect answer").format(user_id))
@@ -311,7 +329,6 @@ class MessageHandler:
             if pending_type == "sticker":
                 if self.captcha_manager.verify_sticker_answer(user_id, getattr(message, "sticker", None)):
                     logger.info(_("User {} passed the captcha").format(user_id))
-                    self.bot.send_message(message.chat.id, _("Verification successful, you can now send messages"))
                     self.captcha_manager.set_user_verified(user_id, db)
                     return False
                 logger.info(_("User {} entered an incorrect answer").format(user_id))
@@ -323,6 +340,7 @@ class MessageHandler:
                     logger.info(
                         _("User {} completed TGuard verification (checked on message)").format(user_id))
                     return True
+                self._remember_pending_message(message)
                 logger.info(_("User {} verification still pending").format(user_id))
                 self.bot.send_message(message.chat.id,
                                       _("⚠️ Your message was not sent. Please complete verification first."),
@@ -332,10 +350,7 @@ class MessageHandler:
                 self.bot.send_message(message.chat.id,
                                       _("⚠️ Your message was not sent. Please complete verification first."),
                                       reply_to_message_id=message.message_id)
-                try:
-                    self.captcha_manager.generate_captcha(user_id, pending_type, config)
-                except Exception as e:
-                    logger.error(_("Invalid captcha setting") + f": {e}")
+                self._remember_pending_message(message)
                 return False
 
         if self.cache.get(f"tguard_token_{user_id}") and not pending:
@@ -343,6 +358,7 @@ class MessageHandler:
                 logger.info(
                     _("User {} completed TGuard verification (checked on message)").format(user_id))
             else:
+                self._remember_pending_message(message)
                 logger.info(_("User {} verification still pending").format(user_id))
                 self.bot.send_message(message.chat.id,
                                       _("⚠️ Your message was not sent. Please complete verification first."),
@@ -367,6 +383,7 @@ class MessageHandler:
                 return False
             try:
                 self.captcha_manager.generate_captcha(user_id, captcha_type, config)
+                self._remember_pending_message(message)
             except Exception as e:
                 logger.error(_("TGuard verification error: {}").format(e))
                 try:
@@ -462,6 +479,9 @@ class MessageHandler:
 
     def _fallback_forward_to_general(self, message: Message, error: Exception) -> None:
         """Notify operators and dump the original message into General."""
+        if getattr(message, "_verification_replay", False):
+            logger.warning("Skipped unavailable pending message %s", message.message_id)
+            return
         logger.error(_("Failed to forward message from user {}").format(message.from_user.id))
         logger.error(error)
         self.bot.send_message(self.group_id,
@@ -852,6 +872,12 @@ class MessageHandler:
         Raises PartialSendError when some chunks succeed before an API failure so
         callers can resume the remaining chunks after topic recovery.
         """
+        if getattr(message, "_verification_replay", False):
+            # Copy the original; deleted originals must not be resurrected from snapshots.
+            return [self.bot.copy_message(
+                chat_id=chat_id, from_chat_id=message.chat.id, message_id=message.message_id,
+                message_thread_id=thread_id, reply_to_message_id=reply_id,
+                disable_notification=silent)]
         quote = self._excerpt_quote(message)
         prefix: list[Message] = []
         if quote is not None and reply_id is None:
